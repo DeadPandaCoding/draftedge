@@ -55,6 +55,7 @@ export function ControlPanel({
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Search players…"
+            maxLength={100}
             className="glass-input w-full rounded-lg py-2 pl-9 pr-8 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition"
           />
           {search && (

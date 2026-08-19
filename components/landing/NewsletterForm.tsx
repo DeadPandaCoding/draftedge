@@ -44,6 +44,7 @@ export function NewsletterForm() {
             if (error) setError("");
           }}
           placeholder="Enter your email"
+          maxLength={254}
           aria-invalid={Boolean(error)}
           className="glass-input w-full rounded-full px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none"
         />

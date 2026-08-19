@@ -147,6 +147,7 @@ function AuthCard() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Your name"
+                      maxLength={80}
                       className={inputClass}
                       autoComplete="name"
                     />
@@ -162,6 +163,7 @@ function AuthCard() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={mode === "signin" ? "Email" : "you@example.com"}
+                    maxLength={254}
                     className={inputClass}
                     autoComplete="email"
                   />
@@ -176,6 +178,7 @@ function AuthCard() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={mode === "signin" ? "Password" : "At least 6 characters"}
+                    maxLength={128}
                     className={inputClass}
                     autoComplete={mode === "signup" ? "new-password" : "current-password"}
                   />

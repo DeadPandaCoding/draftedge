@@ -28,6 +28,11 @@ const chakraPetch = Chakra_Petch({
   subsets: ["latin"],
 });
 
+// Nonce-based CSP (proxy.ts) requires every page to render per-request so
+// Next.js can inject the per-request nonce into inline scripts/styles.
+// This app is a small dashboard — the per-request render cost is negligible.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "DraftEdge — Free Fantasy Draft Assistant",
   description:

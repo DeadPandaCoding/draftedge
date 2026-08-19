@@ -197,6 +197,7 @@ export default function OnboardingPage() {
                       value={leagueName}
                       onChange={(e) => setLeagueName(e.target.value)}
                       placeholder='e.g. "The Office League"'
+                      maxLength={60}
                       className={inputClass}
                     />
                   </div>

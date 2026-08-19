@@ -49,7 +49,7 @@ try {
     await consentRegion.waitFor({ state: "hidden", timeout: 5000 }).catch(() => {});
   }
   check("landing hero headline", await page.getByText("Master Your Fantasy Draft.").isVisible());
-  check("landing mockup visible", await page.getByText("DRAFT LIVE").isVisible());
+  check("landing mockup visible", await page.getByText("The Office League · PPR").isVisible());
   check("landing no horizontal overflow", await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   await shot("01-landing");
 
