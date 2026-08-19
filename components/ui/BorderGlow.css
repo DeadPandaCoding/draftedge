@@ -136,6 +136,8 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: auto;
+  /* The card sizes to its content — never let stray overflow (e.g. absolutely
+     positioned children) produce scrollbars inside the glow frame. */
+  overflow: hidden;
   z-index: 1;
 }

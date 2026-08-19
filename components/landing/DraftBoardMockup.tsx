@@ -25,10 +25,10 @@ const POS_CLASSES: Record<string, string> = {
 export function DraftBoardMockup() {
   return (
     <div className="relative mx-auto w-full min-w-0 max-w-2xl">
-      {/* Glow behind the board — soft green with a warm amber hint, like the reference */}
-      <div className="absolute -inset-6 rounded-[2rem] bg-[radial-gradient(ellipse_at_center,rgba(225,226,239,0.22),rgba(191,172,170,0.1)_60%,transparent_75%)] blur-2xl" />
-
-      <div className="animate-float-slow relative overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-950/90 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9),0_0_40px_-12px_rgba(225,226,239,0.3)] backdrop-blur">
+      {/* No ambient glow here anymore — BorderGlow frames the board and the
+          hero already has an aura behind this column. (The -inset glow div
+          used to overflow the frame and spawn scrollbars.) */}
+      <div className="relative overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-950/90 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9),0_0_40px_-12px_rgba(225,226,239,0.3)] backdrop-blur">
         {/* Mockup header bar */}
         <div className="flex items-center border-b border-zinc-800 px-4 py-3">
           <div className="flex items-center gap-2">
