@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "project": {
+    "name": "draftedge",
+    "productType": null,
+    "stack": [
+      "nextjs",
+      "react",
+      "shadcn",
+      "tailwind-v4"
+    ]
+  },
+  "sources": {
+    "tokens": [
+      "app/globals.css"
+    ],
+    "components": [
+      "components/ui"
+    ],
+    "assets": [],
+    "instructions": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "design": {
+    "colorMode": "dark",
+    "colors": {
+      "background": "#02020a",
+      "aurora": ["#e1e2ef", "#bfacaa", "#05204a", "#c9cde4", "#8a93b8"],
+      "surface": "navy #0e1630",
+      "surfaceElevated": "navy-800/60",
+      "border": "navy #26304f",
+      "accent": "periwinkle #e1e2ef",
+      "accentOn": "#0a0e1f",
+      "text": "periwinkle #e1e2ef",
+      "textMuted": "taupe #bfacaa",
+      "destructive": "rose-500",
+      "tier1": "gold/amber",
+      "tier2": "blue",
+      "tier3": "periwinkle",
+      "palette": ["#05204A", "#02020A", "#BFACAA", "#E1E2EF"]
+    },
+    "typography": {
+      "--font-sans": {
+        "value": "var(--font-geist-sans)",
+        "source": "app/globals.css"
+      },
+      "--font-mono": {
+        "value": "var(--font-geist-mono)",
+        "source": "app/globals.css"
+      }
+    },
+    "spacing": {},
+    "radius": {
+      "default": "8-12px (rounded-lg/xl)"
+    },
+    "shadows": {
+      "innerBorder": "inset 0 0 0 1px rgba(255,255,255,0.4)",
+      "specular": "inset 0 1px 0 rgba(255,255,255,0.55)",
+      "drop": "0 14px 34px -14px rgba(0,0,0,0.55)"
+    },
+    "motion": {
+      "material": "tactile hover lift + pressed give (transform + specular), reduced-motion respected"
+    },
+    "density": "dense (data-dense draft dashboard)"
+  },
+  "components": {
+    "installed": [
+      "auth-switch",
+      "demo"
+    ],
+    "preferredPrimitives": [],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [
+      "dark navy + periwinkle accent identity",
+      "Liquid Glass material: translucent layered panels, 1px white inner border @40%, specular top highlight, drop shadow",
+      "vibrant multi-color aurora backdrop behind the glass (refraction via blur + saturate)",
+      "text contrast >= 4.5:1",
+      "dense data-dashboard density",
+      "accessible names stable (e2e smoke tests depend on them)"
+    ],
+    "avoid": [
+      "hover-only interactions",
+      "motion that ignores prefers-reduced-motion"
+    ]
+  },
+  "decisions": [
+    {
+      "date": "2026-08-18",
+      "direction": "Command Deck",
+      "scope": "whole app (landing, sign-in, draft room)",
+      "chosenBy": "user",
+      "summary": "Elevated pro-dashboard: sticky glass header, slim vertical nav rail in the draft room, sticky column headers + denser table rows, dot-grid + radial-glow ambience on the landing page, richer split-card auth. Keeps zinc + emerald identity."
+    },
+    {
+      "date": "2026-08-18",
+      "direction": "Liquid Glass",
+      "scope": "whole app (landing, sign-in, onboarding, home, draft room)",
+      "chosenBy": "user",
+      "summary": "Apple Liquid Glass material system: translucent layered panels with backdrop blur + saturate refraction over a vibrant animated multi-color aurora, 1px white inner borders at 40%, glossy specular top highlights, soft drop shadows, and tactile hover/active states. Repainted to the 4-color user palette (#05204A navy / #02020A ink / #BFACAA taupe / #E1E2EF periwinkle): emerald-* remapped to a periwinkle ramp (primary accent) and zinc-* to navy surfaces + periwinkle/taupe text, keeping dense dashboard density."
+    }
+  ],
+  "evidence": [
+    {
+      "fact": "components.installed",
+      "source": "components/ui"
+    },
+    {
+      "fact": "design.colorMode:dark",
+      "source": "app/globals.css"
+    },
+    {
+      "fact": "design.tokens",
+      "source": "app/globals.css"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "AGENTS.md"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "CLAUDE.md"
+    },
+    {
+      "fact": "project.stack:nextjs",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:react",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:shadcn",
+      "source": "components.json"
+    },
+    {
+      "fact": "project.stack:tailwind-v4",
+      "source": "package.json"
+    }
+  ],
+  "generatedAt": "2026-08-18T05:58:54.812Z"
+}
