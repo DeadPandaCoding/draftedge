@@ -4,6 +4,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import type { Position } from "@/lib/types";
 import { POSITION_STYLES, TIER_STYLES } from "@/lib/tiers";
 import { CheckIcon, ChevronDownIcon } from "@/components/icons";
+import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
 
 export function TierBadge({ tier, size = "sm" }: { tier: number; size?: "sm" | "xs" }) {
   const s = TIER_STYLES[tier] ?? TIER_STYLES[5];
@@ -55,10 +56,16 @@ export function Modal({
         className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className={`glass-strong relative z-10 w-full ${width} rounded-2xl p-6`}>
-        <h3 className="mb-4 text-lg font-bold text-zinc-100">{title}</h3>
-        {children}
-      </div>
+      <BorderGlow
+        {...GLOW_PRESET}
+        className={`relative z-10 w-full ${width}`}
+        borderRadius={20}
+      >
+        <div className="p-6">
+          <h3 className="mb-4 text-lg font-bold text-zinc-100">{title}</h3>
+          {children}
+        </div>
+      </BorderGlow>
     </div>
   );
 }
@@ -112,13 +119,14 @@ export function Dropdown({
     <div className="relative" ref={ref}>
       {triggerEl}
       {open && (
-        <div
-          className={`glass-strong absolute z-40 mt-2 ${width} overflow-hidden rounded-xl ${
-            align === "right" ? "right-0" : "left-0"
-          }`}
+        <BorderGlow
+          {...GLOW_PRESET}
+          className={`absolute z-40 mt-2 ${width} ${align === "right" ? "right-0" : "left-0"}`}
+          borderRadius={12}
+          glowRadius={28}
         >
-          {children(() => setOpen(false))}
-        </div>
+          <div className="overflow-hidden rounded-xl">{children(() => setOpen(false))}</div>
+        </BorderGlow>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { DraftState, PickOwner, Player } from "@/lib/types";
 import { pickForPlayer } from "@/lib/draft";
 import { CheckIcon, UndoIcon, UserIcon, UsersIcon } from "@/components/icons";
+import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
 
 export function DraftAction({
   player,
@@ -73,10 +74,14 @@ export function DraftAction({
             className="fixed inset-0 z-40 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div
-            className="glass-strong fixed z-50 w-[200px] overflow-hidden rounded-xl py-1"
+          <BorderGlow
+            {...GLOW_PRESET}
+            className="fixed z-50 w-[200px]"
+            borderRadius={12}
+            glowRadius={28}
             style={{ left: pos.x, top: pos.y }}
           >
+            <div className="py-1">
             <button
               onClick={() => {
                 onDraft(player.id, "me");
@@ -97,7 +102,8 @@ export function DraftAction({
               <UsersIcon size={15} />
               Opponent drafted
             </button>
-          </div>
+            </div>
+          </BorderGlow>
         </>
       )}
     </>

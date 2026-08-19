@@ -15,7 +15,7 @@ import { NewsletterForm } from "@/components/landing/NewsletterForm";
 import KineticGrid from "@/components/ui/kinetic-grid";
 import { RotatingText } from "@/components/ui/rotating-text";
 import FoldText from "@/components/ui/FoldText";
-import BorderGlow from "@/components/ui/BorderGlow";
+import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
 
 const FEATURES = [
   {
@@ -176,19 +176,7 @@ export function LandingPage() {
 
           {/* Right: product preview — pointer-reactive mesh-glow frame (React Bits BorderGlow) */}
           <div className="w-full min-w-0">
-            <BorderGlow
-              className="mx-auto w-full max-w-2xl"
-              edgeSensitivity={25}
-              glowColor="235 45 88"
-              backgroundColor="#0a0e1d"
-              borderRadius={24}
-              glowRadius={36}
-              glowIntensity={1.0}
-              coneSpread={25}
-              animated
-              fillOpacity={0.35}
-              colors={["#e1e2ef", "#bfacaa", "#9db0e8"]}
-            >
+            <BorderGlow {...GLOW_PRESET} className="mx-auto w-full max-w-2xl" borderRadius={24} animated>
               <DraftBoardMockup />
             </BorderGlow>
           </div>

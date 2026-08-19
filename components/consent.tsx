@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui";
+import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
 
 /**
  * Cookie consent.
@@ -209,7 +210,8 @@ export function CookieConsent() {
         aria-label="Cookie consent"
         className="fixed inset-x-0 bottom-0 z-50 p-4"
       >
-        <div className="glass-strong mx-auto max-w-3xl rounded-2xl p-4">
+        <BorderGlow {...GLOW_PRESET} className="mx-auto max-w-3xl" borderRadius={16} glowRadius={28}>
+          <div className="p-4">
           <p className="text-sm leading-relaxed text-zinc-200">
             We use necessary cookies to keep you signed in and make DraftEdge work. Optional cookies
             remember your preferences and help us improve the product. We do not use advertising or
@@ -245,7 +247,8 @@ export function CookieConsent() {
               Preferences
             </button>
           </div>
-        </div>
+          </div>
+        </BorderGlow>
       </div>
 
       <Modal open={prefsOpen} onClose={() => setPrefsOpen(false)} title="Cookie preferences">
