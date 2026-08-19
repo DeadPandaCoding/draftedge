@@ -47,6 +47,26 @@ export function Modal({
   children: React.ReactNode;
   width?: string;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Dialog semantics: Escape to close, focus moves into the dialog on open and
+  // returns to the trigger on close. (A full focus trap is intentionally not
+  // implemented — the dialog only contains action buttons, so Tab order stays
+  // short and visible.)
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus();
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -61,7 +81,14 @@ export function Modal({
         className={`relative z-10 w-full ${width}`}
         borderRadius={20}
       >
-        <div className="p-6">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          tabIndex={-1}
+          className="p-6 outline-none"
+        >
           <h3 className="mb-4 text-lg font-bold text-zinc-100">{title}</h3>
           {children}
         </div>

@@ -28,7 +28,7 @@ export function NavRail({
       className="glass hidden w-12 shrink-0 flex-col items-center gap-1.5 border-x-0 border-y-0 border-r py-3 md:flex"
     >
       <span
-        aria-label="Draft board"
+        aria-hidden="true"
         title="Draft board"
         className={`${ITEM} bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/30`}
       >

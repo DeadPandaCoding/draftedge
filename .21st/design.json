@@ -26,20 +26,20 @@
   "design": {
     "colorMode": "dark",
     "colors": {
-      "background": "#02020a",
-      "aurora": ["#e1e2ef", "#bfacaa", "#05204a", "#c9cde4", "#8a93b8"],
-      "surface": "navy #0e1630",
-      "surfaceElevated": "navy-800/60",
-      "border": "navy #26304f",
-      "accent": "periwinkle #e1e2ef",
-      "accentOn": "#0a0e1f",
-      "text": "periwinkle #e1e2ef",
-      "textMuted": "taupe #bfacaa",
+      "background": "#04120d",
+      "aurora": ["#34d399", "#22d3ee", "#6366f1", "#2dd4bf", "#a7f3d0"],
+      "surface": "teal #163527",
+      "surfaceElevated": "teal-800/60",
+      "border": "teal #2c5545",
+      "accent": "emerald #34d399",
+      "accentOn": "#022c22",
+      "text": "mint #e2f3ea",
+      "textMuted": "sage #82bea5",
       "destructive": "rose-500",
       "tier1": "gold/amber",
       "tier2": "blue",
-      "tier3": "periwinkle",
-      "palette": ["#05204A", "#02020A", "#BFACAA", "#E1E2EF"]
+      "tier3": "emerald",
+      "palette": ["#04120D", "#0C221A", "#34D399", "#22D3EE", "#E2F3EA"]
     },
     "typography": {
       "--font-sans": {
@@ -88,6 +88,13 @@
     ]
   },
   "decisions": [
+    {
+      "date": "2026-08-19",
+      "direction": "Emerald Terminal",
+      "scope": "whole app (landing, sign-in, onboarding, home, draft room)",
+      "chosenBy": "user",
+      "summary": "Dark + colorful repaint of the Liquid Glass system: deepest ink-teal base (#04120d), emerald primary accent (#34d399) with cyan (#22d3ee) secondary, dim emerald/teal/cyan/indigo aurora (screen blend at lower opacity so the UI reads dark and colorful), emerald-tinted glass borders instead of white glare, emerald glossy primary buttons, mint text neutrals. Data-viz accents (amber/sky/violet/rose) unchanged."
+    },
     {
       "date": "2026-08-18",
       "direction": "Command Deck",

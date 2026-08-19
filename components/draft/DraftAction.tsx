@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DraftState, PickOwner, Player } from "@/lib/types";
 import { pickForPlayer } from "@/lib/draft";
 import { CheckIcon, UndoIcon, UserIcon, UsersIcon } from "@/components/icons";
@@ -22,6 +22,24 @@ export function DraftAction({
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const pick = pickForPlayer(state, player.id);
+
+  // Escape closes the menu; scroll/reposition closes it so the fixed popover
+  // never floats detached from its row.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [open]);
 
   if (pick) {
     return (
@@ -61,6 +79,8 @@ export function DraftAction({
       <button
         ref={btnRef}
         onClick={openMenu}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="btn-glass-primary inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold transition"
       >
         <CheckIcon size={11} />

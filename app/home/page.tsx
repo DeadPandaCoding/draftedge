@@ -594,7 +594,7 @@ export default function HomePage() {
       </main>
 
       {/* ── Footer ───────────────────────────────────────────── */}
-      <footer className="relative z-10 mt-auto border-t border-zinc-900 py-5 text-center text-xs text-zinc-600">
+      <footer className="relative z-10 mt-auto border-t border-emerald-400/10 py-5 text-center text-xs text-zinc-500">
         © {new Date().getFullYear()} DraftEdge · Not affiliated with the NFL or Sleeper
       </footer>
     </div>

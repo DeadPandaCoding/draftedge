@@ -1,19 +1,12 @@
 import Link from "next/link";
-import {
-  BoltIcon,
-  CheckIcon,
-  GridIcon,
-  UsersIcon,
-  FacebookIcon,
-  TwitterIcon,
-  InstagramIcon,
-  LinkedInIcon,
-} from "@/components/icons";
+import { BoltIcon, CheckIcon, GridIcon, UsersIcon } from "@/components/icons";
 import { TIER_STYLES } from "@/lib/tiers";
 import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
 import FoldText from "@/components/ui/FoldText";
 import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
+import KineticGrid from "@/components/ui/kinetic-grid";
+import { RotatingText } from "@/components/ui/rotating-text";
 
 const FEATURES = [
   {
@@ -60,19 +53,16 @@ const TIER_PREVIEW = [
   { tier: 3, label: "Tier 3", players: ["Malik Nabers", "Amon-Ra St. Brown"] },
 ];
 
-// Replace the `#` hrefs with real social profile URLs when they exist.
-const SOCIALS = [
-  { label: "Facebook", href: "#", icon: <FacebookIcon size={16} /> },
-  { label: "X (Twitter)", href: "#", icon: <TwitterIcon size={16} /> },
-  { label: "Instagram", href: "#", icon: <InstagramIcon size={16} /> },
-  { label: "LinkedIn", href: "#", icon: <LinkedInIcon size={16} /> },
-];
+// No social profiles exist yet — links were removed instead of shipping dead `#` hrefs.
+const GITHUB_URL = "https://github.com/DeadPandaCoding/draftedge";
 
 export function LandingPage() {
   return (
     <div className="relative flex min-h-screen flex-col text-zinc-200">
-      {/* Background stays minimal: the global aurora does the work — no grid,
-          no extra glow blobs — and the glass panels above refract it. */}
+      {/* Background: the global aurora provides the color field; the
+          mouse-interactive kinetic grid (same as sign-in/home) backs the hero
+          and the final "How it works" band, with the features section kept
+          clean so the glass panels read against the aurora. */}
 
       {/* ── Nav (sticky glass) ──────────────────────────────── */}
       <header className="glass-nav sticky top-0 z-30 mx-auto flex w-full max-w-full items-center justify-between px-6 py-4">
@@ -88,7 +78,7 @@ export function LandingPage() {
           <a href="#features" className="transition hover:text-white">Features</a>
           <a href="#how-it-works" className="transition hover:text-white">How it works</a>
           <a
-            href="https://github.com"
+            href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="transition hover:text-white"
@@ -113,9 +103,12 @@ export function LandingPage() {
       </header>
 
       {/* ── Hero (two-column: left-aligned text, board on the right) ── */}
-      <section className="relative z-10 mx-auto w-full max-w-6xl overflow-hidden px-6 pb-20 pt-16 md:pt-24">
+      <section className="relative z-10 overflow-hidden">
+        {/* Mouse-interactive kinetic grid behind the hero content */}
+        <KineticGrid contained className="pointer-events-none" />
+        <div className="relative mx-auto w-full max-w-6xl px-6 pb-20 pt-16 md:pt-24">
         {/* ambient emerald/amber aura behind the mockup column */}
-        <div className="pointer-events-none absolute right-[-4%] top-[2%] h-[520px] w-[620px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(225,226,239,0.16),rgba(191,172,170,0.08)_55%,transparent_70%)] blur-2xl" />
+        <div className="pointer-events-none absolute right-[-4%] top-[2%] h-[520px] w-[620px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(52,211,153,0.14),rgba(34,211,238,0.08)_55%,transparent_70%)] blur-2xl" />
         <div className="relative grid items-center gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10">
           {/* Left: headline + CTAs */}
           <div className="max-w-xl">
@@ -139,8 +132,12 @@ export function LandingPage() {
                 />
               </span>
             </h1>
-            <p className="mt-3 bg-gradient-to-r from-[#e1e2ef] via-[#c9cde4] to-[#bfacaa] bg-clip-text font-display text-xl tracking-wide text-transparent sm:text-2xl">
-              Zero cost. Maximum advantage.
+            <p className="mt-3 font-display text-xl tracking-wide sm:text-2xl">
+              <RotatingText
+                phrases={["Zero Cost.", "Maximum Advantage.", "No Paywalls."]}
+                caret={false}
+                className="bg-gradient-to-r from-[#6ee7b7] via-[#34d399] to-[#22d3ee] bg-clip-text text-transparent"
+              />
             </p>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-white/50">
               An intelligent, real-time draft companion featuring automated tiers, live pick
@@ -169,11 +166,20 @@ export function LandingPage() {
             </BorderGlow>
           </div>
         </div>
+        </div>
       </section>
 
       {/* ── Features ────────────────────────────────────────── */}
-      <section id="features" className="relative z-10 border-t border-zinc-900">
-        <div className="mx-auto w-full max-w-6xl px-6 py-24">
+      <section id="features" className="relative z-10 overflow-hidden border-t border-emerald-400/10">
+        {/* Grid runs behind a frosted emerald pane — same treatment as the
+            footer's frosted band, but in green: the grid glows through the
+            frost instead of sitting directly on the aurora. */}
+        <KineticGrid contained className="pointer-events-none" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-emerald-950/45 backdrop-blur-[2px]"
+        />
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
           <h2 className="text-center text-3xl font-semibold tracking-tight text-white">
             Everything you need on draft day
           </h2>
@@ -236,8 +242,10 @@ export function LandingPage() {
       </section>
 
       {/* ── How it works ────────────────────────────────────── */}
-      <section id="how-it-works" className="relative z-10 border-t border-zinc-900">
-        <div className="mx-auto w-full max-w-6xl px-6 py-24">
+      <section id="how-it-works" className="relative z-10 overflow-hidden border-t border-emerald-400/10">
+        {/* Mouse-interactive kinetic grid behind the final CTA band */}
+        <KineticGrid contained className="pointer-events-none" />
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
           <h2 className="text-center text-3xl font-semibold tracking-tight text-white">
             From signup to championship in three steps
           </h2>
@@ -248,7 +256,7 @@ export function LandingPage() {
               {STEPS.map((s) => (
                 <div key={s.n} className="relative">
                   <div className="relative z-10 mb-5 flex justify-center">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#e1e2ef] to-[#b6bcd4] text-sm font-bold text-emerald-950 ring-4 ring-zinc-950">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#6ee7b7] to-[#10b981] text-sm font-bold text-emerald-950 ring-4 ring-zinc-950">
                       {s.n}
                     </span>
                   </div>
@@ -273,9 +281,11 @@ export function LandingPage() {
       </section>
 
       {/* ── Footer ──────────────────────────────────────────── */}
-      <footer className="relative z-10 mt-auto border-t border-zinc-900 bg-zinc-950/60">
-        <div className="mx-auto w-full max-w-6xl px-6 py-14">
-          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+      <footer className="relative z-10 mt-auto overflow-hidden border-t border-emerald-400/10 bg-zinc-950/60">
+        {/* Grid runs through the footer band too, dimmed by the footer tint. */}
+        <KineticGrid contained className="pointer-events-none opacity-50" />
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-14">
+          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
             {/* Stay Connected */}
             <div>
               <h3 className="font-display text-2xl leading-tight tracking-wide text-white">
@@ -309,7 +319,7 @@ export function LandingPage() {
                 </li>
                 <li>
                   <a
-                    href="https://github.com"
+                    href={GITHUB_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="transition hover:text-white"
@@ -336,7 +346,7 @@ export function LandingPage() {
                 </li>
                 <li>
                   <a
-                    href="https://github.com"
+                    href={GITHUB_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="transition hover:text-white"
@@ -348,27 +358,11 @@ export function LandingPage() {
               </ul>
             </div>
 
-            {/* Follow Us */}
-            <div>
-              <h4 className="text-sm font-semibold text-white">Follow Us</h4>
-              <div className="mt-4 flex gap-3">
-                {SOCIALS.map((s) => (
-                  <a
-                    key={s.label}
-                    href={s.href}
-                    aria-label={s.label}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-emerald-500/50 hover:text-white"
-                  >
-                    {s.icon}
-                  </a>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 
-        <div className="border-t border-zinc-900">
-          <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-5 text-xs text-zinc-600 sm:flex-row">
+        <div className="border-t border-emerald-400/10">
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-5 text-xs text-zinc-500 sm:flex-row">
             <span>© {new Date().getFullYear()} DraftEdge · All rights reserved.</span>
             <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
               <Link href="/privacy" className="transition hover:text-zinc-300">

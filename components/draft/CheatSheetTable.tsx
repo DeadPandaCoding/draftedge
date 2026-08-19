@@ -141,7 +141,7 @@ export function CheatSheetTable({
                   drafted ? "opacity-40" : ""
                 }`}
               >
-                <td className="sticky left-0 z-10 border-b border-zinc-800/60 bg-[#02020a] px-2.5 py-1.5">
+                <td className="sticky left-0 z-10 border-b border-zinc-800/60 bg-[#04120d] px-2.5 py-1.5">
                   <DraftAction player={p} state={state} onDraft={onDraft} onUndraft={onUndraft} />
                 </td>
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
@@ -190,7 +190,7 @@ export function CheatSheetTable({
                     onChange={(e) => onNote(p.id, e.target.value)}
                     placeholder="Add note…"
                     maxLength={500}
-                    className="w-full min-w-[140px] rounded-md border border-transparent bg-zinc-800/40 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600 outline-none transition focus:border-amber-400/50 focus:bg-zinc-800/80 focus:ring-2 focus:ring-amber-400/20"
+                    className="w-full min-w-[140px] rounded-md border border-transparent bg-zinc-800/40 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-500 outline-none transition focus:border-emerald-400/60 focus:bg-zinc-800/80 focus:ring-2 focus:ring-emerald-400/20"
                   />
                 </td>
               </tr>

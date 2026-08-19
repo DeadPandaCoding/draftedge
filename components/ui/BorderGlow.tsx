@@ -11,13 +11,13 @@ import "./BorderGlow.css";
  */
 export const GLOW_PRESET = {
   edgeSensitivity: 25,
-  glowColor: "235 45 88",
-  backgroundColor: "#0a0e1d",
+  glowColor: "160 84 39",
+  backgroundColor: "#04120d",
   glowRadius: 36,
   glowIntensity: 1.0,
   coneSpread: 25,
   fillOpacity: 0.35,
-  colors: ["#e1e2ef", "#bfacaa", "#9db0e8"],
+  colors: ["#34d399", "#22d3ee", "#6366f1"],
 };
 
 interface BorderGlowProps {

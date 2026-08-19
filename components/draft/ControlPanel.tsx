@@ -163,7 +163,7 @@ export function ControlPanel({
               {loading ? "Loading data…" : source === "live" ? "Synced with Sleeper" : "Bundled baseline data"}
             </span>
           </div>
-          <p className="mt-0.5 flex items-center gap-1 text-[10px] text-zinc-600">
+          <p className="mt-0.5 flex items-center gap-1 text-[10px] text-zinc-500">
             <ClockIcon size={11} className="shrink-0" />
             <span>
               Rankings: {RANKINGS_SOURCE.label} · updated {RANKINGS_SOURCE.updated}

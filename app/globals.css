@@ -7,50 +7,51 @@
   --font-tech: var(--font-chakra);
 }
 
-/* ── DraftEdge palette ─────────────────────────────────────────────────────
-   User-provided brand palette:
-     #05204A  navy       (deep navy surface)
-     #02020A  ink        (deepest navy — page background)
-     #BFACAA  taupe      (warm neutral / muted text)
-     #E1E2EF  periwinkle (light text + primary accent)
+/* ── DraftEdge palette — Emerald Terminal ──────────────────────────────────
+   User-chosen dark + colorful direction (2026-08-19):
+     #04120D  ink        (deepest ink-teal — page background)
+     #0C221A  navy       (deep teal surface)
+     #34D399  emerald    (primary accent — terminal green)
+     #22D3EE  cyan       (secondary accent)
+     #E2F3EA  mint       (light text)
 
    To repaint the whole app without touching hundreds of utility classes, the
    legacy `emerald-*` (identity accent) and `zinc-*` (neutrals) scales are
-   remapped below onto this palette. `emerald-*` → periwinkle ramp; `zinc-*` →
-   navy surfaces + periwinkle/taupe text. Other Tailwind colors (amber, sky,
-   violet, rose) remain as functional data-viz / status accents. */
+   remapped below onto this palette. `emerald-*` → emerald/teal ramp; `zinc-*` →
+   ink-teal surfaces + mint text. Other Tailwind colors (amber, sky, violet,
+   rose) remain as functional data-viz / status accents. */
 @theme {
   /* Brand tokens (usable as `text-taupe`, `bg-navy`, etc.) */
-  --color-taupe: #bfacaa;
-  --color-ink: #02020a;
-  --color-navy: #05204a;
-  --color-periwinkle: #e1e2ef;
+  --color-taupe: #82bea5;
+  --color-ink: #04120d;
+  --color-navy: #0c221a;
+  --color-periwinkle: #e2f3ea;
 
-  /* Accent — remap `emerald-*` → periwinkle ramp */
-  --color-emerald-50: #f8f9fc;
-  --color-emerald-100: #f2f3f9;
-  --color-emerald-200: #eceef7;
-  --color-emerald-300: #e8eaf4;
-  --color-emerald-400: #e1e2ef;
-  --color-emerald-500: #ccd0e6;
-  --color-emerald-600: #aab0cc;
-  --color-emerald-700: #838aa9;
-  --color-emerald-800: #5d6483;
-  --color-emerald-900: #3a4059;
-  --color-emerald-950: #0a0e1f;
+  /* Accent — remap `emerald-*` → emerald/teal ramp */
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
 
-  /* Neutrals — remap `zinc-*` → navy surfaces + periwinkle/taupe text */
-  --color-zinc-50: #f3f3f8;
-  --color-zinc-100: #e1e2ef;
-  --color-zinc-200: #cdcfe2;
-  --color-zinc-300: #b4b7ce;
-  --color-zinc-400: #bfacaa;
-  --color-zinc-500: #9a8788;
-  --color-zinc-600: #6e5e62;
-  --color-zinc-700: #26304f;
-  --color-zinc-800: #0e1630;
-  --color-zinc-900: #0a1126;
-  --color-zinc-950: #02020a;
+  /* Neutrals — remap `zinc-*` → ink-teal surfaces + mint text */
+  --color-zinc-50: #f0faf5;
+  --color-zinc-100: #e2f3ea;
+  --color-zinc-200: #c6e6d5;
+  --color-zinc-300: #a5d5bf;
+  --color-zinc-400: #82bea5;
+  --color-zinc-500: #5fa088;
+  --color-zinc-600: #467d68;
+  --color-zinc-700: #2c5545;
+  --color-zinc-800: #163527;
+  --color-zinc-900: #0c221a;
+  --color-zinc-950: #04120d;
 }
 
 :root {
@@ -58,57 +59,58 @@
 }
 
 html {
-  background: #02020a;
+  background: #04120d;
 }
 
 body {
   background: transparent;
-  color: #e1e2ef;
+  color: #e2f3ea;
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 ::selection {
-  background: rgba(225, 226, 239, 0.35);
-  color: #02020a;
+  background: rgba(52, 211, 153, 0.4);
+  color: #04120d;
 }
 
 /* Slim dark scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #26304f transparent;
+  scrollbar-color: #2c5545 transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #26304f;
+  background: #2c5545;
   border-radius: 8px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #3a4670;
+  background: #467d68;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
 /* Visible keyboard focus for interactive controls. Text inputs get their own
-   periwinkle ring via .glass-input:focus, so they are intentionally excluded. */
+   mint ring via .glass-input:focus, so they are intentionally excluded. */
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible,
 [role="option"]:focus-visible,
 [role="tab"]:focus-visible,
 select:focus-visible {
-  outline: 2px solid rgba(225, 226, 239, 0.75);
+  outline: 2px solid rgba(52, 211, 153, 0.8);
   outline-offset: 2px;
 }
 
-/* ── Liquid Glass backdrop (navy + periwinkle + taupe aurora) ─────────────
+/* ── Liquid Glass backdrop (emerald + cyan + indigo aurora) ───────────────
    A fixed, full-viewport layer pinned behind all content (z-index: -1) so the
    translucent glass panels above have a rich, colorful surface to refract and
    blur. Drifting blobs are GPU-composited transforms; disabled for
-   reduced-motion. */
+   reduced-motion. Kept dim (screen blend at low opacity) so the UI reads dark
+   and colorful rather than washed out. */
 .aurora {
   position: fixed;
   inset: 0;
@@ -116,24 +118,24 @@ select:focus-visible {
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(120% 90% at 85% -10%, rgba(225, 226, 239, 0.32), transparent 55%),
-    radial-gradient(100% 80% at -15% 15%, rgba(5, 32, 74, 0.9), transparent 60%),
-    radial-gradient(90% 80% at 110% 72%, rgba(191, 172, 170, 0.34), transparent 55%),
-    radial-gradient(80% 70% at 45% 115%, rgba(225, 226, 239, 0.26), transparent 55%);
+    radial-gradient(120% 90% at 85% -10%, rgba(52, 211, 153, 0.2), transparent 55%),
+    radial-gradient(100% 80% at -15% 15%, rgba(4, 18, 13, 0.95), transparent 60%),
+    radial-gradient(90% 80% at 110% 72%, rgba(34, 211, 238, 0.16), transparent 55%),
+    radial-gradient(80% 70% at 45% 115%, rgba(99, 102, 241, 0.14), transparent 55%);
 }
 .aurora-blob {
   position: absolute;
   border-radius: 9999px;
   filter: blur(70px);
   mix-blend-mode: screen;
-  opacity: 0.5;
+  opacity: 0.38;
 }
 .aurora-blob--1 {
   width: 46rem;
   height: 46rem;
   left: -10rem;
   top: -12rem;
-  background: #e1e2ef;
+  background: #34d399;
   animation: aurora-float-1 26s ease-in-out infinite alternate;
 }
 .aurora-blob--2 {
@@ -141,7 +143,7 @@ select:focus-visible {
   height: 40rem;
   right: -8rem;
   top: -6rem;
-  background: #bfacaa;
+  background: #22d3ee;
   animation: aurora-float-2 30s ease-in-out infinite alternate;
 }
 .aurora-blob--3 {
@@ -149,7 +151,7 @@ select:focus-visible {
   height: 42rem;
   left: -6rem;
   bottom: -12rem;
-  background: #c9cde4;
+  background: #6366f1;
   animation: aurora-float-3 34s ease-in-out infinite alternate;
 }
 .aurora-blob--4 {
@@ -157,7 +159,7 @@ select:focus-visible {
   height: 38rem;
   right: -4rem;
   bottom: -8rem;
-  background: #8a93b8;
+  background: #2dd4bf;
   animation: aurora-float-4 28s ease-in-out infinite alternate;
 }
 .aurora-blob--5 {
@@ -165,8 +167,8 @@ select:focus-visible {
   height: 26rem;
   left: 50%;
   top: 42%;
-  background: #eef0f8;
-  opacity: 0.28;
+  background: #a7f3d0;
+  opacity: 0.2;
   animation: aurora-float-5 40s ease-in-out infinite alternate;
 }
 @keyframes aurora-float-1 {
@@ -211,41 +213,41 @@ select:focus-visible {
 @layer components {
   .glass {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02))
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.012))
         padding-box,
       linear-gradient(
           135deg,
-          rgba(255, 255, 255, 0.35) 0%,
-          rgba(255, 255, 255, 0.12) 45%,
-          rgba(255, 255, 255, 0) 75%
+          rgba(52, 211, 153, 0.3) 0%,
+          rgba(52, 211, 153, 0.1) 45%,
+          rgba(52, 211, 153, 0) 75%
         )
         border-box;
     border: 1px solid transparent;
     -webkit-backdrop-filter: blur(16px) saturate(180%);
     backdrop-filter: blur(16px) saturate(180%);
     box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.36),
-      inset 0 -2px 0 rgba(0, 0, 0, 0.16),
-      0 16px 40px -20px rgba(0, 0, 0, 0.55);
+      inset 0 1px 0 rgba(167, 243, 208, 0.18),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+      0 16px 40px -20px rgba(0, 0, 0, 0.6);
   }
   .glass-strong {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03))
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.016))
         padding-box,
       linear-gradient(
           135deg,
-          rgba(255, 255, 255, 0.35) 0%,
-          rgba(255, 255, 255, 0.12) 45%,
-          rgba(255, 255, 255, 0) 75%
+          rgba(52, 211, 153, 0.32) 0%,
+          rgba(52, 211, 153, 0.12) 45%,
+          rgba(52, 211, 153, 0) 75%
         )
         border-box;
     border: 1px solid transparent;
     -webkit-backdrop-filter: blur(24px) saturate(190%);
     backdrop-filter: blur(24px) saturate(190%);
     box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.36),
-      inset 0 -2px 0 rgba(0, 0, 0, 0.16),
-      0 24px 60px -28px rgba(0, 0, 0, 0.7);
+      inset 0 1px 0 rgba(167, 243, 208, 0.2),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+      0 24px 60px -28px rgba(0, 0, 0, 0.72);
   }
 
   /* Tactile hover/active: fluid lift on hover, a pressed "give" on tap/click. */
@@ -260,72 +262,72 @@ select:focus-visible {
     /* Keep the hover a subtle "wake up" — barely brighter than resting, never
        bright enough to wash out the text on top. */
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025))
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018))
         padding-box,
       linear-gradient(
           135deg,
-          rgba(255, 255, 255, 0.35) 0%,
-          rgba(255, 255, 255, 0.12) 45%,
-          rgba(255, 255, 255, 0) 75%
+          rgba(52, 211, 153, 0.32) 0%,
+          rgba(52, 211, 153, 0.12) 45%,
+          rgba(52, 211, 153, 0) 75%
         )
         border-box;
     box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.36),
-      inset 0 -2px 0 rgba(0, 0, 0, 0.16),
-      0 20px 48px -20px rgba(0, 0, 0, 0.65);
+      inset 0 1px 0 rgba(167, 243, 208, 0.22),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+      0 20px 48px -20px rgba(0, 0, 0, 0.68);
     transform: translateY(-1px);
   }
   .glass-hover:active {
     transform: translateY(0) scale(0.985);
     box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.2),
-      inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(167, 243, 208, 0.12),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.22),
       0 6px 18px -10px rgba(0, 0, 0, 0.6);
   }
 
   /* Frosted sticky nav bar */
   .glass-nav {
-    background: linear-gradient(180deg, rgba(5, 12, 26, 0.74), rgba(5, 12, 26, 0.55));
+    background: linear-gradient(180deg, rgba(4, 20, 15, 0.8), rgba(4, 20, 15, 0.62));
     -webkit-backdrop-filter: blur(24px) saturate(170%);
     backdrop-filter: blur(24px) saturate(170%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    border-bottom: 1px solid rgba(52, 211, 153, 0.16);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.18),
-      0 8px 30px -12px rgba(0, 0, 0, 0.5);
+      inset 0 1px 0 rgba(167, 243, 208, 0.08),
+      0 8px 30px -12px rgba(0, 0, 0, 0.55);
   }
 
-  /* Primary action — glossy periwinkle "liquid" button */
+  /* Primary action — glossy emerald "liquid" button */
   .btn-glass-primary {
-    background: linear-gradient(180deg, #f2f3f9, #e1e2ef 55%, #c2c7de);
+    background: linear-gradient(180deg, #6ee7b7, #34d399 55%, #10b981);
     border: 1px solid transparent;
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.55),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-      0 12px 32px -10px rgba(225, 226, 239, 0.5);
-    color: #0a0e1f;
+      inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+      0 12px 32px -10px rgba(16, 185, 129, 0.5);
+    color: #022c22;
     transition:
       filter 0.2s ease,
       transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
       box-shadow 0.2s ease;
   }
   .btn-glass-primary:hover {
-    filter: brightness(1.06) saturate(1.05);
+    filter: brightness(1.06) saturate(1.08);
     transform: translateY(-1px);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.65),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-      0 16px 40px -10px rgba(225, 226, 239, 0.6);
+      inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+      0 16px 40px -10px rgba(16, 185, 129, 0.6);
   }
   .btn-glass-primary:active {
     filter: brightness(0.98);
     transform: translateY(0) scale(0.985);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.45),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-      0 8px 20px -8px rgba(225, 226, 239, 0.4);
+      inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+      0 8px 20px -8px rgba(16, 185, 129, 0.4);
   }
   .btn-glass-primary:disabled {
     opacity: 0.55;
@@ -364,24 +366,24 @@ select:focus-visible {
   /* Glass text input — same material, slightly stronger fill for legibility */
   .glass-input {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02))
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.014))
         padding-box,
-      linear-gradient(135deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 70%)
+      linear-gradient(135deg, rgba(52, 211, 153, 0.28), rgba(52, 211, 153, 0) 70%)
         border-box;
     border: 1px solid transparent;
     -webkit-backdrop-filter: blur(16px) saturate(160%);
     backdrop-filter: blur(16px) saturate(160%);
     box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.3),
-      inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+      inset 0 1px 0 rgba(167, 243, 208, 0.14),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.14);
   }
   .glass-input:focus {
-    border-color: rgba(225, 226, 239, 0.6);
+    border-color: rgba(52, 211, 153, 0.6);
     box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.3),
-      inset 0 -2px 0 rgba(0, 0, 0, 0.12),
-      0 0 0 3px rgba(225, 226, 239, 0.18),
-      0 0 24px -6px rgba(225, 226, 239, 0.4);
+      inset 0 1px 0 rgba(167, 243, 208, 0.14),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.14),
+      0 0 0 3px rgba(52, 211, 153, 0.18),
+      0 0 24px -6px rgba(52, 211, 153, 0.35);
   }
 
   /* Respect reduced-transparency: swap the glass for a solid, opaque surface */
@@ -390,11 +392,11 @@ select:focus-visible {
     .glass-strong,
     .glass-nav,
     .glass-input {
-      background: linear-gradient(180deg, rgba(10, 14, 31, 0.96), rgba(10, 14, 31, 0.9));
+      background: linear-gradient(180deg, rgba(6, 26, 19, 0.96), rgba(6, 26, 19, 0.9));
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
-      border-color: rgba(255, 255, 255, 0.12);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      border-color: rgba(52, 211, 153, 0.16);
+      box-shadow: inset 0 1px 0 rgba(167, 243, 208, 0.08);
     }
   }
 
@@ -404,13 +406,13 @@ select:focus-visible {
      even in browsers that ignore color-scheme on the popup. */
   select {
     color-scheme: dark;
-    background-color: #0e1630;
-    color: #e1e2ef;
+    background-color: #163527;
+    color: #e2f3ea;
   }
   select option,
   select optgroup {
-    background-color: #0e1630;
-    color: #e1e2ef;
+    background-color: #163527;
+    color: #e2f3ea;
   }
 }
 
@@ -458,7 +460,7 @@ select:focus-visible {
 }
 .rotating-caret {
   animation: caret-blink 1.8s ease-in-out infinite;
-  box-shadow: 0 0 10px 1px rgba(225, 226, 239, 0.4);
+  box-shadow: 0 0 10px 1px rgba(52, 211, 153, 0.4);
 }
 @media (prefers-reduced-motion: reduce) {
   .rotating-caret {
@@ -531,6 +533,15 @@ select:focus-visible {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-float-slow {
+    animation: none;
+  }
+}
+
+/* Tailwind's animate-pulse (status dots, pick-clock expiry, loaders) — the
+   project's motion constraint applies to utility animations too, so flatten
+   the pulse for reduced-motion users. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
     animation: none;
   }
 }

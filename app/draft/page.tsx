@@ -8,14 +8,14 @@ import { fetchLeague, persistLeague } from "@/lib/data";
 import { analyzeNeeds, bestAvailable, buildRoster, useDraft } from "@/lib/draft";
 import { usePlayers } from "@/lib/players";
 import { exportRosterCsv } from "@/lib/csv";
-import { Modal } from "@/components/ui";
+import { Modal, Skeleton } from "@/components/ui";
 import { DraftHeader } from "@/components/draft/DraftHeader";
 import { NavRail } from "@/components/draft/NavRail";
 import { ControlPanel, type ViewMode } from "@/components/draft/ControlPanel";
 import { CheatSheetTable } from "@/components/draft/CheatSheetTable";
 import { TierGrid } from "@/components/draft/TierGrid";
 import { RosterPanel } from "@/components/draft/RosterPanel";
-import { XIcon } from "@/components/icons";
+import { BoltIcon, XIcon } from "@/components/icons";
 
 export default function DraftPage() {
   const router = useRouter();
@@ -144,12 +144,31 @@ export default function DraftPage() {
     router.replace("/");
   };
 
+  // Escape closes the mobile roster drawer.
+  useEffect(() => {
+    if (!rosterOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setRosterOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [rosterOpen]);
+
   if (!ready || !league) {
-    return <div className="min-h-screen" />;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-4" aria-busy="true" aria-label="Loading draft room">
+          <span className="flex h-12 w-12 animate-pulse items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
+            <BoltIcon size={24} />
+          </span>
+          <Skeleton className="h-2.5 w-28 rounded-full" />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#02020a]/45 text-zinc-200">
+    <div className="flex h-screen flex-col bg-[#04120d]/45 text-zinc-200">
       <DraftHeader
         league={league}
         currentPick={draft.state.currentPick}
@@ -230,7 +249,12 @@ export default function DraftPage() {
             className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
             onClick={() => setRosterOpen(false)}
           />
-          <div className="glass-strong absolute right-0 top-0 flex h-full w-[320px] max-w-[88vw] flex-col border-l">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="My roster"
+            className="glass-strong absolute right-0 top-0 flex h-full w-[320px] max-w-[88vw] flex-col border-l"
+          >
             <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
               <span className="text-sm font-extrabold uppercase tracking-wider text-zinc-300">
                 My Roster

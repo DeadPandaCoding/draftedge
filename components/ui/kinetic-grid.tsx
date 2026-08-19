@@ -54,10 +54,13 @@ export default function KineticGrid({
   children,
   className,
   globalColor = "default",
+  contained = false,
 }: {
   children?: ReactNode;
   className?: string;
   globalColor?: "default" | "monochrome";
+  /** Fill the nearest positioned ancestor (a section) instead of the viewport. */
+  contained?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -154,11 +157,11 @@ export default function KineticGrid({
 
       const theme = {
         default: {
-          bg: "#02020a",
-          lineActive: { r: 225, g: 226, b: 239, a: 0.9 },
-          nodeActive: { r: 225, g: 226, b: 239, a: 1.0 },
-          glow: "225,226,239",
-          ripple: "204,209,232",
+          bg: "#04120d",
+          lineActive: { r: 52, g: 211, b: 153, a: 0.9 },
+          nodeActive: { r: 52, g: 211, b: 153, a: 1.0 },
+          glow: "52,211,153",
+          ripple: "45,212,191",
         },
         monochrome: {
           bg: "#000000",
@@ -334,8 +337,9 @@ export default function KineticGrid({
     if (!canvas) return;
 
     const setSize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const host = contained ? canvas.parentElement : null;
+      const w = host ? host.clientWidth : window.innerWidth;
+      const h = host ? host.clientHeight : window.innerHeight;
       canvas.width = w;
       canvas.height = h;
       sizeRef.current = { w, h };
@@ -380,21 +384,25 @@ export default function KineticGrid({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [animate, draw, loopRef]);
+  }, [animate, contained, draw, loopRef]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div
       className={cn(
-        "relative w-full min-h-screen overflow-hidden bg-transparent",
+        "overflow-hidden bg-transparent",
+        contained ? "absolute inset-0" : "relative w-full min-h-screen",
         className,
       )}
     >
       <canvas
         ref={canvasRef}
         aria-hidden="true"
-        className="fixed inset-0 w-full h-full z-0 pointer-events-none"
+        className={cn(
+          "inset-0 w-full h-full z-0 pointer-events-none",
+          contained ? "absolute" : "fixed",
+        )}
       />
 
       <div className="relative z-10 w-full h-full">{children}</div>

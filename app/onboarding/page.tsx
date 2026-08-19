@@ -101,7 +101,12 @@ export default function OnboardingPage() {
       pickTimerSeconds: 90,
       createdAt: Date.now(),
     };
-    await persistLeague(user.id, league);
+    try {
+      await persistLeague(user.id, league);
+    } catch {
+      setError("Couldn't save your league. Try again.");
+      return;
+    }
     router.replace("/draft");
   };
 

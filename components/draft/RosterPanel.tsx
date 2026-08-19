@@ -101,53 +101,54 @@ export function RosterPanel({
                 <h3 className="font-tech text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                   {GROUP_LABEL[group]}
                 </h3>
-                <span className="text-[10px] text-zinc-600">
+                <span className="text-[10px] text-zinc-500">
                   {groupEntries.length}/{need}
                 </span>
               </div>
               <div className="space-y-1.5">
-                {Array.from({ length: Math.max(need, 1) }).map((_, i) => {
-                  const entry = groupEntries[i];
-                  const p = entry ? playersById.get(entry.playerId) : undefined;
-                  if (!entry || !p) {
+                {need > 0 &&
+                  Array.from({ length: need }).map((_, i) => {
+                    const entry = groupEntries[i];
+                    const p = entry ? playersById.get(entry.playerId) : undefined;
+                    if (!entry || !p) {
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between rounded-lg border border-dashed border-zinc-800 px-2.5 py-1.5 text-xs text-zinc-500"
+                        >
+                          <span className="font-semibold">
+                            {group === "QB" || group === "K" || group === "DEF"
+                              ? group
+                              : `${group}${i + 1}`}
+                          </span>
+                          <span>Empty</span>
+                        </div>
+                      );
+                    }
                     return (
                       <div
                         key={i}
-                        className="flex items-center justify-between rounded-lg border border-dashed border-zinc-800 px-2.5 py-1.5 text-xs text-zinc-600"
+                        className="glass flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5"
                       >
-                        <span className="font-semibold">
-                          {group === "QB" || group === "K" || group === "DEF"
-                            ? group
-                            : `${group}${i + 1}`}
-                        </span>
-                        <span>Empty</span>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-zinc-100">
+                            <span className="mr-1.5 text-[10px] font-semibold text-zinc-500">
+                              {entry.slot}
+                            </span>
+                            {p.name}
+                          </p>
+                          <p className="text-[10px] text-zinc-500">
+                            {p.team}
+                            {p.bye > 0 ? ` · BYE ${p.bye}` : ""} ·{" "}
+                            <span className="font-mono text-zinc-400">
+                              {p.projection > 0 ? p.projection.toFixed(0) : "—"} pts
+                            </span>
+                          </p>
+                        </div>
+                        <PosBadge position={p.position} size="xs" />
                       </div>
                     );
-                  }
-                  return (
-                    <div
-                      key={i}
-                      className="glass flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-bold text-zinc-100">
-                          <span className="mr-1.5 text-[10px] font-semibold text-zinc-500">
-                            {entry.slot}
-                          </span>
-                          {p.name}
-                        </p>
-                        <p className="text-[10px] text-zinc-500">
-                          {p.team}
-                          {p.bye > 0 ? ` · BYE ${p.bye}` : ""} ·{" "}
-                          <span className="font-mono text-zinc-400">
-                            {p.projection > 0 ? p.projection.toFixed(0) : "—"} pts
-                          </span>
-                        </p>
-                      </div>
-                      <PosBadge position={p.position} size="xs" />
-                    </div>
-                  );
-                })}
+                  })}
               </div>
             </div>
           );
@@ -196,7 +197,7 @@ export function RosterPanel({
           Draft Log
         </h3>
         {recent.length === 0 ? (
-          <p className="text-xs text-zinc-600">No picks logged yet. Click “Draft” next to a player.</p>
+          <p className="text-xs text-zinc-500">No picks logged yet. Click “Draft” next to a player.</p>
         ) : (
           <div className="space-y-1">
             {recent.map((pick) => {
