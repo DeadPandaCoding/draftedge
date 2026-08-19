@@ -24,25 +24,25 @@ const POS_CLASSES: Record<string, string> = {
 
 export function DraftBoardMockup() {
   return (
-    <div className="relative mx-auto w-full min-w-0 max-w-2xl">
+    <div className="relative mx-auto w-full min-w-0 max-w-3xl">
       {/* No ambient glow here anymore — BorderGlow frames the board and the
           hero already has an aura behind this column. (The -inset glow div
           used to overflow the frame and spawn scrollbars.) */}
       <div className="relative overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-950/90 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9),0_0_40px_-12px_rgba(52,211,153,0.28)] backdrop-blur">
         {/* Mockup header bar */}
-        <div className="flex items-center border-b border-zinc-800 px-4 py-3">
+        <div className="flex items-center border-b border-zinc-800 px-5 py-3.5">
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
-              <BoltIcon size={14} />
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+              <BoltIcon size={16} />
             </span>
-            <span className="font-display text-sm tracking-wide text-zinc-100">DraftEdge</span>
-            <span className="ml-2 text-[11px] font-medium text-zinc-500">The Office League · PPR</span>
+            <span className="font-display text-base tracking-wide text-zinc-100">DraftEdge</span>
+            <span className="ml-2 text-xs font-medium text-zinc-500">The Office League · PPR</span>
           </div>
         </div>
 
         {/* Mockup table */}
-        <div className="px-3 py-3">
-          <div className="font-tech grid grid-cols-[44px_minmax(0,1fr)_64px_56px_64px] gap-2 px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="px-4 py-4">
+          <div className="font-tech grid grid-cols-[52px_minmax(0,1fr)_72px_64px_72px] gap-2 px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
             <span>Tier</span>
             <span>Player</span>
             <span className="text-right">Pos</span>
@@ -53,21 +53,21 @@ export function DraftBoardMockup() {
             {MOCK_ROWS.map((r) => (
               <div
                 key={r.name}
-                className={`grid grid-cols-[44px_minmax(0,1fr)_64px_56px_64px] items-center gap-2 rounded-lg border px-2 py-1.5 text-xs transition ${
+                className={`grid grid-cols-[52px_minmax(0,1fr)_72px_64px_72px] items-center gap-2 rounded-lg border px-2 py-2 text-sm transition ${
                   r.drafted
                     ? "border-zinc-800 bg-zinc-900/40 opacity-45"
                     : `border-zinc-800 bg-zinc-900/70 ${TIER_CLASSES[r.tier].includes("amber") ? "border-amber-400/20" : TIER_CLASSES[r.tier].includes("sky") ? "border-sky-400/20" : "border-emerald-400/20"}`
                 }`}
               >
                 <span
-                  className={`w-fit rounded-full px-1.5 py-px text-[9px] font-bold ring-1 ring-inset ${TIER_CLASSES[r.tier]}`}
+                  className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${TIER_CLASSES[r.tier]}`}
                 >
                   T{r.tier}
                 </span>
                 <span className={`flex min-w-0 items-center gap-1.5 font-semibold ${r.drafted ? "line-through" : "text-zinc-100"}`}>
                   <span className="text-zinc-400">{r.name}</span>
-                  <span className="rounded bg-zinc-800 px-1 text-[9px] font-bold text-zinc-400">{r.team}</span>
-                  {r.drafted && <span className="text-[9px] font-bold uppercase text-rose-400/80">Drafted</span>}
+                  <span className="rounded bg-zinc-800 px-1.5 text-[10px] font-bold text-zinc-400">{r.team}</span>
+                  {r.drafted && <span className="text-[10px] font-bold uppercase text-rose-400/80">Drafted</span>}
                 </span>
                 <span className={`text-right font-bold ${POS_CLASSES[r.pos]}`}>{r.pos}</span>
                 <span className="font-tech text-right text-zinc-400">{r.adp}</span>

@@ -545,3 +545,151 @@ select:focus-visible {
     animation: none;
   }
 }
+
+/* ── Landing intro: film grain, ambient shapes, scroll reveals ──────────── */
+
+/* Subtle animated film-grain overlay (see GrainOverlay component). */
+.grain-overlay {
+  position: fixed;
+  inset: -200%;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  animation: grain-shift 0.9s steps(4) infinite;
+}
+@keyframes grain-shift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(-6%, 4%, 0);
+  }
+  50% {
+    transform: translate3d(5%, -7%, 0);
+  }
+  75% {
+    transform: translate3d(-4%, -3%, 0);
+  }
+}
+
+/* Slow-drifting abstract shapes behind the hero. */
+.ambient-shape {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.32;
+  will-change: transform;
+}
+.ambient-shape--1 {
+  width: 30rem;
+  height: 30rem;
+  background: radial-gradient(circle at 32% 30%, rgba(52, 211, 153, 0.5), transparent 68%);
+  animation: ambient-drift-1 36s ease-in-out infinite alternate;
+}
+.ambient-shape--2 {
+  width: 24rem;
+  height: 24rem;
+  background: radial-gradient(circle at 60% 40%, rgba(34, 211, 238, 0.45), transparent 68%);
+  animation: ambient-drift-2 46s ease-in-out infinite alternate;
+}
+@keyframes ambient-drift-1 {
+  from {
+    transform: translate3d(-8%, 6%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(14%, -10%, 0) scale(1.18);
+  }
+}
+@keyframes ambient-drift-2 {
+  from {
+    transform: translate3d(10%, -6%, 0) scale(1.05);
+  }
+  to {
+    transform: translate3d(-14%, 12%, 0) scale(1.22);
+  }
+}
+
+/* Scroll reveal — `.is-visible` is added by the Reveal component when the
+   element enters the viewport. Transform/opacity only (compositor-friendly). */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Scrolling line-by-line text reveal (see ScrollText component). Each rendered
+   line sits in an overflow-hidden mask; its inner line is translated down and
+   eased up as it scrolls into view. The transform is applied by GSAP only when
+   motion is allowed, so the base state is fully visible — a graceful no-JS /
+   reduced-motion fallback. */
+.scroll-text {
+  font-kerning: none;
+}
+.scroll-text-word {
+  display: inline-block;
+  margin-right: 0.25em;
+  white-space: nowrap;
+}
+.scroll-text-line-mask {
+  display: block;
+  overflow: hidden;
+}
+.scroll-text-line {
+  display: block;
+  will-change: transform;
+}
+
+/* Polished primary-button hover — glossy shine sweep + gentle lift/scale. */
+.btn-glass-primary {
+  position: relative;
+  overflow: hidden;
+}
+.btn-glass-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.42) 50%,
+    transparent 68%
+  );
+  transform: translateX(-140%);
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.btn-glass-primary:hover {
+  transform: translateY(-1px) scale(1.02);
+}
+.btn-glass-primary:hover::after {
+  transform: translateX(140%);
+}
+
+/* Respect reduced motion — grain/shape/reveal motion is decorative. */
+@media (prefers-reduced-motion: reduce) {
+  .grain-overlay,
+  .ambient-shape--1,
+  .ambient-shape--2 {
+    animation: none;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .btn-glass-primary::after {
+    display: none;
+  }
+}

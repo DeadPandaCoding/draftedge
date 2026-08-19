@@ -352,14 +352,56 @@ export default function KineticGrid({
     setSize();
     window.addEventListener("resize", setSize);
 
+    // The canvas draws in its own local space. For `contained` grids the canvas
+    // is offset within the viewport (a section below the fold), so translate
+    // pointer coordinates into canvas space. We also gate the pointer to the
+    // grid's own bounds — INFLUENCE_RADIUS (260px) otherwise bleeds across the
+    // section boundary, so a cursor in the section below would still warp the
+    // bottom edge of the section above.
+    const toCanvasPoint = (clientX: number, clientY: number): Point | null => {
+      if (!contained) return { x: clientX, y: clientY };
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+      return { x, y };
+    };
+
+    let lastClient = { x: -9999, y: -9999 };
+
+    const updatePointer = (clientX: number, clientY: number) => {
+      const p = toCanvasPoint(clientX, clientY);
+      if (!p) {
+        // Pointer is outside this grid — park it far away so the section stays
+        // still instead of reacting to a neighboring section.
+        targetMouseRef.current = { x: -9999, y: -9999 };
+        return;
+      }
+      // Snap on first entry so the grid doesn't lerp in from (-9999, -9999)
+      // and sweep a warp across the whole section.
+      if (mouseRef.current.x === -9999) mouseRef.current = p;
+      targetMouseRef.current = p;
+    };
+
     const onMouseMove = (e: MouseEvent) => {
-      targetMouseRef.current = { x: e.clientX, y: e.clientY };
+      lastClient = { x: e.clientX, y: e.clientY };
+      updatePointer(e.clientX, e.clientY);
+    };
+
+    // Scrolling moves a section under a stationary cursor without firing
+    // mousemove (especially during Lenis smooth scroll) — re-sync from the last
+    // known cursor so a grid whose section scrolled away stops warping.
+    const onScroll = () => {
+      if (lastClient.x === -9999) return;
+      updatePointer(lastClient.x, lastClient.y);
     };
 
     const onClick = (e: MouseEvent) => {
+      const p = toCanvasPoint(e.clientX, e.clientY);
+      if (!p) return;
       ripplesRef.current.push({
-        x: e.clientX,
-        y: e.clientY,
+        x: p.x,
+        y: p.y,
         radius: 0,
         opacity: 1,
         born: performance.now(),
@@ -368,6 +410,7 @@ export default function KineticGrid({
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("click", onClick);
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     // Respect prefers-reduced-motion: render one static frame, no loop.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -380,6 +423,7 @@ export default function KineticGrid({
       window.removeEventListener("resize", setSize);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("click", onClick);
+      window.removeEventListener("scroll", onScroll);
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }

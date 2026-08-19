@@ -3,10 +3,14 @@ import { BoltIcon, CheckIcon, GridIcon, UsersIcon } from "@/components/icons";
 import { TIER_STYLES } from "@/lib/tiers";
 import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
-import FoldText from "@/components/ui/FoldText";
+import { SmoothScroll } from "@/components/landing/SmoothScroll";
+import { GrainOverlay } from "@/components/ui/grain";
+import { Reveal } from "@/components/ui/reveal";
+import { TextReveal } from "@/components/ui/text-reveal";
 import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
 import KineticGrid from "@/components/ui/kinetic-grid";
 import { RotatingText } from "@/components/ui/rotating-text";
+import { ScrollText } from "@/components/ui/scroll-text";
 
 const FEATURES = [
   {
@@ -59,6 +63,11 @@ const GITHUB_URL = "https://github.com/DeadPandaCoding/draftedge";
 export function LandingPage() {
   return (
     <div className="relative flex min-h-screen flex-col text-zinc-200">
+      {/* Lenis smooth scrolling (client-side island) */}
+      <SmoothScroll />
+      {/* Animated film grain over the whole viewport */}
+      <GrainOverlay />
+
       {/* Background: the global aurora provides the color field; the
           mouse-interactive kinetic grid (same as sign-in/home) backs the hero
           and the final "How it works" band, with the features section kept
@@ -103,74 +112,70 @@ export function LandingPage() {
       </header>
 
       {/* ── Hero (two-column: left-aligned text, board on the right) ── */}
-      <section className="relative z-10 overflow-hidden">
+      <section className="relative z-10 min-h-svh overflow-hidden">
         {/* Mouse-interactive kinetic grid behind the hero content */}
         <KineticGrid contained className="pointer-events-none" />
-        <div className="relative mx-auto w-full max-w-6xl px-6 pb-20 pt-16 md:pt-24">
+        {/* Slow-drifting abstract shapes behind the hero */}
+        <span aria-hidden="true" className="ambient-shape ambient-shape--1 left-[-6rem] top-[8%]" />
+        <span aria-hidden="true" className="ambient-shape ambient-shape--2 bottom-[6%] right-[-8rem]" />
+        <div className="relative mx-auto flex min-h-svh w-full max-w-7xl flex-col justify-center px-6 py-20 md:py-24">
         {/* ambient emerald/amber aura behind the mockup column */}
         <div className="pointer-events-none absolute right-[-4%] top-[2%] h-[520px] w-[620px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(52,211,153,0.14),rgba(34,211,238,0.08)_55%,transparent_70%)] blur-2xl" />
-        <div className="relative grid items-center gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10">
+        <div className="relative grid items-center gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10">
           {/* Left: headline + CTAs */}
-          <div className="max-w-xl">
-            <h1 className="font-display text-4xl leading-[1.12] tracking-wide text-white sm:text-5xl lg:text-[3.4rem]">
-              {/* Word-fold entrance (React Bits FoldText + GSAP); inherits the
-                  h1's responsive size/weight/color. */}
-              <span className="block">
-                <FoldText
-                  text="Master Your Fantasy Draft."
-                  splitBy="word"
-                  hinge="top"
-                  trigger="mount"
-                  duration={0.65}
-                  stagger={0.05}
-                  ease="power3.out"
-                  perspective={700}
-                  creaseShading={0.55}
-                  fontSize="inherit"
-                  fontWeight="inherit"
-                  color="inherit"
-                />
-              </span>
+          <div className="max-w-2xl">
+            <h1 className="font-display text-5xl leading-[1.08] tracking-wide text-white sm:text-6xl lg:text-[4rem]">
+              {/* Oversized headline — words slide up, fade in and de-blur. */}
+              <TextReveal
+                text="Master Your Fantasy Draft."
+                className="block"
+                delay={0.05}
+                stagger={0.08}
+              />
             </h1>
-            <p className="mt-3 font-display text-xl tracking-wide sm:text-2xl">
+            <p className="mt-3 font-display text-2xl tracking-wide sm:text-3xl">
               <RotatingText
                 phrases={["Zero Cost.", "Maximum Advantage.", "No Paywalls."]}
                 caret={false}
                 className="bg-gradient-to-r from-[#6ee7b7] via-[#34d399] to-[#22d3ee] bg-clip-text text-transparent"
               />
             </p>
-            <p className="mt-5 max-w-lg text-lg leading-relaxed text-white/50">
-              An intelligent, real-time draft companion featuring automated tiers, live pick
-              tracking, and custom cheat sheets powered by open data.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-5">
-              <Link
-                href="/signin?mode=signup"
-                className="btn-glass-primary rounded-xl px-7 py-3.5 text-base font-bold transition"
-              >
-                Get Started Free
-              </Link>
-              <Link
-                href="/signin"
-                className="text-base font-semibold text-zinc-400 transition hover:text-white"
-              >
-                Sign In
-              </Link>
-            </div>
+            <Reveal delay={250}>
+              <p className="mt-6 max-w-2xl text-xl leading-relaxed text-white/50">
+                An intelligent, real-time draft companion featuring automated tiers, live pick
+                tracking, and custom cheat sheets powered by open data.
+              </p>
+            </Reveal>
+            <Reveal delay={380}>
+              <div className="mt-8 flex flex-wrap items-center gap-5">
+                <Link
+                  href="/signin?mode=signup"
+                  className="btn-glass-primary rounded-xl px-8 py-4 text-lg font-bold transition"
+                >
+                  Get Started Free
+                </Link>
+                <Link
+                  href="/signin"
+                  className="text-lg font-semibold text-zinc-400 transition hover:text-white"
+                >
+                  Sign In
+                </Link>
+              </div>
+            </Reveal>
           </div>
 
           {/* Right: product preview — pointer-reactive mesh-glow frame (React Bits BorderGlow) */}
-          <div className="w-full min-w-0">
-            <BorderGlow {...GLOW_PRESET} className="mx-auto w-full max-w-2xl" borderRadius={24} animated>
+          <Reveal delay={200} className="w-full min-w-0">
+            <BorderGlow {...GLOW_PRESET} className="mx-auto w-full max-w-3xl" borderRadius={24} animated>
               <DraftBoardMockup />
             </BorderGlow>
-          </div>
+          </Reveal>
         </div>
         </div>
       </section>
 
       {/* ── Features ────────────────────────────────────────── */}
-      <section id="features" className="relative z-10 overflow-hidden border-t border-emerald-400/10">
+      <section id="features" className="relative z-10 scroll-mt-20 overflow-hidden border-t border-emerald-400/10">
         {/* Grid runs behind a frosted emerald pane — same treatment as the
             footer's frosted band, but in green: the grid glows through the
             frost instead of sitting directly on the aurora. */}
@@ -180,13 +185,18 @@ export function LandingPage() {
           className="pointer-events-none absolute inset-0 bg-emerald-950/45 backdrop-blur-[2px]"
         />
         <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
-          <h2 className="text-center text-3xl font-semibold tracking-tight text-white">
-            Everything you need on draft day
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-zinc-300">
-            Built for the pre-draft grind and the two minutes you actually have on the clock.
-          </p>
+          <ScrollText
+            as="h2"
+            text="Everything you need on draft day — automated tiers, real-time sync, and open data in one calm, focused cheat sheet."
+            className="mx-auto max-w-4xl text-center font-display text-4xl leading-[1.15] tracking-wide text-white sm:text-5xl"
+          />
+          <Reveal>
+            <p className="mx-auto mt-4 max-w-xl text-center text-zinc-300">
+              Built for the pre-draft grind and the two minutes you actually have on the clock.
+            </p>
+          </Reveal>
           {/* Bento — one large feature panel with a live tier preview, two compact panels */}
+          <Reveal delay={140}>
           <div className="mt-12 grid gap-5 md:grid-cols-3 md:grid-rows-2">
             <div className="glass glass-hover relative overflow-hidden rounded-2xl p-7 md:col-span-2 md:row-span-2 hover:-translate-y-1">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
@@ -238,18 +248,22 @@ export function LandingPage() {
               <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">{featureFree.body}</p>
             </div>
           </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── How it works ────────────────────────────────────── */}
-      <section id="how-it-works" className="relative z-10 overflow-hidden border-t border-emerald-400/10">
+      <section id="how-it-works" className="relative z-10 scroll-mt-20 overflow-hidden border-t border-emerald-400/10">
         {/* Mouse-interactive kinetic grid behind the final CTA band */}
         <KineticGrid contained className="pointer-events-none" />
         <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
-          <h2 className="text-center text-3xl font-semibold tracking-tight text-white">
-            From signup to championship in three steps
-          </h2>
+          <ScrollText
+            as="h2"
+            text="From signup to championship in three steps — configure your league, open your cheat sheet, and dominate your draft."
+            className="mx-auto max-w-4xl text-center font-display text-4xl leading-[1.15] tracking-wide text-white sm:text-5xl"
+          />
           {/* Horizontal timeline — numbered badges joined by a connector line */}
+          <Reveal delay={140}>
           <div className="relative mt-14">
             <div className="absolute left-[16%] right-[16%] top-5 hidden h-px bg-gradient-to-r from-transparent via-zinc-700 to-transparent md:block" />
             <div className="grid gap-10 md:grid-cols-3 md:gap-6">
@@ -268,6 +282,8 @@ export function LandingPage() {
               ))}
             </div>
           </div>
+          </Reveal>
+          <Reveal delay={220}>
           <div className="mt-14 text-center">
             <Link
               href="/signin?mode=signup"
@@ -277,6 +293,7 @@ export function LandingPage() {
               Start your draft prep — free
             </Link>
           </div>
+          </Reveal>
         </div>
       </section>
 
