@@ -177,7 +177,7 @@ export function LandingPage() {
           <h2 className="text-center text-3xl font-semibold tracking-tight text-white">
             Everything you need on draft day
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-zinc-400">
+          <p className="mx-auto mt-3 max-w-xl text-center text-zinc-300">
             Built for the pre-draft grind and the two minutes you actually have on the clock.
           </p>
           {/* Bento — one large feature panel with a live tier preview, two compact panels */}
@@ -187,7 +187,7 @@ export function LandingPage() {
                 {featureTiers.icon}
               </div>
               <h3 className="mt-4 text-xl font-semibold text-white">{featureTiers.title}</h3>
-              <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-400">{featureTiers.body}</p>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-300">{featureTiers.body}</p>
 
               {/* Mini tier board */}
               <div className="mt-8 space-y-2.5">
@@ -221,7 +221,7 @@ export function LandingPage() {
                 {featureSync.icon}
               </div>
               <h3 className="text-base font-semibold text-white">{featureSync.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{featureSync.body}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">{featureSync.body}</p>
             </div>
 
             <div className="glass glass-hover relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
@@ -229,7 +229,7 @@ export function LandingPage() {
                 {featureFree.icon}
               </div>
               <h3 className="text-base font-semibold text-white">{featureFree.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{featureFree.body}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">{featureFree.body}</p>
             </div>
           </div>
         </div>
@@ -254,7 +254,7 @@ export function LandingPage() {
                   </div>
                   <div className="glass glass-hover relative rounded-2xl p-7 text-center">
                     <h3 className="text-lg font-semibold text-white">{s.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-zinc-400">{s.body}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">{s.body}</p>
                   </div>
                 </div>
               ))}
