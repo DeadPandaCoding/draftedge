@@ -230,7 +230,7 @@ export default function DraftPage() {
             className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
             onClick={() => setRosterOpen(false)}
           />
-          <div className="glass-strong absolute right-0 top-0 flex h-full w-[320px] max-w-[88vw] flex-col border-l shadow-2xl">
+          <div className="glass-strong absolute right-0 top-0 flex h-full w-[320px] max-w-[88vw] flex-col border-l">
             <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
               <span className="text-sm font-extrabold uppercase tracking-wider text-zinc-300">
                 My Roster

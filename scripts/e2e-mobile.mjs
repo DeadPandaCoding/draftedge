@@ -32,7 +32,7 @@ try {
     await consentRegion.getByRole("button", { name: "Reject optional" }).click();
     await consentRegion.waitFor({ state: "hidden", timeout: 5000 }).catch(() => {});
   }
-  check("landing hero visible on mobile", await page.getByText("Master Your Fantasy Draft.").isVisible());
+  check("landing hero visible on mobile", await page.getByRole("heading", { level: 1, name: /Master Your Fantasy Draft/ }).isVisible());
   check("landing no horizontal overflow (mobile)", await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
 
   // Sign up

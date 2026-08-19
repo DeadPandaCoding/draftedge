@@ -195,47 +195,57 @@ select:focus-visible {
   }
 }
 
-/* ── Liquid Glass material system ────────────────────────────────────────
+/* ── Liquid Glass material system (Apple-style) ──────────────────────────
    Layered in @layer components so Tailwind utilities (active-state tints on
    pills, per-card hover shadows, etc.) can still override where needed.
 
    The recipe:
-   - translucent layered white gradient (top-lit)
-   - backdrop blur + saturate for lensing/refraction of the aurora beneath
-   - 1px soft white INNER border at 40% (inset ring)
-   - glossy specular highlight along the top edge
-   - soft drop shadow for depth */
+   - backdrop blur 16px + saturation: lensing/refraction of the aurora beneath
+   - near-transparent white fill (2%–5% opacity) — the page shows through
+   - delicate DIAGONAL gradient border: white 35% → transparent, drawn via the
+     border-box background technique so it follows border-radius
+   - dual inner shadows: bright white highlight on the top edge (y: 2px,
+     opacity 36%) + soft dark shadow on the bottom edge (y: -2px, 16%)
+   - soft outer drop shadow for depth
+   - prefers-reduced-transparency: solid fallback surface for legibility   */
 @layer components {
   .glass {
-    background: linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.16),
-      rgba(255, 255, 255, 0.03) 45%,
-      rgba(255, 255, 255, 0.06)
-    );
-    -webkit-backdrop-filter: blur(20px) saturate(165%);
-    backdrop-filter: blur(20px) saturate(165%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02))
+        padding-box,
+      linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.35) 0%,
+          rgba(255, 255, 255, 0.12) 45%,
+          rgba(255, 255, 255, 0) 75%
+        )
+        border-box;
     border: 1px solid transparent;
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.55),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.06),
-      0 14px 34px -14px rgba(0, 0, 0, 0.55);
+      inset 0 2px 0 rgba(255, 255, 255, 0.36),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.16),
+      0 16px 40px -20px rgba(0, 0, 0, 0.55);
   }
   .glass-strong {
-    background: linear-gradient(
-      165deg,
-      rgba(255, 255, 255, 0.18),
-      rgba(255, 255, 255, 0.05) 50%,
-      rgba(255, 255, 255, 0.09)
-    );
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    backdrop-filter: blur(28px) saturate(180%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03))
+        padding-box,
+      linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.35) 0%,
+          rgba(255, 255, 255, 0.12) 45%,
+          rgba(255, 255, 255, 0) 75%
+        )
+        border-box;
     border: 1px solid transparent;
+    -webkit-backdrop-filter: blur(24px) saturate(190%);
+    backdrop-filter: blur(24px) saturate(190%);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6),
-      0 28px 64px -28px rgba(0, 0, 0, 0.7);
+      inset 0 2px 0 rgba(255, 255, 255, 0.36),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.16),
+      0 24px 60px -28px rgba(0, 0, 0, 0.7);
   }
 
   /* Tactile hover/active: fluid lift on hover, a pressed "give" on tap/click. */
@@ -247,24 +257,28 @@ select:focus-visible {
       border-color 0.25s ease;
   }
   .glass-hover:hover {
-    background: linear-gradient(
-      165deg,
-      rgba(255, 255, 255, 0.22),
-      rgba(255, 255, 255, 0.06) 50%,
-      rgba(255, 255, 255, 0.1)
-    );
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035))
+        padding-box,
+      linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.5) 0%,
+          rgba(255, 255, 255, 0.18) 45%,
+          rgba(255, 255, 255, 0) 75%
+        )
+        border-box;
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.55),
-      inset 0 1px 0 rgba(255, 255, 255, 0.7),
-      0 20px 44px -18px rgba(0, 0, 0, 0.7);
+      inset 0 2px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+      0 20px 48px -20px rgba(0, 0, 0, 0.65);
     transform: translateY(-1px);
   }
   .glass-hover:active {
     transform: translateY(0) scale(0.985);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.4),
-      0 6px 16px -8px rgba(0, 0, 0, 0.6);
+      inset 0 2px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+      0 6px 18px -10px rgba(0, 0, 0, 0.6);
   }
 
   /* Frosted sticky nav bar */
@@ -345,22 +359,41 @@ select:focus-visible {
     transform: translateY(0) scale(0.985);
   }
 
-  /* Glass text input */
+  /* Glass text input — same material, slightly stronger fill for legibility */
   .glass-input {
-    background: rgba(255, 255, 255, 0.06);
-    -webkit-backdrop-filter: blur(16px) saturate(150%);
-    backdrop-filter: blur(16px) saturate(150%);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02))
+        padding-box,
+      linear-gradient(135deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 70%)
+        border-box;
+    border: 1px solid transparent;
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      inset 0 2px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.12);
   }
   .glass-input:focus {
     border-color: rgba(225, 226, 239, 0.6);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+      inset 0 2px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.12),
       0 0 0 3px rgba(225, 226, 239, 0.18),
       0 0 24px -6px rgba(225, 226, 239, 0.4);
+  }
+
+  /* Respect reduced-transparency: swap the glass for a solid, opaque surface */
+  @media (prefers-reduced-transparency: reduce) {
+    .glass,
+    .glass-strong,
+    .glass-nav,
+    .glass-input {
+      background: linear-gradient(180deg, rgba(10, 14, 31, 0.96), rgba(10, 14, 31, 0.9));
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      border-color: rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
   }
 
   /* Native selects render their options popup in light mode by default —

@@ -14,6 +14,8 @@ import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
 import KineticGrid from "@/components/ui/kinetic-grid";
 import { RotatingText } from "@/components/ui/rotating-text";
+import FoldText from "@/components/ui/FoldText";
+import BorderGlow from "@/components/ui/BorderGlow";
 
 const FEATURES = [
   {
@@ -126,7 +128,24 @@ export function LandingPage() {
           {/* Left: headline + CTAs */}
           <div className="max-w-xl">
             <h1 className="font-display text-4xl leading-[1.12] tracking-wide text-white sm:text-5xl lg:text-[3.4rem]">
-              <span className="block">Master Your Fantasy Draft.</span>
+              {/* Word-fold entrance (React Bits FoldText + GSAP); inherits the
+                  h1's responsive size/weight/color. */}
+              <span className="block">
+                <FoldText
+                  text="Master Your Fantasy Draft."
+                  splitBy="word"
+                  hinge="top"
+                  trigger="mount"
+                  duration={0.65}
+                  stagger={0.05}
+                  ease="power3.out"
+                  perspective={700}
+                  creaseShading={0.55}
+                  fontSize="inherit"
+                  fontWeight="inherit"
+                  color="inherit"
+                />
+              </span>
               <span className="flex min-h-[2.24em] items-center">
                 <RotatingText
                   phrases={["Zero Cost.", "Maximum Advantage.", "No Paywalls."]}
@@ -155,9 +174,23 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Right: product preview */}
+          {/* Right: product preview — pointer-reactive mesh-glow frame (React Bits BorderGlow) */}
           <div className="w-full min-w-0">
-            <DraftBoardMockup />
+            <BorderGlow
+              className="mx-auto w-full max-w-2xl"
+              edgeSensitivity={25}
+              glowColor="235 45 88"
+              backgroundColor="#0a0e1d"
+              borderRadius={24}
+              glowRadius={36}
+              glowIntensity={1.0}
+              coneSpread={25}
+              animated
+              fillOpacity={0.35}
+              colors={["#e1e2ef", "#bfacaa", "#9db0e8"]}
+            >
+              <DraftBoardMockup />
+            </BorderGlow>
           </div>
         </div>
       </section>
@@ -173,7 +206,7 @@ export function LandingPage() {
           </p>
           {/* Bento — one large feature panel with a live tier preview, two compact panels */}
           <div className="mt-12 grid gap-5 md:grid-cols-3 md:grid-rows-2">
-            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-7 md:col-span-2 md:row-span-2 hover:-translate-y-1 hover:border-emerald-500/30 hover:shadow-[0_16px_40px_-16px_rgba(225,226,239,0.22)]">
+            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-7 md:col-span-2 md:row-span-2 hover:-translate-y-1">
               <span className="font-mono absolute right-6 top-6 text-[11px] font-bold text-zinc-700 transition group-hover:text-emerald-500/70">
                 01
               </span>
@@ -210,7 +243,7 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1 hover:border-emerald-500/30 hover:shadow-[0_16px_40px_-16px_rgba(225,226,239,0.22)]">
+            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
               <span className="font-mono absolute right-5 top-5 text-[11px] font-bold text-zinc-700 transition group-hover:text-emerald-500/70">
                 02
               </span>
@@ -221,7 +254,7 @@ export function LandingPage() {
               <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{featureSync.body}</p>
             </div>
 
-            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1 hover:border-emerald-500/30 hover:shadow-[0_16px_40px_-16px_rgba(225,226,239,0.22)]">
+            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
               <span className="font-mono absolute right-5 top-5 text-[11px] font-bold text-zinc-700 transition group-hover:text-emerald-500/70">
                 03
               </span>
