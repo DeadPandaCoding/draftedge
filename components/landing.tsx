@@ -12,8 +12,6 @@ import {
 import { TIER_STYLES } from "@/lib/tiers";
 import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
-import KineticGrid from "@/components/ui/kinetic-grid";
-import { RotatingText } from "@/components/ui/rotating-text";
 import FoldText from "@/components/ui/FoldText";
 import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
 
@@ -73,14 +71,8 @@ const SOCIALS = [
 export function LandingPage() {
   return (
     <div className="relative flex min-h-screen flex-col text-zinc-200">
-      {/* Kinetic grid background: warps toward the pointer, ripples on click */}
-      <KineticGrid globalColor="default" className="pointer-events-none fixed inset-0 z-0" />
-
-      {/* Brand glows layered above the grid */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 h-[480px] w-[820px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
-        <div className="absolute bottom-0 right-0 h-[360px] w-[560px] rounded-full bg-taupe/10 blur-[120px]" />
-      </div>
+      {/* Background stays minimal: the global aurora does the work — no grid,
+          no extra glow blobs — and the glass panels above refract it. */}
 
       {/* ── Nav (sticky glass) ──────────────────────────────── */}
       <header className="glass-nav sticky top-0 z-30 mx-auto flex w-full max-w-full items-center justify-between px-6 py-4">
@@ -146,19 +138,15 @@ export function LandingPage() {
                   color="inherit"
                 />
               </span>
-              <span className="flex min-h-[2.24em] items-center">
-                <RotatingText
-                  phrases={["Zero Cost.", "Maximum Advantage.", "No Paywalls."]}
-                  caret={false}
-                  className="bg-gradient-to-r from-[#e1e2ef] via-[#c9cde4] to-[#bfacaa] bg-clip-text text-transparent"
-                />
-              </span>
             </h1>
-            <p className="mt-6 text-lg leading-relaxed text-white/50">
+            <p className="mt-3 bg-gradient-to-r from-[#e1e2ef] via-[#c9cde4] to-[#bfacaa] bg-clip-text font-display text-xl tracking-wide text-transparent sm:text-2xl">
+              Zero cost. Maximum advantage.
+            </p>
+            <p className="mt-5 max-w-lg text-lg leading-relaxed text-white/50">
               An intelligent, real-time draft companion featuring automated tiers, live pick
               tracking, and custom cheat sheets powered by open data.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-wrap items-center gap-5">
               <Link
                 href="/signin?mode=signup"
                 className="btn-glass-primary rounded-xl px-7 py-3.5 text-base font-bold transition"
@@ -167,7 +155,7 @@ export function LandingPage() {
               </Link>
               <Link
                 href="/signin"
-                className="glass glass-hover rounded-xl px-7 py-3.5 text-base font-semibold text-zinc-200"
+                className="text-base font-semibold text-zinc-400 transition hover:text-white"
               >
                 Sign In
               </Link>
@@ -184,8 +172,8 @@ export function LandingPage() {
       </section>
 
       {/* ── Features ────────────────────────────────────────── */}
-      <section id="features" className="relative z-10 border-t border-zinc-900 bg-zinc-950/30">
-        <div className="mx-auto w-full max-w-6xl px-6 py-20">
+      <section id="features" className="relative z-10 border-t border-zinc-900">
+        <div className="mx-auto w-full max-w-6xl px-6 py-24">
           <h2 className="text-center text-3xl font-semibold tracking-tight text-white">
             Everything you need on draft day
           </h2>
@@ -194,11 +182,8 @@ export function LandingPage() {
           </p>
           {/* Bento — one large feature panel with a live tier preview, two compact panels */}
           <div className="mt-12 grid gap-5 md:grid-cols-3 md:grid-rows-2">
-            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-7 md:col-span-2 md:row-span-2 hover:-translate-y-1">
-              <span className="font-mono absolute right-6 top-6 text-[11px] font-bold text-zinc-700 transition group-hover:text-emerald-500/70">
-                01
-              </span>
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/25">
+            <div className="glass glass-hover relative overflow-hidden rounded-2xl p-7 md:col-span-2 md:row-span-2 hover:-translate-y-1">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                 {featureTiers.icon}
               </div>
               <h3 className="mt-4 text-xl font-semibold text-white">{featureTiers.title}</h3>
@@ -231,22 +216,16 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
-              <span className="font-mono absolute right-5 top-5 text-[11px] font-bold text-zinc-700 transition group-hover:text-emerald-500/70">
-                02
-              </span>
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/25 transition group-hover:bg-emerald-500/15">
+            <div className="glass glass-hover relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                 {featureSync.icon}
               </div>
               <h3 className="text-base font-semibold text-white">{featureSync.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{featureSync.body}</p>
             </div>
 
-            <div className="glass glass-hover group relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
-              <span className="font-mono absolute right-5 top-5 text-[11px] font-bold text-zinc-700 transition group-hover:text-emerald-500/70">
-                03
-              </span>
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/25 transition group-hover:bg-emerald-500/15">
+            <div className="glass glass-hover relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                 {featureFree.icon}
               </div>
               <h3 className="text-base font-semibold text-white">{featureFree.title}</h3>
@@ -258,7 +237,7 @@ export function LandingPage() {
 
       {/* ── How it works ────────────────────────────────────── */}
       <section id="how-it-works" className="relative z-10 border-t border-zinc-900">
-        <div className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="mx-auto w-full max-w-6xl px-6 py-24">
           <h2 className="text-center text-3xl font-semibold tracking-tight text-white">
             From signup to championship in three steps
           </h2>
