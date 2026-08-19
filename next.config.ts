@@ -24,6 +24,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Stop advertising the framework in X-Powered-By (fingerprinting).
+  poweredByHeader: false,
   async headers() {
     return [
       {
