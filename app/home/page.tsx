@@ -9,6 +9,7 @@ import { DEFAULT_ROSTER, SCORING_LABELS, rosterSize } from "@/lib/league";
 import { fetchLeague, persistLeague } from "@/lib/data";
 import KineticGrid from "@/components/ui/kinetic-grid";
 import { Skeleton } from "@/components/ui";
+import { SiteHeader } from "@/components/ui/header";
 import {
   ArrowUpIcon,
   BarChartIcon,
@@ -144,28 +145,23 @@ export default function HomePage() {
       </div>
 
       {/* ── Nav ──────────────────────────────────────────────── */}
-      <header className="glass-nav sticky top-0 z-30 flex items-center justify-between gap-3 px-6 py-4">
-        <Link href="/home" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-            <BoltIcon size={16} />
-          </span>
-          <span className="font-display text-lg tracking-wide text-white">
-            Draft<span className="text-emerald-400">Edge</span>
-          </span>
-        </Link>
-        <button
-          type="button"
-          onClick={() => {
-            signOut();
-            router.push("/");
-          }}
-          aria-label="Log out"
-          className="glass glass-hover flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:text-white"
-        >
-          <LogoutIcon size={14} />
-          <span className="hidden sm:inline">Log Out</span>
-        </button>
-      </header>
+      <SiteHeader
+        variant="app"
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              signOut();
+              router.push("/");
+            }}
+            aria-label="Log out"
+            className="glass glass-hover flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:text-white"
+          >
+            <LogoutIcon size={14} />
+            Log Out
+          </button>
+        }
+      />
 
       {/* ── Main hub ─────────────────────────────────────────── */}
       <main className="relative z-10 mx-auto w-full max-w-5xl flex-1 px-6 pb-20 pt-12">

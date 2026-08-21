@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BoltIcon, CheckIcon, GridIcon, UsersIcon } from "@/components/icons";
+import { SiteHeader } from "@/components/ui/header";
 import { TIER_STYLES } from "@/lib/tiers";
 import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
@@ -73,43 +74,8 @@ export function LandingPage() {
           and the final "How it works" band, with the features section kept
           clean so the glass panels read against the aurora. */}
 
-      {/* ── Nav (sticky glass) ──────────────────────────────── */}
-      <header className="glass-nav sticky top-0 z-30 mx-auto flex w-full max-w-full items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-            <BoltIcon size={16} />
-          </span>
-          <span className="font-display text-lg tracking-wide text-white">
-            Draft<span className="text-emerald-400">Edge</span>
-          </span>
-        </Link>
-        <nav className="hidden items-center gap-8 text-sm text-zinc-400 md:flex">
-          <a href="#features" className="transition hover:text-white">Features</a>
-          <a href="#how-it-works" className="transition hover:text-white">How it works</a>
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="transition hover:text-white"
-          >
-            Open source
-          </a>
-        </nav>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/signin"
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-white/5 hover:text-white"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/signin?mode=signup"
-            className="btn-glass-primary rounded-lg px-4 py-2 text-sm font-bold transition"
-          >
-            Get Started Free
-          </Link>
-        </div>
-      </header>
+      {/* ── Nav (shared sticky header) ──────────────────────── */}
+      <SiteHeader variant="marketing" />
 
       {/* ── Hero (two-column: left-aligned text, board on the right) ── */}
       <section className="relative z-10 min-h-svh overflow-hidden">
