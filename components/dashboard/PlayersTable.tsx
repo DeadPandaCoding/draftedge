@@ -21,6 +21,14 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 const COLUMNS: SortKey[] = ["tier", "rank", "adp", "name", "position", "projection"];
 
+type Row =
+  | { kind: "player"; player: Player }
+  | { kind: "break"; position: string; fromTier: number; toTier: number; drop: number };
+
+// Orderings that keep tiers contiguous (overall rank, tier, or position).
+// Name/ADP sorts shuffle tiers around, so a "break" there would be meaningless.
+const TIER_SORTS = new Set<SortKey>(["rank", "tier", "position"]);
+
 export function PlayersTable({ players }: { players: Player[] }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "rank", dir: 1 });
   const { isStarred, toggleStar } = useStarredPlayers();
@@ -56,6 +64,41 @@ export function PlayersTable({ players }: { players: Player[] }) {
     });
   }, [players, sort]);
 
+  // Per-position, per-tier average projection. Used to size the drop-off
+  // between adjacent tiers so the number stays robust to projection noise.
+  const tierAverages = useMemo(() => {
+    const acc = new Map<string, { sum: number; count: number }>();
+    for (const p of players) {
+      const key = `${p.position}:${p.tier}`;
+      const e = acc.get(key) ?? { sum: 0, count: 0 };
+      e.sum += p.projection;
+      e.count += 1;
+      acc.set(key, e);
+    }
+    const avg = new Map<string, number>();
+    for (const [key, e] of acc) avg.set(key, e.sum / e.count);
+    return avg;
+  }, [players]);
+
+  // Insert a tier-break divider between two same-position players when their
+  // tier climbs, so each position's value drop-off is visible as you draft.
+  const rows = useMemo<Row[]>(() => {
+    if (!TIER_SORTS.has(sort.key)) return sorted.map((player) => ({ kind: "player", player }));
+    const out: Row[] = [];
+    for (let i = 0; i < sorted.length; i++) {
+      const p = sorted[i];
+      const prev = sorted[i - 1];
+      if (prev && prev.position === p.position && prev.tier < p.tier) {
+        const hi = tierAverages.get(`${p.position}:${prev.tier}`);
+        const lo = tierAverages.get(`${p.position}:${p.tier}`);
+        const drop = hi != null && lo != null ? hi - lo : prev.projection - p.projection;
+        out.push({ kind: "break", position: p.position, fromTier: prev.tier, toTier: p.tier, drop });
+      }
+      out.push({ kind: "player", player: p });
+    }
+    return out;
+  }, [sorted, sort.key, tierAverages]);
+
   const toggle = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
 
@@ -86,7 +129,33 @@ export function PlayersTable({ players }: { players: Player[] }) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((p) => (
+            {rows.map((item, i) => {
+              if (item.kind === "break") {
+                return (
+                  <tr key={`break-${i}`} className="border-b border-zinc-800/60">
+                    <td colSpan={COLUMNS.length} className="px-3 py-1">
+                      <div className="flex items-center gap-2.5">
+                        <span className="h-px flex-1 bg-gradient-to-r from-transparent to-zinc-700/70" />
+                        <ArrowDownIcon size={11} className="shrink-0 text-zinc-500" />
+                        <span className="font-tech whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                          Tier {item.fromTier} → {item.toTier}
+                        </span>
+                        <span
+                          className={`font-tech whitespace-nowrap text-[11px] font-semibold ${
+                            item.drop > 0 ? "text-rose-300" : "text-emerald-300"
+                          }`}
+                        >
+                          {item.drop > 0 ? "-" : "+"}
+                          {Math.abs(item.drop).toFixed(1)} pts
+                        </span>
+                        <span className="h-px flex-1 bg-gradient-to-l from-transparent to-zinc-700/70" />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+              const p = item.player;
+              return (
               <tr
                 key={p.id}
                 className="border-b border-zinc-800/60 transition-colors hover:bg-zinc-900/60"
@@ -150,7 +219,8 @@ export function PlayersTable({ players }: { players: Player[] }) {
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {sorted.length === 0 && (
