@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { fetchDraftState, fetchLeague } from "@/lib/data";
 import { buildRoster } from "@/lib/draft";
+import { SCORING_LABELS } from "@/lib/league";
 import { usePlayers } from "@/lib/players";
 import type {
   DraftPick,
@@ -61,12 +62,13 @@ function snapshotRoster(
 export default function TradePage() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const { players, loading: playersLoading } = usePlayers("ppr");
+  const [league, setLeague] = useState<LeagueConfig | null>(null);
+  const [draftState, setDraftState] = useState<DraftState | null>(null);
+
+  const { players, loading: playersLoading } = usePlayers(league?.scoring ?? "ppr");
 
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
-  const [league, setLeague] = useState<LeagueConfig | null>(null);
-  const [draftState, setDraftState] = useState<DraftState | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -224,7 +226,12 @@ export default function TradePage() {
           <SwapIcon size={20} />
         </span>
         <div>
-          <h1 className="font-display text-3xl tracking-wide text-white">Trade Analyzer</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-display text-3xl tracking-wide text-white">Trade Analyzer</h1>
+            <span className="rounded-full border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              {SCORING_LABELS[league?.scoring ?? "ppr"]}
+            </span>
+          </div>
           <p className="mt-2 text-sm text-zinc-400">
             Compare both sides by trade value and get an instant grade.
           </p>
