@@ -61,3 +61,13 @@ export function normalizeName(name: string): string {
     .replace(/\b(jr|sr|ii|iii|iv|v|vi)\b/g, "")
     .replace(/[^a-z0-9]/g, "");
 }
+
+/** Dash slug for a player name, used in profile URLs and share links. */
+export function playerSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+/** Resolve a slug (e.g. "ja-marr-chase") back to a player by normalized name. */
+export function findPlayerBySlug(players: Player[], slug: string): Player | undefined {
+  return players.find((p) => normalizeName(p.name) === normalizeName(slug));
+}

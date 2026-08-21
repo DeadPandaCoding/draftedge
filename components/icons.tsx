@@ -95,6 +95,20 @@ export const LinkIcon = (p: IconProps) => (
   </svg>
 );
 
+export const StarIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 2.5l2.95 5.98 6.6.96-4.78 4.65 1.13 6.57L12 17.58l-5.9 3.08 1.13-6.57-4.78-4.65 6.6-.96L12 2.5z" />
+  </svg>
+);
+
+export const FlaskIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M10 2v6L4.5 18.5a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 8V2" />
+    <path d="M8.5 2h7" />
+    <path d="M7 15h10" />
+  </svg>
+);
+
 export const ResetIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />

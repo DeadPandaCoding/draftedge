@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { Player } from "@/lib/types";
 import { TierBadge, PosBadge } from "@/components/ui";
-import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
+import { ArrowDownIcon, ArrowUpIcon, StarIcon } from "@/components/icons";
+import { playerSlug } from "@/lib/seed-data";
+import { useStarredPlayers } from "@/lib/stars";
 
 type SortKey = "rank" | "adp" | "projection" | "name" | "position" | "tier";
 
@@ -20,6 +23,7 @@ const COLUMNS: SortKey[] = ["tier", "rank", "adp", "name", "position", "projecti
 
 export function PlayersTable({ players }: { players: Player[] }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "rank", dir: 1 });
+  const { isStarred, toggleStar } = useStarredPlayers();
 
   const sorted = useMemo(() => {
     const { key, dir } = sort;
@@ -98,7 +102,27 @@ export function PlayersTable({ players }: { players: Player[] }) {
                 </td>
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-zinc-100">{p.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleStar(p.name)}
+                      aria-pressed={isStarred(p.name)}
+                      aria-label={`${isStarred(p.name) ? "Remove" : "Add"} ${p.name} ${
+                        isStarred(p.name) ? "from" : "to"
+                      } starred players`}
+                      className={`shrink-0 rounded-md p-0.5 transition ${
+                        isStarred(p.name)
+                          ? "text-amber-400 hover:text-amber-300"
+                          : "text-zinc-600 hover:text-zinc-300"
+                      }`}
+                    >
+                      <StarIcon size={14} fill={isStarred(p.name) ? "currentColor" : "none"} />
+                    </button>
+                    <Link
+                      href={`/players/${playerSlug(p.name)}`}
+                      className="font-semibold text-zinc-100 transition hover:text-emerald-300"
+                    >
+                      {p.name}
+                    </Link>
                     <span className="rounded bg-zinc-800 px-1 py-px text-[10px] font-bold text-zinc-400">
                       {p.team}
                     </span>

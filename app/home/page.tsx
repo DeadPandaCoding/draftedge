@@ -14,11 +14,15 @@ import {
   BarChartIcon,
   BoltIcon,
   ClockIcon,
+  FlaskIcon,
   LogoutIcon,
   SwapIcon,
   TableIcon,
   UsersIcon,
+  XIcon,
 } from "@/components/icons";
+import { useStarredPlayers } from "@/lib/stars";
+import { playerSlug } from "@/lib/seed-data";
 
 const TOOLS = [
   {
@@ -51,11 +55,18 @@ const TOOLS = [
     desc: "Review your draft, spot value picks, and grade your team.",
     href: "/analytics",
   },
+  {
+    icon: <FlaskIcon size={20} />,
+    title: "Research Hub",
+    desc: "Value leaders, positional depth, and tier breakdowns at a glance.",
+    href: "/research",
+  },
 ];
 
 export default function HomePage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
+  const { starred, toggleStar } = useStarredPlayers();
 
   const [league, setLeague] = useState<LeagueConfig | null>(null);
   const [loadingLeague, setLoadingLeague] = useState(true);
@@ -164,6 +175,38 @@ export default function HomePage() {
           </h1>
           <p className="mt-2 text-sm text-zinc-400">Pick a tool to get started — more are on the way.</p>
         </div>
+
+        {starred.length > 0 && (
+          <section className="mb-8" aria-label="Starred players">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white">Starred players</h2>
+              <span className="text-xs text-zinc-500">{starred.length} saved</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {starred.map((name) => (
+                <div
+                  key={name}
+                  className="glass flex items-center gap-1 rounded-full py-1 pl-3 pr-1 text-sm"
+                >
+                  <Link
+                    href={`/players/${playerSlug(name)}`}
+                    className="font-semibold text-zinc-100 transition hover:text-emerald-300"
+                  >
+                    {name}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => toggleStar(name)}
+                    aria-label={`Remove ${name} from starred players`}
+                    className="rounded-full p-1 text-zinc-500 transition hover:text-rose-300"
+                  >
+                    <XIcon size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {/* ── Demo League (primary) ─────────────────────────── */}
