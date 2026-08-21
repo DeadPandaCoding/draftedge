@@ -164,6 +164,11 @@ export default function TradePage() {
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate font-semibold text-zinc-200">{p.name}</span>
           <PosBadge position={p.position} size="xs" />
+          {side === "A" && myPlayerIds.has(p.id) && (
+            <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300 ring-1 ring-inset ring-amber-400/30">
+              Already owned
+            </span>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="font-tech text-sm font-bold text-emerald-300">{valueOf(p.id).toFixed(1)}</span>
