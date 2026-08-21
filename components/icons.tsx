@@ -88,6 +88,13 @@ export const SwapIcon = (p: IconProps) => (
   </svg>
 );
 
+export const LinkIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </svg>
+);
+
 export const ResetIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />

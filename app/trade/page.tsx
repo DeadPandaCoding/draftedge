@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { fetchDraftState, fetchLeague } from "@/lib/data";
 import { buildRoster } from "@/lib/draft";
 import { SCORING_LABELS } from "@/lib/league";
 import { usePlayers } from "@/lib/players";
+import { normalizeName } from "@/lib/seed-data";
 import type {
   DraftPick,
   DraftState,
@@ -19,7 +20,7 @@ import { buildTradeValues, gradeTrade } from "@/lib/trade-value";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { PosBadge, Skeleton } from "@/components/ui";
-import { SwapIcon, XIcon } from "@/components/icons";
+import { LinkIcon, SwapIcon, XIcon } from "@/components/icons";
 
 type Side = "A" | "B";
 
@@ -69,6 +70,8 @@ export default function TradePage() {
 
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
+  const initialized = useRef(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -95,6 +98,28 @@ export default function TradePage() {
       cancelled = true;
     };
   }, [user]);
+
+  // Restore a shared trade from ?get=...&send=... on first load.
+  useEffect(() => {
+    if (initialized.current) return;
+    if (playersLoading || players.length === 0) return;
+    initialized.current = true;
+
+    const params = new URLSearchParams(window.location.search);
+    const resolve = (raw: string): string[] =>
+      raw
+        .split(",")
+        .filter(Boolean)
+        .map((slug) => players.find((p) => normalizeName(p.name) === normalizeName(slug)))
+        .filter((p): p is Player => Boolean(p))
+        .map((p) => p.id);
+
+    const getIds = resolve(params.get("get") ?? "");
+    const sendIds = resolve(params.get("send") ?? "");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (getIds.length > 0) setSideA(getIds);
+    if (sendIds.length > 0) setSideB(sendIds);
+  }, [players, playersLoading]);
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const values = useMemo(() => buildTradeValues(players, league?.teamCount ?? 12), [players, league]);
@@ -156,6 +181,30 @@ export default function TradePage() {
   const remove = (side: Side, id: string) => {
     const setter = side === "A" ? setSideA : setSideB;
     setter((prev) => prev.filter((x) => x !== id));
+  };
+
+  const playerSlug = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+  const buildShareUrl = () => {
+    const params = new URLSearchParams();
+    if (aPlayers.length > 0) params.set("get", aPlayers.map((p) => playerSlug(p.name)).join(","));
+    if (bPlayers.length > 0) params.set("send", bPlayers.map((p) => playerSlug(p.name)).join(","));
+    const qs = params.toString();
+    const base = `${window.location.origin}${window.location.pathname}`;
+    return qs ? `${base}?${qs}` : base;
+  };
+
+  const copyLink = async () => {
+    const url = buildShareUrl();
+    window.history.replaceState({}, "", url);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable — the shareable URL is still in the address bar.
+    }
   };
 
   const playerRow = (p: Player, side: Side) => (
@@ -228,21 +277,32 @@ export default function TradePage() {
 
   return (
     <AppShell maxWidth="max-w-5xl" className="pt-12">
-      <div className="mb-8 flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-          <SwapIcon size={20} />
-        </span>
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="font-display text-3xl tracking-wide text-white">Trade Analyzer</h1>
-            <span className="rounded-full border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              {SCORING_LABELS[league?.scoring ?? "ppr"]}
-            </span>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
+            <SwapIcon size={20} />
+          </span>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-display text-3xl tracking-wide text-white">Trade Analyzer</h1>
+              <span className="rounded-full border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                {SCORING_LABELS[league?.scoring ?? "ppr"]}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-zinc-400">
+              Compare both sides by trade value and get an instant grade.
+            </p>
           </div>
-          <p className="mt-2 text-sm text-zinc-400">
-            Compare both sides by trade value and get an instant grade.
-          </p>
         </div>
+        <button
+          type="button"
+          onClick={copyLink}
+          disabled={aPlayers.length === 0 && bPlayers.length === 0}
+          className="glass glass-hover inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-200 transition disabled:opacity-40"
+        >
+          <LinkIcon size={15} />
+          {copied ? "Copied!" : "Copy Link"}
+        </button>
       </div>
 
       {playersLoading ? (
