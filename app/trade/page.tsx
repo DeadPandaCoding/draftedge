@@ -108,6 +108,8 @@ export default function TradePage() {
     [draftState]
   );
 
+  const myPlayerIds = useMemo(() => new Set(myPicks.map((p) => p.playerId)), [myPicks]);
+
   const currentRoster = useMemo(
     () => (league ? buildRoster(myPicks, playersById, league.roster) : []),
     [league, myPicks, playersById]
@@ -337,6 +339,45 @@ export default function TradePage() {
                   );
                 })}
               </div>
+
+              {bPlayers.length > 0 && (
+                <div className="mt-4 border-t border-zinc-800 pt-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                    Leaving your roster
+                  </span>
+                  <div className="mt-2 space-y-1.5">
+                    {bPlayers.map((p) => {
+                      const owned = myPlayerIds.has(p.id);
+                      return (
+                        <div
+                          key={p.id}
+                          className={`flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-sm ${
+                            owned
+                              ? "bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/30"
+                              : "bg-zinc-900/60 opacity-60"
+                          }`}
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className={`truncate font-semibold ${owned ? "text-emerald-200" : "text-zinc-400"}`}>
+                              {p.name}
+                            </span>
+                            <PosBadge position={p.position} size="xs" />
+                          </div>
+                          {owned ? (
+                            <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                              On your roster
+                            </span>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                              Not drafted
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
