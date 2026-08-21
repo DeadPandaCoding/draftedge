@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { usePlayers } from "@/lib/players";
-import type { Player, ScoringFormat } from "@/lib/types";
+import type { Player, Position, ScoringFormat } from "@/lib/types";
 import { DEFAULT_ROSTER, SCORING_LABELS, roundForPick, rosterSize, slotForPick } from "@/lib/league";
 import AppShell from "@/components/dashboard/AppShell";
 import { Select } from "@/components/ui";
@@ -19,6 +19,70 @@ interface MockPick {
 
 const TEAM_COUNTS = [8, 10, 12, 14];
 const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
+
+/** Position counts a given draft slot has already taken. */
+function countPositions(
+  picks: MockPick[],
+  slot: number,
+  playersById: Map<string, Player>
+): Record<Position, number> {
+  const counts: Record<Position, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
+  for (const p of picks) {
+    if (p.slot !== slot) continue;
+    const player = playersById.get(p.playerId);
+    if (player) counts[player.position] += 1;
+  }
+  return counts;
+}
+
+/** Highest-projection undrafted player at any of the given positions (fallback: any). */
+function bestAt(players: Player[], draftedIds: Set<string>, positions: Position[]): Player | null {
+  const pool = players.filter((p) => !draftedIds.has(p.id) && positions.includes(p.position));
+  const source = pool.length > 0 ? pool : players.filter((p) => !draftedIds.has(p.id));
+  return source.sort((a, b) => b.projection - a.projection)[0] ?? null;
+}
+
+/**
+ * Position-aware auto-draft for a slot: fill core starters, then flex, defer
+ * K/DEF to the last two rounds, and use best-available skill players for bench.
+ */
+function pickForSlot(
+  picks: MockPick[],
+  slot: number,
+  playersById: Map<string, Player>,
+  players: Player[],
+  draftedIds: Set<string>,
+  pickNumber: number,
+  teams: number,
+  totalPicks: number
+): Player | null {
+  const counts = countPositions(picks, slot, playersById);
+  const roundsLeft = Math.ceil((totalPicks - pickNumber + 1) / teams);
+  const late = roundsLeft <= 2;
+
+  // 1) Core starters.
+  const core: Position[] = [];
+  if (counts.QB < DEFAULT_ROSTER.qb) core.push("QB");
+  if (counts.RB < DEFAULT_ROSTER.rb) core.push("RB");
+  if (counts.WR < DEFAULT_ROSTER.wr) core.push("WR");
+  if (counts.TE < DEFAULT_ROSTER.te) core.push("TE");
+  if (core.length > 0) return bestAt(players, draftedIds, core);
+
+  // 2) Flex (extra RB/WR/TE).
+  const flexCapacity = DEFAULT_ROSTER.rb + DEFAULT_ROSTER.wr + DEFAULT_ROSTER.te + DEFAULT_ROSTER.flex;
+  if (counts.RB + counts.WR + counts.TE < flexCapacity) {
+    return bestAt(players, draftedIds, ["RB", "WR", "TE"]);
+  }
+
+  // 3) Kicker / defense in the closing rounds.
+  const specialists: Position[] = [];
+  if (late && counts.K < DEFAULT_ROSTER.k) specialists.push("K");
+  if (late && counts.DEF < DEFAULT_ROSTER.def) specialists.push("DEF");
+  if (specialists.length > 0) return bestAt(players, draftedIds, specialists);
+
+  // 4) Bench — skill players only.
+  return bestAt(players, draftedIds, ["QB", "RB", "WR", "TE"]);
+}
 
 export default function MockDraftPage() {
   const router = useRouter();
@@ -43,27 +107,17 @@ export default function MockDraftPage() {
     if (!loading && !user) router.replace("/signin");
   }, [user, loading, router]);
 
-  /** Best available player for an auto-pick, deferring K/DEF until the last 2 rounds. */
-  const opponentBest = (draftedIds: Set<string>, pickNumber: number): Player | null => {
-    const roundsLeft = Math.ceil((totalPicks - pickNumber + 1) / teams);
-    const late = roundsLeft <= 2;
-    const pool = players.filter(
-      (p) => !draftedIds.has(p.id) && (late || (p.position !== "K" && p.position !== "DEF"))
-    );
-    const source = pool.length > 0 ? pool : players.filter((p) => !draftedIds.has(p.id));
-    return source.sort((a, b) => b.projection - a.projection)[0] ?? null;
-  };
-
   /** Advance opponents until it is the user's turn (or the draft ends). */
   const advance = (list: MockPick[], draftedIds: Set<string>): MockPick[] => {
     const result = [...list];
     let n = result.length;
     while (n < totalPicks && slotForPick(n + 1, teams) !== mySlot) {
-      const best = opponentBest(draftedIds, n + 1);
+      const slot = slotForPick(n + 1, teams);
+      const best = pickForSlot(result, slot, playersById, players, draftedIds, n + 1, teams, totalPicks);
       if (!best) break;
       draftedIds.add(best.id);
       n += 1;
-      result.push({ playerId: best.id, pickNumber: n, round: roundForPick(n, teams), slot: slotForPick(n, teams) });
+      result.push({ playerId: best.id, pickNumber: n, round: roundForPick(n, teams), slot });
     }
     return result;
   };
@@ -89,7 +143,7 @@ export default function MockDraftPage() {
   };
 
   const autoPick = () => {
-    const best = opponentBest(drafted, currentPick);
+    const best = pickForSlot(picks, mySlot, playersById, players, drafted, currentPick, teams, totalPicks);
     if (best) makeMyPick(best.id);
   };
 
@@ -99,11 +153,12 @@ export default function MockDraftPage() {
       const ids = new Set(prev.map((p) => p.playerId));
       let n = result.length;
       while (n < totalPicks) {
-        const best = opponentBest(ids, n + 1);
+        const slot = slotForPick(n + 1, teams);
+        const best = pickForSlot(result, slot, playersById, players, ids, n + 1, teams, totalPicks);
         if (!best) break;
         ids.add(best.id);
         n += 1;
-        result.push({ playerId: best.id, pickNumber: n, round: roundForPick(n, teams), slot: slotForPick(n, teams) });
+        result.push({ playerId: best.id, pickNumber: n, round: roundForPick(n, teams), slot });
       }
       return result;
     });
@@ -137,7 +192,7 @@ export default function MockDraftPage() {
         <div>
           <h1 className="font-display text-3xl tracking-wide text-white">Mock Draft</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            Practice a snake draft against simple best-available opponents.
+            Practice a snake draft against position-aware auto-drafters.
           </p>
         </div>
         {started && (
