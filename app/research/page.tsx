@@ -12,6 +12,7 @@ import { buildTradeValues } from "@/lib/trade-value";
 import { playerSlug } from "@/lib/seed-data";
 import { useStarredPlayers } from "@/lib/stars";
 import AppShell from "@/components/dashboard/AppShell";
+import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { PosBadge, Skeleton, TierBadge } from "@/components/ui";
 import { StarIcon } from "@/components/icons";
 
@@ -38,6 +39,7 @@ export default function ResearchPage() {
   const [scoring, setScoring] = useState<ScoringFormat>("ppr");
 
   const { players, loading: playersLoading } = usePlayers(scoring);
+  const emptyExclude = useMemo(() => new Set<string>(), []);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -149,6 +151,15 @@ export default function ResearchPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="mb-8">
+        <PlayerPicker
+          players={players}
+          exclude={emptyExclude}
+          onPick={(p) => router.push(`/players/${playerSlug(p.name)}`)}
+          placeholder="Jump to a player…"
+        />
       </div>
 
       {playersLoading ? (
