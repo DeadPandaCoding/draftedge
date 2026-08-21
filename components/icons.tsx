@@ -12,6 +12,7 @@ function base({ size = 16, ...props }: IconProps) {
     strokeWidth: 2,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
+    "aria-hidden": true,
     ...props,
   };
 }
@@ -66,6 +67,15 @@ export const GridIcon = (p: IconProps) => (
     <rect x="14" y="3" width="7" height="7" rx="1" />
     <rect x="3" y="14" width="7" height="7" rx="1" />
     <rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+
+export const BarChartIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M3 3v18h18" />
+    <path d="M8 17v-5" />
+    <path d="M13 17V7" />
+    <path d="M18 17v-9" />
   </svg>
 );
 
