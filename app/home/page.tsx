@@ -15,25 +15,41 @@ import {
   BoltIcon,
   ClockIcon,
   LogoutIcon,
+  SwapIcon,
   TableIcon,
   UsersIcon,
 } from "@/components/icons";
 
-const COMING_SOON = [
+const TOOLS = [
+  {
+    icon: <SwapIcon size={20} />,
+    title: "Trade Analyzer",
+    desc: "Compare both sides of a trade and see who comes out ahead.",
+    href: "/trade",
+  },
   {
     icon: <TableIcon size={20} />,
     title: "Cheat Sheets",
     desc: "Build and export a personalized cheat sheet tuned to your league.",
+    href: "/cheatsheet",
   },
   {
     icon: <ClockIcon size={20} />,
     title: "Mock Drafts",
     desc: "Practice against realistic pick simulations before the real thing.",
+    href: "/mock",
   },
   {
     icon: <ArrowUpIcon size={20} />,
     title: "Player Rankings",
     desc: "Browse projections, tiers, and ADP across every position.",
+    href: "/rankings",
+  },
+  {
+    icon: <BarChartIcon size={20} />,
+    title: "Draft Analytics",
+    desc: "Review your draft, spot value picks, and grade your team.",
+    href: "/analytics",
   },
 ];
 
@@ -221,38 +237,22 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* ── Draft Analytics ───────────────────────────────── */}
-          <Link
-            href="/analytics"
-            aria-label="Draft Analytics"
-            className="glass-strong group flex flex-col rounded-2xl p-6 transition hover:-translate-y-0.5 hover:border-emerald-500/30"
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-800/70 text-zinc-300 ring-1 ring-inset ring-zinc-700/60 transition group-hover:text-emerald-300">
-              <BarChartIcon size={20} />
-            </span>
-            <h2 className="mt-4 text-lg font-bold text-white">Draft Analytics</h2>
-            <p className="mt-1.5 flex-1 text-sm leading-relaxed text-zinc-400">
-              Review your draft, spot value picks, and grade your team.
-            </p>
-            <span className="mt-5 text-sm font-semibold text-emerald-400 transition group-hover:text-emerald-300">
-              Open Analytics →
-            </span>
-          </Link>
-
-          {/* ── Coming soon ───────────────────────────────────── */}
-          {COMING_SOON.map((f) => (
-            <div key={f.title} className="glass-strong flex flex-col rounded-2xl p-6 opacity-70">
-              <div className="flex items-center justify-between">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-800/70 text-zinc-400 ring-1 ring-inset ring-zinc-700/60">
-                  {f.icon}
-                </span>
-                <span className="rounded-full border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                  Coming soon
-                </span>
-              </div>
-              <h2 className="mt-4 text-lg font-bold text-zinc-200">{f.title}</h2>
-              <p className="mt-1.5 flex-1 text-sm leading-relaxed text-zinc-500">{f.desc}</p>
-            </div>
+          {/* ── Tools ─────────────────────────────────────────── */}
+          {TOOLS.map((t) => (
+            <Link
+              key={t.title}
+              href={t.href}
+              className="glass-strong group flex flex-col rounded-2xl p-6 transition hover:-translate-y-0.5 hover:border-emerald-500/30"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-800/70 text-zinc-300 ring-1 ring-inset ring-zinc-700/60 transition group-hover:text-emerald-300">
+                {t.icon}
+              </span>
+              <h2 className="mt-4 text-lg font-bold text-white">{t.title}</h2>
+              <p className="mt-1.5 flex-1 text-sm leading-relaxed text-zinc-400">{t.desc}</p>
+              <span className="mt-5 text-sm font-semibold text-emerald-400 transition group-hover:text-emerald-300">
+                Open →
+              </span>
+            </Link>
           ))}
         </div>
 

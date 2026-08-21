@@ -40,3 +40,33 @@ export function exportRosterCsv(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/** Builds and downloads a CSV of the visible cheat-sheet / rankings board. */
+export function exportPlayersCsv(players: Player[], league: LeagueConfig | null) {
+  const header = ["Rank", "Tier", "Player", "Team", "Pos", "Bye", "ADP", "Proj", "Wk Avg"];
+  const rows = players.map((p) => [
+    p.rank,
+    `T${p.tier}`,
+    p.name,
+    p.team,
+    p.position,
+    p.bye,
+    p.adp > 0 ? p.adp.toFixed(1) : "",
+    p.projection > 0 ? p.projection.toFixed(1) : "",
+    p.weeklyAvg > 0 ? p.weeklyAvg.toFixed(1) : "",
+  ]);
+
+  const csv = [header, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const name = league?.name ?? "players";
+  const slug =
+    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "cheatsheet";
+  a.href = url;
+  a.download = `draftedge-${slug}-cheatsheet.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

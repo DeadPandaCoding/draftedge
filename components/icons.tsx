@@ -79,6 +79,15 @@ export const BarChartIcon = (p: IconProps) => (
   </svg>
 );
 
+export const SwapIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="m16 3 4 4-4 4" />
+    <path d="M20 7H4" />
+    <path d="m8 21-4-4 4-4" />
+    <path d="M4 17h16" />
+  </svg>
+);
+
 export const ResetIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
