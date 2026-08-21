@@ -3,9 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { fetchLeague } from "@/lib/data";
+import { fetchDraftState, fetchLeague } from "@/lib/data";
+import { buildRoster } from "@/lib/draft";
 import { usePlayers } from "@/lib/players";
-import type { LeagueConfig, Player } from "@/lib/types";
+import type {
+  DraftPick,
+  DraftState,
+  LeagueConfig,
+  Player,
+  RosterEntry,
+  RosterTemplate,
+} from "@/lib/types";
 import { buildTradeValues, gradeTrade } from "@/lib/trade-value";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
@@ -13,6 +21,42 @@ import { PosBadge, Skeleton } from "@/components/ui";
 import { SwapIcon, XIcon } from "@/components/icons";
 
 type Side = "A" | "B";
+
+const GROUPS = ["QB", "RB", "WR", "TE", "FLEX", "K", "DEF"] as const;
+
+interface RosterSnapshot {
+  counts: Record<string, number>;
+  starterProj: number;
+  missing: string[];
+}
+
+function snapshotRoster(
+  entries: RosterEntry[],
+  playersById: Map<string, Player>,
+  roster: RosterTemplate
+): RosterSnapshot {
+  const counts: Record<string, number> = {};
+  let starterProj = 0;
+  for (const e of entries) {
+    const group = e.slot.replace(/\d+$/, "");
+    counts[group] = (counts[group] ?? 0) + 1;
+    if (group !== "BENCH") starterProj += playersById.get(e.playerId)?.projection ?? 0;
+  }
+  const reqs: [string, number][] = [
+    ["QB", roster.qb],
+    ["RB", roster.rb],
+    ["WR", roster.wr],
+    ["TE", roster.te],
+    ["FLEX", roster.flex],
+    ["K", roster.k],
+    ["DEF", roster.def],
+  ];
+  const missing: string[] = [];
+  for (const [g, need] of reqs) {
+    for (let i = counts[g] ?? 0; i < need; i++) missing.push(g);
+  }
+  return { counts, starterProj, missing };
+}
 
 export default function TradePage() {
   const router = useRouter();
@@ -22,20 +66,29 @@ export default function TradePage() {
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
   const [league, setLeague] = useState<LeagueConfig | null>(null);
+  const [draftState, setDraftState] = useState<DraftState | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
   }, [user, loading, router]);
 
-  // Use the user's league size to set the replacement baseline.
+  // Load the user's league (baseline team count) and saved roster.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    fetchLeague(user.id)
-      .then((lg) => {
-        if (!cancelled) setLeague(lg);
-      })
-      .catch(() => {});
+    (async () => {
+      try {
+        const lg = await fetchLeague(user.id);
+        if (cancelled) return;
+        setLeague(lg);
+        if (lg) {
+          const ds = await fetchDraftState(lg.id);
+          if (!cancelled) setDraftState(ds);
+        }
+      } catch {
+        // ignore
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -47,6 +100,38 @@ export default function TradePage() {
 
   const aPlayers = sideA.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
   const bPlayers = sideB.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
+
+  const myPicks = useMemo(
+    () => (draftState?.picks ?? []).filter((p) => p.owner === "me"),
+    [draftState]
+  );
+
+  const currentRoster = useMemo(
+    () => (league ? buildRoster(myPicks, playersById, league.roster) : []),
+    [league, myPicks, playersById]
+  );
+
+  const afterRoster = useMemo(() => {
+    if (!league) return [];
+    const kept = myPicks.filter((p) => !sideB.includes(p.playerId));
+    const keptIds = new Set(kept.map((p) => p.playerId));
+    const added: DraftPick[] = aPlayers
+      .filter((p) => !keptIds.has(p.id))
+      .map((p, i) => ({ playerId: p.id, pickNumber: 100000 + i, round: 0, owner: "me", timestamp: 0 }));
+    return buildRoster([...kept, ...added], playersById, league.roster);
+  }, [league, myPicks, aPlayers, sideB, playersById]);
+
+  const currentSnap = useMemo(
+    () => (league ? snapshotRoster(currentRoster, playersById, league.roster) : null),
+    [league, currentRoster, playersById]
+  );
+
+  const afterSnap = useMemo(
+    () => (league ? snapshotRoster(afterRoster, playersById, league.roster) : null),
+    [league, afterRoster, playersById]
+  );
+
+  const deltaProj = (afterSnap?.starterProj ?? 0) - (currentSnap?.starterProj ?? 0);
 
   const valueOf = (id: string) => values.get(id) ?? 0;
   const aValue = aPlayers.reduce((s, p) => s + valueOf(p.id), 0);
@@ -210,6 +295,72 @@ export default function TradePage() {
                 {league ? `${league.teamCount}-team` : "12-team"} baseline), shown alongside ADP as a
                 market cross-check.
               </p>
+            </div>
+          )}
+
+          {/* Roster fit */}
+          {league && myPicks.length > 0 && (aPlayers.length > 0 || bPlayers.length > 0) && currentSnap && afterSnap && (
+            <div className="glass-strong mt-6 rounded-2xl p-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Roster Fit</h2>
+                <span className="truncate text-xs text-zinc-500">{league.name}</span>
+              </div>
+              <p className="mt-1 text-xs text-zinc-500">How this trade reshapes your starting lineup.</p>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {GROUPS.map((g) => {
+                  const before = currentSnap.counts[g] ?? 0;
+                  const after = afterSnap.counts[g] ?? 0;
+                  const delta = after - before;
+                  return (
+                    <div key={g} className="rounded-lg bg-zinc-900/60 px-3 py-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{g}</span>
+                      <p className="mt-0.5 text-sm font-semibold text-zinc-200">
+                        {before} <span className="text-zinc-500">→</span> {after}
+                        {delta !== 0 && (
+                          <span
+                            className={`ml-1.5 text-xs font-bold ${delta > 0 ? "text-emerald-300" : "text-rose-300"}`}
+                          >
+                            {delta > 0 ? "+" : ""}
+                            {delta}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  Starters projection
+                </span>
+                <p className="font-tech text-sm font-semibold text-zinc-200">
+                  {currentSnap.starterProj.toFixed(1)}
+                  <span className="text-zinc-500"> → </span>
+                  {afterSnap.starterProj.toFixed(1)}
+                  <span
+                    className={`font-tech ml-1.5 text-xs font-bold ${deltaProj >= 0 ? "text-emerald-300" : "text-rose-300"}`}
+                  >
+                    {deltaProj >= 0 ? "+" : ""}
+                    {deltaProj.toFixed(1)}
+                  </span>
+                </p>
+              </div>
+
+              {afterSnap.missing.length > 0 ? (
+                <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300">
+                  Missing starters: {afterSnap.missing.join(", ")}
+                </p>
+              ) : (
+                <p className="mt-3 text-xs font-medium text-emerald-300/80">All starting slots filled.</p>
+              )}
+            </div>
+          )}
+
+          {league && myPicks.length === 0 && (aPlayers.length > 0 || bPlayers.length > 0) && (
+            <div className="glass-strong mt-6 rounded-2xl p-5 text-center text-xs text-zinc-500">
+              Draft your team in {league.name} to see how a trade fits your roster.
             </div>
           )}
         </>
