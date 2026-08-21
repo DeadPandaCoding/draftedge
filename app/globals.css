@@ -250,6 +250,27 @@ select:focus-visible {
       0 24px 60px -28px rgba(0, 0, 0, 0.72);
   }
 
+  /* Floating popovers (dropdowns, select lists) — near-opaque so they read
+     clearly against whatever scrolls behind them. */
+  .glass-popover {
+    background:
+      linear-gradient(180deg, rgba(8, 28, 21, 0.97), rgba(5, 20, 15, 0.98))
+        padding-box,
+      linear-gradient(
+          135deg,
+          rgba(52, 211, 153, 0.42) 0%,
+          rgba(52, 211, 153, 0.16) 45%,
+          rgba(52, 211, 153, 0) 75%
+        )
+        border-box;
+    border: 1px solid transparent;
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+    box-shadow:
+      inset 0 1px 0 rgba(167, 243, 208, 0.14),
+      0 18px 50px -18px rgba(0, 0, 0, 0.85);
+  }
+
   /* Tactile hover/active: fluid lift on hover, a pressed "give" on tap/click. */
   .glass-hover {
     transition:

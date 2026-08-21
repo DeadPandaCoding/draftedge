@@ -63,7 +63,7 @@ export function PlayerPicker({
       </div>
 
       {open && matches.length > 0 && (
-        <div className="glass-strong absolute z-40 mt-2 w-full overflow-hidden rounded-xl">
+        <div className="glass-popover absolute z-40 mt-2 w-full overflow-hidden rounded-xl">
           <div className="max-h-64 overflow-y-auto p-1">
             {matches.map((p) => (
               <button

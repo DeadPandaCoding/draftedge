@@ -327,7 +327,7 @@ export function Select({
           role="listbox"
           aria-label={label}
           tabIndex={-1}
-          className="glass-strong absolute z-40 mt-2 w-full overflow-hidden rounded-xl"
+          className="glass-popover absolute z-40 mt-2 w-full overflow-hidden rounded-xl"
         >
           <div className="max-h-64 overflow-y-auto p-1">
             {options.map((o, i) => {
