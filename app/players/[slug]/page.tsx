@@ -8,7 +8,8 @@ import { usePlayers } from "@/lib/players";
 import { buildTradeValues } from "@/lib/trade-value";
 import { findPlayerBySlug } from "@/lib/seed-data";
 import { SCORING_LABELS } from "@/lib/league";
-import type { ScoringFormat } from "@/lib/types";
+import { fetchLeague } from "@/lib/data";
+import type { LeagueConfig, ScoringFormat } from "@/lib/types";
 import { useStarredPlayers } from "@/lib/stars";
 import AppShell from "@/components/dashboard/AppShell";
 import { PosBadge, Skeleton, TierBadge } from "@/components/ui";
@@ -23,6 +24,7 @@ export default function PlayerProfilePage() {
   const { user, loading } = useAuth();
   const { isStarred, toggleStar } = useStarredPlayers();
   const [scoring, setScoring] = useState<ScoringFormat>("ppr");
+  const [league, setLeague] = useState<LeagueConfig | null>(null);
 
   const { players, loading: playersLoading } = usePlayers(scoring);
 
@@ -30,8 +32,23 @@ export default function PlayerProfilePage() {
     if (!loading && !user) router.replace("/signin");
   }, [user, loading, router]);
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchLeague(user.id)
+      .then((lg) => {
+        if (!cancelled) setLeague(lg);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const teamCount = league?.teamCount ?? 12;
+
   const player = useMemo(() => (slug ? findPlayerBySlug(players, slug) : undefined), [players, slug]);
-  const values = useMemo(() => buildTradeValues(players), [players]);
+  const values = useMemo(() => buildTradeValues(players, teamCount), [players, teamCount]);
 
   if (loading || !user) {
     return <div className="min-h-screen" aria-busy="true" aria-label="Loading" />;
@@ -149,7 +166,7 @@ export default function PlayerProfilePage() {
           </div>
 
           <p className="mt-5 text-[11px] leading-relaxed text-zinc-500">
-            Trade value = projected points above a replacement starter (12-team baseline) in{" "}
+            Trade value = projected points above a replacement starter ({teamCount}-team baseline) in{" "}
             {SCORING_LABELS[scoring]} scoring. Add this player to a trade in the{" "}
             <Link href="/trade" className="font-semibold text-emerald-400 hover:text-emerald-300">
               Trade Analyzer
