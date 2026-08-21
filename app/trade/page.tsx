@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { fetchLeague } from "@/lib/data";
 import { usePlayers } from "@/lib/players";
-import type { Player } from "@/lib/types";
+import type { LeagueConfig, Player } from "@/lib/types";
 import { buildTradeValues, gradeTrade } from "@/lib/trade-value";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
@@ -20,13 +21,28 @@ export default function TradePage() {
 
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
+  const [league, setLeague] = useState<LeagueConfig | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
   }, [user, loading, router]);
 
+  // Use the user's league size to set the replacement baseline.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchLeague(user.id)
+      .then((lg) => {
+        if (!cancelled) setLeague(lg);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  const values = useMemo(() => buildTradeValues(players), [players]);
+  const values = useMemo(() => buildTradeValues(players, league?.teamCount ?? 12), [players, league]);
   const excluded = useMemo(() => new Set([...sideA, ...sideB]), [sideA, sideB]);
 
   const aPlayers = sideA.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
@@ -190,8 +206,9 @@ export default function TradePage() {
               )}
 
               <p className="mt-4 text-[11px] leading-relaxed text-zinc-500">
-                Value = projected points above a replacement-level starter (12-team baseline), shown
-                alongside ADP as a market cross-check.
+                Value = projected points above a replacement-level starter (
+                {league ? `${league.teamCount}-team` : "12-team"} baseline), shown alongside ADP as a
+                market cross-check.
               </p>
             </div>
           )}

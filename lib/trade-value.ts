@@ -7,17 +7,17 @@ import type { Player, Position } from "./types";
  * have for RosterAudit-style market value using bundled projections.
  */
 
-/** Replacement baseline: starters per position in a 12-team league. */
-const STARTERS: Record<Position, number> = {
-  QB: 12,
-  RB: 24,
-  WR: 24,
-  TE: 12,
-  K: 12,
-  DEF: 12,
+/** Core starters per team (flex depth is folded into the RB/WR/TE baseline). */
+const STARTERS_PER_TEAM: Record<Position, number> = {
+  QB: 1,
+  RB: 2,
+  WR: 2,
+  TE: 1,
+  K: 1,
+  DEF: 1,
 };
 
-export function buildTradeValues(players: Player[]): Map<string, number> {
+export function buildTradeValues(players: Player[], teamCount = 12): Map<string, number> {
   const grouped = new Map<Position, Player[]>();
   for (const p of players) {
     const list = grouped.get(p.position) ?? [];
@@ -28,7 +28,8 @@ export function buildTradeValues(players: Player[]): Map<string, number> {
   const baseline = new Map<Position, number>();
   for (const [pos, list] of grouped) {
     const sorted = [...list].sort((a, b) => b.projection - a.projection);
-    const idx = Math.min(STARTERS[pos], sorted.length) - 1;
+    const starters = STARTERS_PER_TEAM[pos] * teamCount;
+    const idx = Math.min(starters, sorted.length) - 1;
     baseline.set(pos, idx >= 0 ? sorted[idx].projection : 0);
   }
 
