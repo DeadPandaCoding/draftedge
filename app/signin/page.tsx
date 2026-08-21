@@ -228,12 +228,6 @@ function AuthCard() {
             </div>
           </div>
         </div>
-
-        <p className="mt-5 text-center text-xs text-zinc-500">
-          {supabaseEnabled
-            ? "Accounts and draft data are stored securely with Supabase."
-            : "Demo mode: local account, no data leaves your browser."}
-        </p>
       </div>
     </div>
   );
