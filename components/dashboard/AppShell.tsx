@@ -1,11 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
 import KineticGrid from "@/components/ui/kinetic-grid";
-import { BoltIcon, LogoutIcon } from "@/components/icons";
+import {
+  ArrowUpIcon,
+  BarChartIcon,
+  BoltIcon,
+  ClockIcon,
+  FlaskIcon,
+  LogoutIcon,
+  SwapIcon,
+  TableIcon,
+} from "@/components/icons";
+
+const QUICK_LINKS = [
+  { href: "/rankings", label: "Rankings", icon: <ArrowUpIcon size={14} /> },
+  { href: "/cheatsheet", label: "Cheat Sheet", icon: <TableIcon size={14} /> },
+  { href: "/mock", label: "Mock Draft", icon: <ClockIcon size={14} /> },
+  { href: "/trade", label: "Trade", icon: <SwapIcon size={14} /> },
+  { href: "/research", label: "Research", icon: <FlaskIcon size={14} /> },
+  { href: "/analytics", label: "Analytics", icon: <BarChartIcon size={14} /> },
+];
 
 export default function AppShell({
   children,
@@ -17,6 +35,7 @@ export default function AppShell({
   className?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { signOut } = useAuth();
 
   return (
@@ -29,35 +48,62 @@ export default function AppShell({
       </div>
 
       {/* ── Nav ──────────────────────────────────────────────── */}
-      <header className="glass-nav sticky top-0 z-30 flex items-center justify-between gap-3 px-6 py-4">
-        <Link href="/home" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-            <BoltIcon size={16} />
-          </span>
-          <span className="font-display text-lg tracking-wide text-white">
-            Draft<span className="text-emerald-400">Edge</span>
-          </span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/home"
-            className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:text-white"
-          >
-            <span className="hidden sm:inline">Home</span>
+      <header className="glass-nav sticky top-0 z-30">
+        <div className="flex items-center justify-between gap-3 px-6 py-3">
+          <Link href="/home" className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
+              <BoltIcon size={16} />
+            </span>
+            <span className="font-display text-lg tracking-wide text-white">
+              Draft<span className="text-emerald-400">Edge</span>
+            </span>
           </Link>
-          <button
-            type="button"
-            onClick={() => {
-              signOut();
-              router.push("/");
-            }}
-            aria-label="Log out"
-            className="glass glass-hover flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:text-white"
-          >
-            <LogoutIcon size={14} />
-            <span className="hidden sm:inline">Log Out</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/home"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:text-white"
+            >
+              <span className="hidden sm:inline">Home</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                signOut();
+                router.push("/");
+              }}
+              aria-label="Log out"
+              className="glass glass-hover flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:text-white"
+            >
+              <LogoutIcon size={14} />
+              <span className="hidden sm:inline">Log Out</span>
+            </button>
+          </div>
         </div>
+
+        {/* Quick-access tool bar */}
+        <nav
+          aria-label="Quick access"
+          className="flex gap-1.5 overflow-x-auto px-6 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {QUICK_LINKS.map((link) => {
+            const active = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  active
+                    ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/30"
+                    : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+                }`}
+              >
+                {link.icon}
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
       </header>
 
       {/* ── Main ─────────────────────────────────────────────── */}
