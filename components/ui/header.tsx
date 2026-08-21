@@ -236,6 +236,15 @@ export function SiteHeader({
 
             {/* Desktop nav */}
             <div className="hidden items-center gap-1 md:flex">
+              {links.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
+                >
+                  {link.label}
+                </Link>
+              ))}
               {menus.map((menu) => (
                 <div key={menu.trigger} className="relative">
                   <button
@@ -266,15 +275,6 @@ export function SiteHeader({
                   )}
                 </div>
               ))}
-              {links.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
-                >
-                  {link.label}
-                </Link>
-              ))}
             </div>
           </div>
 
@@ -301,6 +301,16 @@ export function SiteHeader({
           className="fixed inset-0 z-40 bg-zinc-950/95 backdrop-blur-xl md:hidden"
         >
           <div className="flex h-full flex-col overflow-y-auto px-4 pb-10 pt-24 sm:px-6">
+            {links.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="rounded-lg px-3 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/5"
+              >
+                {link.label}
+              </Link>
+            ))}
             {menus.map((menu) => (
               <div key={menu.trigger} className="mb-4">
                 <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
@@ -312,16 +322,6 @@ export function SiteHeader({
                   ))}
                 </div>
               </div>
-            ))}
-            {links.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/5"
-              >
-                {link.label}
-              </Link>
             ))}
             <div className="mt-6 flex flex-col gap-2 border-t border-emerald-400/10 pt-4">
               {rightActions}
