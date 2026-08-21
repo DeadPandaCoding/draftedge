@@ -135,6 +135,15 @@ export default function TradePage() {
 
   const myPlayerIds = useMemo(() => new Set(myPicks.map((p) => p.playerId)), [myPicks]);
 
+  const myRosterPlayers = useMemo(
+    () =>
+      myPicks
+        .map((pick) => playersById.get(pick.playerId))
+        .filter((p): p is Player => Boolean(p))
+        .sort((a, b) => b.projection - a.projection),
+    [myPicks, playersById]
+  );
+
   const currentRoster = useMemo(
     () => (league ? buildRoster(myPicks, playersById, league.roster) : []),
     [league, myPicks, playersById]
@@ -245,6 +254,34 @@ export default function TradePage() {
           {totalValue.toFixed(1)} <span className="text-[10px] font-semibold text-zinc-500">VAL</span>
         </span>
       </div>
+      {side === "B" && myRosterPlayers.length > 0 && (
+        <div className="mb-3">
+          <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Your roster
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {myRosterPlayers.map((p) => {
+              const added = excluded.has(p.id);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => add(side, p)}
+                  disabled={added}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                    added
+                      ? "border-zinc-700 bg-zinc-800/40 text-zinc-500"
+                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:border-emerald-500/60 hover:bg-emerald-500/20"
+                  }`}
+                >
+                  {p.name}
+                  <span className="text-[10px] text-zinc-400">{p.position}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="mb-3">
         <PlayerPicker
           players={players}
