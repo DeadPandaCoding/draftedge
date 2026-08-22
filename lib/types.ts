@@ -25,6 +25,13 @@ export interface Player {
   usage?: UsageMetrics;
   /** Current-week projection from Sleeper (empty until the regular season starts). */
   weekProjection?: number;
+  /**
+   * Consensus season projection averaging available sources:
+   *   - bundled cheat-sheet projection
+   *   - Sleeper weekly × games (extrapolated, when available)
+   *   - FantasyPros full-season (when API key is configured)
+   */
+  consensus?: number;
 }
 
 /** Seasonal receiving usage, derived from nflverse player stats. */

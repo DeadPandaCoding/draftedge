@@ -4,6 +4,7 @@ import { POSITIONS } from "@/lib/types";
 import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
 import { fetchNflverseUsage } from "@/lib/nflverse";
 import { fetchSleeperState, fetchSleeperWeeklyProjections } from "@/lib/live-data";
+import { fetchFantasyProsProjections } from "@/lib/fantasypros";
 
 export const runtime = "nodejs";
 
@@ -79,7 +80,8 @@ function mergeWithSeed(
   live: LivePlayer[],
   scoring: ScoringFormat,
   usage: Map<string, UsageMetrics>,
-  weekProj: Map<string, number>
+  weekProj: Map<string, number>,
+  fpProj: Map<string, number>
 ): Player[] {
   const seed = buildSeedPlayers(scoring);
   const seedById = new Map(seed.map((p) => [p.id, p]));
@@ -163,7 +165,24 @@ function mergeWithSeed(
     e.positionRank = pr;
   }
 
-  return [...seed, ...capped];
+  const result = [...seed, ...capped];
+
+  // Consensus projection: average all available sources (seed, Sleeper weekly
+  // extrapolated to season, and FantasyPros when configured). During preseason
+  // only the seed is available; once the season starts and the FantasyPros key
+  // is set, all three contribute.
+  for (const p of result) {
+    const sources: number[] = [];
+    if (p.projection > 0) sources.push(p.projection);
+    if (p.weekProjection && p.weekProjection > 0) sources.push(p.weekProjection * 17);
+    const fp = fpProj.get(normalizeName(p.name));
+    if (fp != null && fp > 0) sources.push(fp);
+    if (sources.length > 0) {
+      p.consensus = Math.round((sources.reduce((a, b) => a + b, 0) / sources.length) * 10) / 10;
+    }
+  }
+
+  return result;
 }
 
 export async function GET(req: NextRequest) {
@@ -184,6 +203,7 @@ export async function GET(req: NextRequest) {
   // All non-fatal — players still load (just without those fields) on failure.
   const usage = new Map<string, UsageMetrics>();
   const weekProj = new Map<string, number>();
+  const fpProj = new Map<string, number>();
   try {
     const state = await fetchSleeperState();
     // nflverse usage: last completed season during preseason, current season otherwise.
@@ -198,11 +218,15 @@ export async function GET(req: NextRequest) {
       const w = await fetchSleeperWeeklyProjections(state.season, state.week, scoring);
       for (const [k, v] of w) weekProj.set(k, v);
     }
+    // FantasyPros season-long projections (requires FANTASYPROS_API_KEY env var).
+    const fpSeason = Number(state.season) || new Date().getFullYear();
+    const fp = await fetchFantasyProsProjections(fpSeason, scoring);
+    for (const [k, v] of fp) fpProj.set(k, v);
   } catch (err) {
     console.warn("[players] live enrichment failed, omitting usage/projections:", err);
   }
 
-  const players = mergeWithSeed(live, scoring, usage, weekProj);
+  const players = mergeWithSeed(live, scoring, usage, weekProj, fpProj);
   const body: PlayersResponse = {
     players,
     source,

@@ -99,6 +99,9 @@ export default function MetricsPage() {
           <p className="mt-2 text-sm text-zinc-400">
             Value-over-replacement and efficiency at a glance, comparable across positions.
           </p>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            Consensus projection averages your seed data, Sleeper weekly, and FantasyPros (when configured).
+          </p>
         </div>
       </div>
 
@@ -163,6 +166,7 @@ export default function MetricsPage() {
                 <tr className="border-b border-zinc-800 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                   <th className="px-3 py-2.5">Player</th>
                   <th className="px-3 py-2.5">Proj</th>
+                  <th className="px-3 py-2.5">Consensus</th>
                   <th className="px-3 py-2.5">Wk Avg</th>
                   <th className="px-3 py-2.5">Tgt</th>
                   <th className="px-3 py-2.5">Tgt%</th>
@@ -188,6 +192,9 @@ export default function MetricsPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2.5 font-tech text-zinc-200">{p.projection.toFixed(1)}</td>
+                    <td className="px-3 py-2.5 font-tech text-emerald-300">
+                      {p.consensus != null ? p.consensus.toFixed(1) : "—"}
+                    </td>
                     <td className="px-3 py-2.5 font-tech text-zinc-400">{p.weeklyAvg.toFixed(1)}</td>
                     <td className="px-3 py-2.5 font-tech text-zinc-400">{fmtNum(p.usage?.targets)}</td>
                     <td className="px-3 py-2.5 font-tech text-zinc-400">{fmtPct(p.usage?.targetShare)}</td>
