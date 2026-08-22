@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/terms", label: "Terms of Service" },
   { href: "/cookies", label: "Cookie Policy" },
   { href: "/accessibility", label: "Accessibility" },
+  { href: "/disclaimers", label: "Disclaimers" },
 ];
 
 export function LegalPage({

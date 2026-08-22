@@ -121,6 +121,12 @@ const COMPANY: HeaderItem[] = [
     icon: <UsersIcon size={18} />,
     description: "Our commitment to inclusive design.",
   },
+  {
+    label: "Disclaimers",
+    href: "/disclaimers",
+    icon: <LockIcon size={18} />,
+    description: "Legal disclaimers and attribution.",
+  },
 ];
 
 const NAV = {

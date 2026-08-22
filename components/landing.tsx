@@ -360,6 +360,9 @@ export function LandingPage() {
               <Link href="/accessibility" className="transition hover:text-zinc-300">
                 Accessibility
               </Link>
+              <Link href="/disclaimers" className="transition hover:text-zinc-300">
+                Disclaimers
+              </Link>
             </nav>
           </div>
         </div>
