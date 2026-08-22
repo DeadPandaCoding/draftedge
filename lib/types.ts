@@ -23,6 +23,8 @@ export interface Player {
   source: "seed" | "live"; // where the record came from
   /** Seasonal usage/efficiency from nflverse, when live data is available. */
   usage?: UsageMetrics;
+  /** Current-week projection from Sleeper (empty until the regular season starts). */
+  weekProjection?: number;
 }
 
 /** Seasonal receiving usage, derived from nflverse player stats. */

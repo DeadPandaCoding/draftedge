@@ -95,9 +95,14 @@ export default function StartSitPage() {
     [league, myPicks, playersById]
   );
 
-  const diff = a && b ? a.projection - b.projection : 0;
+  // Prefer this week's Sleeper projection when both players have one; fall
+  // back to the season projection (the only signal available in the offseason).
+  const useWeek = Boolean(a && b && a.weekProjection != null && b.weekProjection != null);
+  const aScore = a ? (useWeek ? a.weekProjection ?? a.projection : a.projection) : 0;
+  const bScore = b ? (useWeek ? b.weekProjection ?? b.projection : b.projection) : 0;
+  const diff = a && b ? aScore - bScore : 0;
   const band = a && b ? confidence(diff) : null;
-  const winner = a && b ? (a.projection >= b.projection ? a : b) : null;
+  const winner = a && b ? (aScore >= bScore ? a : b) : null;
 
   const statRow = (label: string, value: string, highlight = false) => (
     <div className="flex items-center justify-between gap-2 border-b border-zinc-800/70 py-2 last:border-0">
@@ -132,6 +137,8 @@ export default function StartSitPage() {
       </div>
       <div className="mt-4">
         {statRow("Projection", `${p.projection.toFixed(1)} pts`, winner === p)}
+        {p.weekProjection != null &&
+          statRow("This week", `${p.weekProjection.toFixed(1)} pts`, winner === p)}
         {statRow("Weekly avg", p.weeklyAvg.toFixed(1))}
         {statRow("Trade value", (values.get(p.id) ?? 0).toFixed(1))}
         {statRow("Tier", `T${p.tier}`)}
@@ -212,13 +219,15 @@ export default function StartSitPage() {
                 </span>
                 <p className="text-sm text-zinc-300">{band.detail}</p>
                 <p className="font-tech text-lg font-bold text-zinc-100">
-                  {winner.projection.toFixed(1)} vs{" "}
-                  {(winner === a ? b : a).projection.toFixed(1)} pts
+                  {aScore.toFixed(1)} vs {bScore.toFixed(1)} pts
                   <span className="ml-2 text-sm text-zinc-400">
                     ({diff >= 0 ? "+" : ""}
                     {diff.toFixed(1)} gap)
                   </span>
                 </p>
+                <span className="rounded-full bg-zinc-900/60 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  {useWeek ? "This week" : "Season projection"}
+                </span>
                 <span className="rounded-full bg-zinc-900/60 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                   {band.label}
                 </span>

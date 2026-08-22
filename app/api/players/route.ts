@@ -3,6 +3,7 @@ import type { Player, Position, PlayersResponse, ScoringFormat, UsageMetrics } f
 import { POSITIONS } from "@/lib/types";
 import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
 import { fetchNflverseUsage } from "@/lib/nflverse";
+import { fetchSleeperState, fetchSleeperWeeklyProjections } from "@/lib/live-data";
 
 export const runtime = "nodejs";
 
@@ -77,7 +78,8 @@ async function fetchLivePlayers(): Promise<LivePlayer[]> {
 function mergeWithSeed(
   live: LivePlayer[],
   scoring: ScoringFormat,
-  usage: Map<string, UsageMetrics>
+  usage: Map<string, UsageMetrics>,
+  weekProj: Map<string, number>
 ): Player[] {
   const seed = buildSeedPlayers(scoring);
   const seedById = new Map(seed.map((p) => [p.id, p]));
@@ -101,6 +103,8 @@ function mergeWithSeed(
       match.position = l.position;
       match.source = "live";
       if (l.gsisId) match.usage = usage.get(l.gsisId);
+      const wp0 = weekProj.get(l.id);
+      if (wp0 != null) match.weekProjection = wp0;
     }
   }
 
@@ -121,6 +125,8 @@ function mergeWithSeed(
         byName.team = l.team;
         byName.source = "live";
         if (l.gsisId) byName.usage = usage.get(l.gsisId);
+        const wp1 = weekProj.get(l.id);
+        if (wp1 != null) byName.weekProjection = wp1;
         continue;
       }
       capped.push({
@@ -137,6 +143,7 @@ function mergeWithSeed(
         positionRank: 0,
         source: "live",
         usage: l.gsisId ? usage.get(l.gsisId) : undefined,
+        weekProjection: weekProj.get(l.id),
       });
     }
   }
@@ -159,28 +166,6 @@ function mergeWithSeed(
   return [...seed, ...capped];
 }
 
-/** Season whose nflverse regular-season data exists (last season during preseason). */
-async function fetchNflSeason(): Promise<number> {
-  const fallback = new Date().getFullYear() - 1;
-  try {
-    const res = await fetch(`${SLEEPER_BASE}/state/nfl`, {
-      next: { revalidate: REVALIDATE_SECONDS },
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!res.ok) return fallback;
-    const st = (await res.json()) as {
-      season?: string;
-      season_type?: string;
-      previous_season?: string;
-    };
-    const raw = st.season_type === "pre" ? (st.previous_season ?? st.season) : st.season;
-    const n = Number(raw);
-    return Number.isFinite(n) && n >= 1999 ? n : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 export async function GET(req: NextRequest) {
   const scoringParam = (req.nextUrl.searchParams.get("scoring") ?? "ppr") as ScoringFormat;
   const scoring: ScoringFormat =
@@ -195,18 +180,29 @@ export async function GET(req: NextRequest) {
     console.warn("[players] Sleeper fetch failed, using seed data only:", err);
   }
 
-  // Usage/efficiency metrics from nflverse, joined by gsis_id. Non-fatal —
-  // players still load (just without usage) if the fetch fails.
+  // Enrichment from free sources (nflverse usage + Sleeper weekly projections).
+  // All non-fatal — players still load (just without those fields) on failure.
   const usage = new Map<string, UsageMetrics>();
+  const weekProj = new Map<string, number>();
   try {
-    const season = await fetchNflSeason();
-    const u = await fetchNflverseUsage(season);
-    for (const [k, v] of u) usage.set(k, v);
+    const state = await fetchSleeperState();
+    // nflverse usage: last completed season during preseason, current season otherwise.
+    const rawSeason = state.season_type === "pre" ? (state.previous_season ?? state.season) : state.season;
+    const nflSeason = Number(rawSeason);
+    if (Number.isFinite(nflSeason) && nflSeason >= 1999) {
+      const u = await fetchNflverseUsage(nflSeason);
+      for (const [k, v] of u) usage.set(k, v);
+    }
+    // Sleeper weekly projections (empty until the regular season begins).
+    if (state.season_type === "regular" && state.week >= 1) {
+      const w = await fetchSleeperWeeklyProjections(state.season, state.week, scoring);
+      for (const [k, v] of w) weekProj.set(k, v);
+    }
   } catch (err) {
-    console.warn("[players] nflverse usage fetch failed, omitting usage metrics:", err);
+    console.warn("[players] live enrichment failed, omitting usage/projections:", err);
   }
 
-  const players = mergeWithSeed(live, scoring, usage);
+  const players = mergeWithSeed(live, scoring, usage, weekProj);
   const body: PlayersResponse = {
     players,
     source,
