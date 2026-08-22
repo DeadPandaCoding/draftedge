@@ -255,7 +255,7 @@ export default function HomePage() {
               <h2 className="text-base font-bold text-white">
                 {league ? "Your League" : "Set Up a League"}
               </h2>
-              <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
+              <div className="mt-0.5 text-xs leading-relaxed text-zinc-400">
                 {loadingLeague ? (
                   <Skeleton className="inline-block h-3 w-32" />
                 ) : league ? (
@@ -265,7 +265,7 @@ export default function HomePage() {
                 ) : (
                   "Configure scoring, roster, and draft position."
                 )}
-              </p>
+              </div>
             </div>
             <ChevronRightIcon size={16} className="shrink-0 text-zinc-500 transition group-hover:text-emerald-300" />
           </Link>
