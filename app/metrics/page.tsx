@@ -23,16 +23,12 @@ const SORTS: { key: SortKey; label: string }[] = [
 ];
 
 /**
- * The external metrics that require live play-by-play / usage data. We don't
- * have a data vendor wired yet, so these are surfaced honestly as "coming
- * soon" rather than fabricated numbers.
+ * Play-by-play / participation metrics that still need pbp data. Surfaced
+ * honestly as "coming soon" rather than fabricated numbers.
  */
 const EXTERNAL_METRICS: { name: string; desc: string }[] = [
   { name: "xFP", desc: "Expected fantasy points from a player's usage (targets + carries)." },
-  { name: "Target share", desc: "Share of the team's targets a player commands." },
-  { name: "Air yards share", desc: "Share of the team's intended air yards." },
   { name: "Route participation", desc: "% of dropbacks the player ran a route on." },
-  { name: "Red-zone usage", desc: "Share of the team's red-zone targets/carries." },
   { name: "YPRR", desc: "Yards per route run — efficiency per snap in the route." },
 ];
 
@@ -59,6 +55,10 @@ export default function MetricsPage() {
   }, [user]);
 
   const values = useMemo(() => buildTradeValues(players, league?.teamCount ?? 12), [players, league]);
+
+  const usageSeason = players.find((p) => p.usage)?.usage?.season;
+  const fmtPct = (v: number | undefined) => (v != null && v > 0 ? `${(v * 100).toFixed(1)}%` : "—");
+  const fmtNum = (v: number | undefined) => (v != null && v > 0 ? v.toFixed(1) : "—");
 
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -164,6 +164,11 @@ export default function MetricsPage() {
                   <th className="px-3 py-2.5">Player</th>
                   <th className="px-3 py-2.5">Proj</th>
                   <th className="px-3 py-2.5">Wk Avg</th>
+                  <th className="px-3 py-2.5">Tgt</th>
+                  <th className="px-3 py-2.5">Tgt%</th>
+                  <th className="px-3 py-2.5">Air Yds</th>
+                  <th className="px-3 py-2.5">Air%</th>
+                  <th className="px-3 py-2.5">YAC</th>
                   <th className="px-3 py-2.5">Value</th>
                   <th className="px-3 py-2.5">ADP</th>
                   <th className="px-3 py-2.5">Tier</th>
@@ -184,6 +189,11 @@ export default function MetricsPage() {
                     </td>
                     <td className="px-3 py-2.5 font-tech text-zinc-200">{p.projection.toFixed(1)}</td>
                     <td className="px-3 py-2.5 font-tech text-zinc-400">{p.weeklyAvg.toFixed(1)}</td>
+                    <td className="px-3 py-2.5 font-tech text-zinc-400">{fmtNum(p.usage?.targets)}</td>
+                    <td className="px-3 py-2.5 font-tech text-zinc-400">{fmtPct(p.usage?.targetShare)}</td>
+                    <td className="px-3 py-2.5 font-tech text-zinc-400">{fmtNum(p.usage?.airYards)}</td>
+                    <td className="px-3 py-2.5 font-tech text-zinc-400">{fmtPct(p.usage?.airYardsShare)}</td>
+                    <td className="px-3 py-2.5 font-tech text-zinc-400">{fmtNum(p.usage?.yac)}</td>
                     <td className="px-3 py-2.5 font-tech font-bold text-emerald-300">
                       {(values.get(p.id) ?? 0).toFixed(1)}
                     </td>
@@ -200,18 +210,18 @@ export default function MetricsPage() {
         </div>
       )}
 
-      {/* ── Live advanced metrics (gated honestly) ─────────── */}
+      {/* ── Play-by-play metrics (still gated) ──────────────── */}
       <div className="glass-strong mt-6 rounded-2xl p-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Usage & efficiency metrics</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Play-by-play metrics</h2>
           <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
-            Needs live data
+            Needs pbp data
           </span>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-          These come from play-by-play and participation data we don&apos;t bundle yet. They&apos;ll be wired to
-          the free <span className="text-zinc-300">nflverse</span> open datasets (snap counts, Next Gen Stats, and
-          play-by-play) rather than fabricated. Until then they show as &quot;coming soon&quot;:
+          Targets, target share, air yards, air-yards share, and YAC are now live in the table above from the
+          free <span className="text-zinc-300">nflverse</span> {usageSeason ?? ""} season. These three still need
+          play-by-play / participation data and show as &quot;coming soon&quot;:
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {EXTERNAL_METRICS.map((m) => (

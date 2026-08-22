@@ -22,7 +22,7 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
 
   useEffect(() => {
     let cancelled = false;
-    const cacheKey = `draftedge.players.${scoring}.v2`;
+    const cacheKey = `draftedge.players.${scoring}.v3`;
 
     // 1) Serve from cache immediately if fresh.
     try {

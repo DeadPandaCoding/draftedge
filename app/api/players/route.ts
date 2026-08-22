@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Player, Position, PlayersResponse, ScoringFormat } from "@/lib/types";
+import type { Player, Position, PlayersResponse, ScoringFormat, UsageMetrics } from "@/lib/types";
 import { POSITIONS } from "@/lib/types";
 import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
+import { fetchNflverseUsage } from "@/lib/nflverse";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,7 @@ interface LivePlayer {
   position: Position;
   team: string;
   searchRank: number;
+  gsisId: string;
 }
 
 /** Subset of the Sleeper player object we actually consume. */
@@ -33,6 +35,7 @@ interface SleeperPlayer {
   first_name?: string;
   last_name?: string;
   search_rank?: number;
+  gsis_id?: string | null;
 }
 
 async function fetchLivePlayers(): Promise<LivePlayer[]> {
@@ -58,13 +61,24 @@ async function fetchLivePlayers(): Promise<LivePlayer[]> {
       const team: string = p.team || "FA";
       let name = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
       if (!name) name = pos === "DEF" ? team : `Unknown ${pos}`;
-      out.push({ id, name, position: pos, team, searchRank: Number(p.search_rank ?? 9999999) });
+      out.push({
+        id,
+        name,
+        position: pos,
+        team,
+        searchRank: Number(p.search_rank ?? 9999999),
+        gsisId: p.gsis_id ?? "",
+      });
     }
   }
   return out;
 }
 
-function mergeWithSeed(live: LivePlayer[], scoring: ScoringFormat): Player[] {
+function mergeWithSeed(
+  live: LivePlayer[],
+  scoring: ScoringFormat,
+  usage: Map<string, UsageMetrics>
+): Player[] {
   const seed = buildSeedPlayers(scoring);
   const seedById = new Map(seed.map((p) => [p.id, p]));
   const seedByName = new Map(seed.map((p) => [normalizeName(p.name), p]));
@@ -86,6 +100,7 @@ function mergeWithSeed(live: LivePlayer[], scoring: ScoringFormat): Player[] {
       match.team = l.team;
       match.position = l.position;
       match.source = "live";
+      if (l.gsisId) match.usage = usage.get(l.gsisId);
     }
   }
 
@@ -105,6 +120,7 @@ function mergeWithSeed(live: LivePlayer[], scoring: ScoringFormat): Player[] {
         byName.name = l.name;
         byName.team = l.team;
         byName.source = "live";
+        if (l.gsisId) byName.usage = usage.get(l.gsisId);
         continue;
       }
       capped.push({
@@ -120,6 +136,7 @@ function mergeWithSeed(live: LivePlayer[], scoring: ScoringFormat): Player[] {
         rank: 0,
         positionRank: 0,
         source: "live",
+        usage: l.gsisId ? usage.get(l.gsisId) : undefined,
       });
     }
   }
@@ -142,6 +159,28 @@ function mergeWithSeed(live: LivePlayer[], scoring: ScoringFormat): Player[] {
   return [...seed, ...capped];
 }
 
+/** Season whose nflverse regular-season data exists (last season during preseason). */
+async function fetchNflSeason(): Promise<number> {
+  const fallback = new Date().getFullYear() - 1;
+  try {
+    const res = await fetch(`${SLEEPER_BASE}/state/nfl`, {
+      next: { revalidate: REVALIDATE_SECONDS },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return fallback;
+    const st = (await res.json()) as {
+      season?: string;
+      season_type?: string;
+      previous_season?: string;
+    };
+    const raw = st.season_type === "pre" ? (st.previous_season ?? st.season) : st.season;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 1999 ? n : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const scoringParam = (req.nextUrl.searchParams.get("scoring") ?? "ppr") as ScoringFormat;
   const scoring: ScoringFormat =
@@ -156,7 +195,18 @@ export async function GET(req: NextRequest) {
     console.warn("[players] Sleeper fetch failed, using seed data only:", err);
   }
 
-  const players = mergeWithSeed(live, scoring);
+  // Usage/efficiency metrics from nflverse, joined by gsis_id. Non-fatal —
+  // players still load (just without usage) if the fetch fails.
+  const usage = new Map<string, UsageMetrics>();
+  try {
+    const season = await fetchNflSeason();
+    const u = await fetchNflverseUsage(season);
+    for (const [k, v] of u) usage.set(k, v);
+  } catch (err) {
+    console.warn("[players] nflverse usage fetch failed, omitting usage metrics:", err);
+  }
+
+  const players = mergeWithSeed(live, scoring, usage);
   const body: PlayersResponse = {
     players,
     source,

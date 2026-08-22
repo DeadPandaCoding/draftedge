@@ -21,6 +21,22 @@ export interface Player {
   rank: number; // overall rank (1..n) by projection
   positionRank: number; // rank within position
   source: "seed" | "live"; // where the record came from
+  /** Seasonal usage/efficiency from nflverse, when live data is available. */
+  usage?: UsageMetrics;
+}
+
+/** Seasonal receiving usage, derived from nflverse player stats. */
+export interface UsageMetrics {
+  season: number;
+  games: number;
+  targets: number;
+  receptions: number;
+  receivingYards: number;
+  airYards: number;
+  yac: number;
+  targetShare: number; // 0..1 share of team targets
+  airYardsShare: number; // 0..1 share of team air yards
+  wopr: number; // weighted opportunity rating
 }
 
 export interface RosterTemplate {
