@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  ActivityIcon,
   ArrowUpIcon,
   BarChartIcon,
   BoltIcon,
@@ -11,8 +12,10 @@ import {
   ClockIcon,
   EyeIcon,
   FlaskIcon,
+  ListCheckIcon,
   LockIcon,
   MenuIcon,
+  PollIcon,
   SwapIcon,
   TableIcon,
   UsersIcon,
@@ -65,6 +68,24 @@ const TOOLS: HeaderItem[] = [
     href: "/research",
     icon: <FlaskIcon size={18} />,
     description: "Value leaders and positional depth.",
+  },
+  {
+    label: "Start/Sit",
+    href: "/start-sit",
+    icon: <ListCheckIcon size={18} />,
+    description: "Head-to-head calls and your best lineup.",
+  },
+  {
+    label: "Advanced Metrics",
+    href: "/metrics",
+    icon: <ActivityIcon size={18} />,
+    description: "Value and efficiency across positions.",
+  },
+  {
+    label: "Community Polls",
+    href: "/polls",
+    icon: <PollIcon size={18} />,
+    description: "Vote and see the crowd consensus.",
   },
 ];
 

@@ -11,12 +11,15 @@ import KineticGrid from "@/components/ui/kinetic-grid";
 import { Skeleton } from "@/components/ui";
 import { SiteHeader } from "@/components/ui/header";
 import {
+  ActivityIcon,
   ArrowUpIcon,
   BarChartIcon,
   BoltIcon,
   ClockIcon,
   FlaskIcon,
+  ListCheckIcon,
   LogoutIcon,
+  PollIcon,
   SwapIcon,
   TableIcon,
   UsersIcon,
@@ -61,6 +64,24 @@ const TOOLS = [
     title: "Research Hub",
     desc: "Value leaders, positional depth, and tier breakdowns at a glance.",
     href: "/research",
+  },
+  {
+    icon: <ListCheckIcon size={20} />,
+    title: "Start/Sit Optimizer",
+    desc: "Compare two players head-to-head and see your best starting lineup.",
+    href: "/start-sit",
+  },
+  {
+    icon: <ActivityIcon size={20} />,
+    title: "Advanced Metrics",
+    desc: "Value-over-replacement and efficiency, comparable across positions.",
+    href: "/metrics",
+  },
+  {
+    icon: <PollIcon size={20} />,
+    title: "Community Polls",
+    desc: "Vote on trades and breakout calls, and see the crowd consensus.",
+    href: "/polls",
   },
 ];
 

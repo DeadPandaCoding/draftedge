@@ -19,8 +19,9 @@ import type {
 import { buildTradeValues, gradeTrade } from "@/lib/trade-value";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
+import { ShareButtons } from "@/components/dashboard/ShareButtons";
 import { PosBadge, Skeleton } from "@/components/ui";
-import { LinkIcon, SwapIcon, XIcon } from "@/components/icons";
+import { SwapIcon, XIcon } from "@/components/icons";
 
 type Side = "A" | "B";
 
@@ -70,7 +71,6 @@ export default function TradePage() {
 
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
-  const [copied, setCopied] = useState(false);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -204,18 +204,6 @@ export default function TradePage() {
     return qs ? `${base}?${qs}` : base;
   };
 
-  const copyLink = async () => {
-    const url = buildShareUrl();
-    window.history.replaceState({}, "", url);
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard unavailable — the shareable URL is still in the address bar.
-    }
-  };
-
   const playerRow = (p: Player, side: Side) => (
     <div key={p.id} className="rounded-lg bg-zinc-900/60 px-3 py-2">
       <div className="flex items-center justify-between gap-2">
@@ -331,15 +319,15 @@ export default function TradePage() {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={copyLink}
-          disabled={aPlayers.length === 0 && bPlayers.length === 0}
-          className="glass glass-hover inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-200 transition disabled:opacity-40"
-        >
-          <LinkIcon size={15} />
-          {copied ? "Copied!" : "Copy Link"}
-        </button>
+        {(aPlayers.length > 0 || bPlayers.length > 0) && (
+          <ShareButtons
+            url={buildShareUrl()}
+            text={`I ${grade.label.toLowerCase()} this trade on DraftEdge${
+              net !== 0 ? ` (${net >= 0 ? "+" : ""}${net.toFixed(1)} net value)` : ""
+            }`}
+            title="Check out this DraftEdge trade"
+          />
+        )}
       </div>
 
       {playersLoading ? (

@@ -10,7 +10,8 @@ import { SCORING_LABELS } from "@/lib/league";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayersTable } from "@/components/dashboard/PlayersTable";
 import { Skeleton } from "@/components/ui";
-import { SearchIcon } from "@/components/icons";
+import { DownloadIcon, SearchIcon } from "@/components/icons";
+import { exportPlayersCsv } from "@/lib/csv";
 
 const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
 const POSITION_FILTERS = ["ALL", ...POSITIONS] as (Position | "ALL")[];
@@ -49,20 +50,31 @@ export default function RankingsPage() {
             Browse projections, tiers, and ADP across every position.
           </p>
         </div>
-        <div className="flex rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-1">
-          {SCORING_OPTIONS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setScoring(s)}
-              aria-pressed={scoring === s}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                scoring === s ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              {SCORING_LABELS[s]}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-1">
+            {SCORING_OPTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setScoring(s)}
+                aria-pressed={scoring === s}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  scoring === s ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {SCORING_LABELS[s]}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => exportPlayersCsv(filtered, null)}
+            disabled={playersLoading || filtered.length === 0}
+            className="glass glass-hover inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-200 transition disabled:opacity-40"
+          >
+            <DownloadIcon size={15} />
+            Export CSV
+          </button>
         </div>
       </div>
 
