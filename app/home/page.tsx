@@ -15,6 +15,7 @@ import {
   ArrowUpIcon,
   BarChartIcon,
   BoltIcon,
+  ChevronRightIcon,
   ClockIcon,
   FlaskIcon,
   ListCheckIcon,
@@ -30,57 +31,57 @@ import { playerSlug } from "@/lib/seed-data";
 
 const TOOLS = [
   {
-    icon: <SwapIcon size={20} />,
+    icon: <SwapIcon size={18} />,
     title: "Trade Analyzer",
-    desc: "Compare both sides of a trade and see who comes out ahead.",
+    desc: "Compare both sides and see who wins.",
     href: "/trade",
   },
   {
-    icon: <TableIcon size={20} />,
+    icon: <TableIcon size={18} />,
     title: "Cheat Sheets",
-    desc: "Build and export a personalized cheat sheet tuned to your league.",
+    desc: "Personalized draft board for your league.",
     href: "/cheatsheet",
   },
   {
-    icon: <ClockIcon size={20} />,
+    icon: <ClockIcon size={18} />,
     title: "Mock Drafts",
-    desc: "Practice against realistic pick simulations before the real thing.",
+    desc: "Practice against realistic pick simulations.",
     href: "/mock",
   },
   {
-    icon: <ArrowUpIcon size={20} />,
+    icon: <ArrowUpIcon size={18} />,
     title: "Player Rankings",
-    desc: "Browse projections, tiers, and ADP across every position.",
+    desc: "Projections, tiers, and ADP by position.",
     href: "/rankings",
   },
   {
-    icon: <BarChartIcon size={20} />,
+    icon: <BarChartIcon size={18} />,
     title: "Draft Analytics",
-    desc: "Review your draft, spot value picks, and grade your team.",
+    desc: "Review your draft and spot value picks.",
     href: "/analytics",
   },
   {
-    icon: <FlaskIcon size={20} />,
+    icon: <FlaskIcon size={18} />,
     title: "Research Hub",
-    desc: "Value leaders, positional depth, and tier breakdowns at a glance.",
+    desc: "Value leaders and positional depth.",
     href: "/research",
   },
   {
-    icon: <ListCheckIcon size={20} />,
-    title: "Start/Sit Optimizer",
-    desc: "Compare two players head-to-head and see your best starting lineup.",
+    icon: <ListCheckIcon size={18} />,
+    title: "Start/Sit",
+    desc: "Head-to-head player comparisons.",
     href: "/start-sit",
   },
   {
-    icon: <ActivityIcon size={20} />,
+    icon: <ActivityIcon size={18} />,
     title: "Advanced Metrics",
-    desc: "Value-over-replacement and efficiency, comparable across positions.",
+    desc: "Usage data and efficiency across positions.",
     href: "/metrics",
   },
   {
-    icon: <PollIcon size={20} />,
+    icon: <PollIcon size={18} />,
     title: "Community Polls",
-    desc: "Vote on trades and breakout calls, and see the crowd consensus.",
+    desc: "Vote and see the crowd consensus.",
     href: "/polls",
   },
 ];
@@ -95,12 +96,10 @@ export default function HomePage() {
   const [startingDemo, setStartingDemo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Guards: must be signed in to see the home hub.
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
   }, [user, loading, router]);
 
-  // Load the user's existing league (cloud or local demo storage).
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -158,14 +157,12 @@ export default function HomePage() {
 
   return (
     <div className="relative flex min-h-screen flex-col text-zinc-200">
-      {/* Kinetic grid background — warps toward the pointer, ripples on click */}
       <KineticGrid globalColor="default" className="pointer-events-none fixed inset-0 z-0" />
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 h-[480px] w-[820px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
       </div>
 
-      {/* ── Nav ──────────────────────────────────────────────── */}
       <SiteHeader
         variant="app"
         actions={
@@ -184,20 +181,21 @@ export default function HomePage() {
         }
       />
 
-      {/* ── Main hub ─────────────────────────────────────────── */}
-      <main className="relative z-10 mx-auto w-full max-w-5xl flex-1 px-6 pb-20 pt-12">
-        <div className="mb-10">
-          <h1 className="font-display text-3xl tracking-wide text-white sm:text-4xl">
-            Welcome, {firstName}!
-          </h1>
-          <p className="mt-2 text-sm text-zinc-400">Pick a tool to get started — more are on the way.</p>
-        </div>
+      <main className="relative z-10 mx-auto w-full max-w-2xl flex-1 px-6 pb-20 pt-12">
+        {/* ── Welcome ────────────────────────────────────── */}
+        <h1 className="font-display text-3xl tracking-wide text-white sm:text-4xl">
+          Welcome, {firstName}
+        </h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          What would you like to do?
+        </p>
 
+        {/* ── Starred players ────────────────────────────── */}
         {starred.length > 0 && (
-          <section className="mb-8" aria-label="Starred players">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">Starred players</h2>
-              <span className="text-xs text-zinc-500">{starred.length} saved</span>
+          <section className="mt-8" aria-label="Starred players">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-300">Starred players</h2>
+              <span className="text-xs text-zinc-500">{starred.length}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {starred.map((name) => (
@@ -225,105 +223,86 @@ export default function HomePage() {
           </section>
         )}
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {/* ── Demo League (primary) ─────────────────────────── */}
-          <div className="glass-strong relative flex flex-col overflow-hidden rounded-2xl p-6 ring-1 ring-inset ring-emerald-500/30">
-            <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-emerald-500/15 blur-2xl" />
-            <div className="relative flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-                <BoltIcon size={20} />
-              </span>
-              <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                Try it now
-              </span>
-            </div>
-            <h2 className="relative mt-4 text-lg font-bold text-white">Demo League</h2>
-            <p className="relative mt-1.5 flex-1 text-sm leading-relaxed text-zinc-400">
-              Jump straight into a pre-configured PPR league and explore the draft room in seconds.
-            </p>
-            <button
-              onClick={startDemo}
-              disabled={startingDemo}
-              className="btn-glass-primary relative mt-5 w-full rounded-xl py-3 text-sm font-bold transition"
-            >
-              {startingDemo ? "Starting…" : "Start the Demo"}
-            </button>
-          </div>
-
-          {/* ── Your League ───────────────────────────────────── */}
-          <div className="glass-strong flex flex-col rounded-2xl p-6">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-800/70 text-zinc-300 ring-1 ring-inset ring-zinc-700/60">
-              <UsersIcon size={20} />
+        {/* ── Primary actions ─────────────────────────────── */}
+        <div className="mt-10 grid gap-3 sm:grid-cols-2">
+          {/* Demo League */}
+          <button
+            onClick={startDemo}
+            disabled={startingDemo}
+            className="group glass-strong relative flex items-center gap-4 rounded-2xl p-5 text-left ring-1 ring-inset ring-emerald-500/30 transition hover:-translate-y-0.5 hover:ring-emerald-500/50"
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
+              <BoltIcon size={22} />
             </span>
-            <h2 className="mt-4 text-lg font-bold text-white">
-              {league ? "Your League" : "Create a League"}
-            </h2>
-            {loadingLeague ? (
-              <div className="mt-3 flex-1 space-y-2.5">
-                <Skeleton className="h-3 w-2/3" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-            ) : league ? (
-              <>
-                <p className="mt-1.5 flex-1 text-sm leading-relaxed text-zinc-400">
-                  {league.name} · {SCORING_LABELS[league.scoring]} · {league.teamCount}-team · pick{" "}
-                  {league.draftPosition}
-                </p>
-                <Link
-                  href="/draft"
-                  className="btn-glass-primary mt-5 w-full rounded-xl py-3 text-center text-sm font-bold transition"
-                >
-                  Open Draft Room
-                </Link>
-                <Link
-                  href="/onboarding"
-                  className="mt-2 w-full rounded-xl py-2 text-center text-xs font-semibold text-zinc-400 transition hover:text-white"
-                >
-                  Edit league config
-                </Link>
-              </>
-            ) : (
-              <>
-                <p className="mt-1.5 flex-1 text-sm leading-relaxed text-zinc-400">
-                  Set up your scoring, roster, and draft position to build a custom cheat sheet.
-                </p>
-                <Link
-                  href="/onboarding"
-                  className="glass glass-hover mt-5 w-full rounded-xl py-3 text-center text-sm font-semibold text-zinc-200 transition"
-                >
-                  Set Up League
-                </Link>
-              </>
-            )}
-          </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-bold text-white">Demo League</h2>
+              <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
+                {startingDemo ? "Starting…" : "Jump into a pre-built PPR draft in seconds."}
+              </p>
+            </div>
+            <ChevronRightIcon size={16} className="shrink-0 text-zinc-500 transition group-hover:text-emerald-300" />
+          </button>
 
-          {/* ── Tools ─────────────────────────────────────────── */}
-          {TOOLS.map((t) => (
-            <Link
-              key={t.title}
-              href={t.href}
-              className="glass-strong group flex flex-col rounded-2xl p-6 transition hover:-translate-y-0.5 hover:border-emerald-500/30"
-            >
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-800/70 text-zinc-300 ring-1 ring-inset ring-zinc-700/60 transition group-hover:text-emerald-300">
-                {t.icon}
-              </span>
-              <h2 className="mt-4 text-lg font-bold text-white">{t.title}</h2>
-              <p className="mt-1.5 flex-1 text-sm leading-relaxed text-zinc-400">{t.desc}</p>
-              <span className="mt-5 text-sm font-semibold text-emerald-400 transition group-hover:text-emerald-300">
-                Open →
-              </span>
-            </Link>
-          ))}
+          {/* Your League */}
+          <Link
+            href={league ? "/draft" : "/onboarding"}
+            className="group glass-strong flex items-center gap-4 rounded-2xl p-5 ring-1 ring-inset ring-zinc-700/60 transition hover:-translate-y-0.5 hover:ring-zinc-600"
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-zinc-800/70 text-zinc-300 ring-1 ring-inset ring-zinc-700/60 transition group-hover:text-emerald-300">
+              <UsersIcon size={22} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-bold text-white">
+                {league ? "Your League" : "Set Up a League"}
+              </h2>
+              <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
+                {loadingLeague ? (
+                  <Skeleton className="inline-block h-3 w-32" />
+                ) : league ? (
+                  <>
+                    {league.name} · {SCORING_LABELS[league.scoring]} · {league.teamCount} teams
+                  </>
+                ) : (
+                  "Configure scoring, roster, and draft position."
+                )}
+              </p>
+            </div>
+            <ChevronRightIcon size={16} className="shrink-0 text-zinc-500 transition group-hover:text-emerald-300" />
+          </Link>
         </div>
 
         {error && (
-          <p className="mt-5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-center text-xs font-medium text-rose-300">
+          <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-center text-xs font-medium text-rose-300">
             {error}
           </p>
         )}
+
+        {/* ── Tools ───────────────────────────────────────── */}
+        <section className="mt-12">
+          <h2 className="text-sm font-semibold text-zinc-300">Tools</h2>
+          <div className="mt-3 divide-y divide-zinc-800/60 rounded-2xl ring-1 ring-inset ring-zinc-800/60">
+            {TOOLS.map((t) => (
+              <Link
+                key={t.title}
+                href={t.href}
+                className="group flex items-center gap-4 px-5 py-4 transition hover:bg-zinc-800/30"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-400 transition group-hover:text-emerald-300">
+                  {t.icon}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-zinc-100 transition group-hover:text-white">
+                    {t.title}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-zinc-500">{t.desc}</p>
+                </div>
+                <ChevronRightIcon size={14} className="shrink-0 text-zinc-600 transition group-hover:text-emerald-400" />
+              </Link>
+            ))}
+          </div>
+        </section>
       </main>
 
-      {/* ── Footer ───────────────────────────────────────────── */}
       <footer className="relative z-10 mt-auto border-t border-emerald-400/10 py-5 text-center text-xs text-zinc-500">
         © {new Date().getFullYear()} DraftEdge · Not affiliated with the NFL or Sleeper
       </footer>
