@@ -115,6 +115,12 @@ const COMPANY: HeaderItem[] = [
     icon: <EyeIcon size={18} />,
     description: "How we handle your data.",
   },
+  {
+    label: "Accessibility",
+    href: "/accessibility",
+    icon: <UsersIcon size={18} />,
+    description: "Our commitment to inclusive design.",
+  },
 ];
 
 const NAV = {

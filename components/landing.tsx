@@ -357,6 +357,9 @@ export function LandingPage() {
               <Link href="/cookies" className="transition hover:text-zinc-300">
                 Cookie Settings
               </Link>
+              <Link href="/accessibility" className="transition hover:text-zinc-300">
+                Accessibility
+              </Link>
             </nav>
           </div>
         </div>

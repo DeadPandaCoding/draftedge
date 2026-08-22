@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms of Service" },
   { href: "/cookies", label: "Cookie Policy" },
+  { href: "/accessibility", label: "Accessibility" },
 ];
 
 export function LegalPage({
@@ -73,6 +74,10 @@ export function LegalPage({
 
 export function H2({ children }: { children: ReactNode }) {
   return <h2 className="mt-8 mb-3 text-lg font-semibold text-white">{children}</h2>;
+}
+
+export function H3({ children }: { children: ReactNode }) {
+  return <h3 className="mt-6 mb-2 text-base font-semibold text-zinc-100">{children}</h3>;
 }
 
 export function P({ children }: { children: ReactNode }) {
