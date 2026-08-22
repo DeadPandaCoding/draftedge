@@ -165,6 +165,40 @@ export default function PlayerProfilePage() {
             </div>
           </div>
 
+          {/* 2025 Usage — only for positions with receiving data */}
+          {player.usage && (player.usage.targets > 0 || player.usage.receptions > 0) && (
+            <div className="mt-7">
+              <div className="mb-3 flex items-center gap-2">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
+                  {player.usage.season} Season Usage
+                </h2>
+                <span className="rounded-full border border-zinc-700 bg-zinc-800/60 px-2 py-0.5 text-[10px] font-bold text-zinc-500">
+                  nflverse
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  { label: "Games", value: String(player.usage.games) },
+                  { label: "Targets", value: String(player.usage.targets) },
+                  { label: "Target %", value: player.usage.targetShare > 0 ? `${(player.usage.targetShare * 100).toFixed(1)}%` : "—" },
+                  { label: "Receptions", value: String(player.usage.receptions) },
+                  { label: "Rec Yards", value: player.usage.receivingYards > 0 ? player.usage.receivingYards.toLocaleString() : "—" },
+                  { label: "Air Yards", value: player.usage.airYards > 0 ? player.usage.airYards.toLocaleString() : "—" },
+                  { label: "Air %", value: player.usage.airYardsShare > 0 ? `${(player.usage.airYardsShare * 100).toFixed(1)}%` : "—" },
+                  { label: "YAC", value: player.usage.yac > 0 ? player.usage.yac.toLocaleString() : "—" },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-lg bg-zinc-900/60 px-3 py-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{s.label}</span>
+                    <p className="font-tech mt-0.5 text-lg font-bold text-zinc-200">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] text-zinc-500">
+                Usage metrics sourced from the free nflverse dataset (regular-season totals).
+              </p>
+            </div>
+          )}
+
           <p className="mt-5 text-[11px] leading-relaxed text-zinc-500">
             Trade value = projected points above a replacement starter ({teamCount}-team baseline) in{" "}
             {SCORING_LABELS[scoring]} scoring. Add this player to a trade in the{" "}
