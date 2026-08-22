@@ -43,10 +43,10 @@
   /* Neutrals — remap `zinc-*` → ink-teal surfaces + mint text */
   --color-zinc-50: #f0faf5;
   --color-zinc-100: #e2f3ea;
-  --color-zinc-200: #c6e6d5;
-  --color-zinc-300: #a5d5bf;
-  --color-zinc-400: #82bea5;
-  --color-zinc-500: #5fa088;
+  --color-zinc-200: #d4ede0;
+  --color-zinc-300: #bce5d2;
+  --color-zinc-400: #9dd5bd;
+  --color-zinc-500: #7fc2a7;
   --color-zinc-600: #467d68;
   --color-zinc-700: #2c5545;
   --color-zinc-800: #163527;
