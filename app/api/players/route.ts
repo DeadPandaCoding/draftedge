@@ -5,6 +5,7 @@ import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
 import { fetchNflverseUsage } from "@/lib/nflverse";
 import { fetchSleeperState, fetchSleeperWeeklyProjections } from "@/lib/live-data";
 import { fetchFantasyProsProjections } from "@/lib/fantasypros";
+import { fetchFFCAdp, matchFFC, type FFCPlayer } from "@/lib/ffc";
 
 export const runtime = "nodejs";
 
@@ -81,7 +82,8 @@ function mergeWithSeed(
   scoring: ScoringFormat,
   usage: Map<string, UsageMetrics>,
   weekProj: Map<string, number>,
-  fpProj: Map<string, number>
+  fpProj: Map<string, number>,
+  ffcPlayers: FFCPlayer[],
 ): Player[] {
   const seed = buildSeedPlayers(scoring);
   const seedById = new Map(seed.map((p) => [p.id, p]));
@@ -167,6 +169,15 @@ function mergeWithSeed(
 
   const result = [...seed, ...capped];
 
+  // Enrich with FantasyCalc ADP: live ADP from thousands of drafts overrides
+  // seed ADP (which may be stale). Only update if FFC has a match.
+  for (const p of result) {
+    const ffc = matchFFC(p.name, ffcPlayers);
+    if (ffc && ffc.adp > 0) {
+      p.adp = ffc.adp;
+    }
+  }
+
   // Consensus projection: average all available sources (seed, Sleeper weekly
   // extrapolated to season, and FantasyPros when configured). During preseason
   // only the seed is available; once the season starts and the FantasyPros key
@@ -204,8 +215,10 @@ export async function GET(req: NextRequest) {
   const usage = new Map<string, UsageMetrics>();
   const weekProj = new Map<string, number>();
   const fpProj = new Map<string, number>();
+  let season = new Date().getFullYear();
   try {
     const state = await fetchSleeperState();
+    season = Number(state.season) || season;
     // nflverse usage: last completed season during preseason, current season otherwise.
     const rawSeason = state.season_type === "pre" ? (state.previous_season ?? state.season) : state.season;
     const nflSeason = Number(rawSeason);
@@ -219,14 +232,24 @@ export async function GET(req: NextRequest) {
       for (const [k, v] of w) weekProj.set(k, v);
     }
     // FantasyPros season-long projections (requires FANTASYPROS_API_KEY env var).
-    const fpSeason = Number(state.season) || new Date().getFullYear();
-    const fp = await fetchFantasyProsProjections(fpSeason, scoring);
+    const fp = await fetchFantasyProsProjections(season, scoring);
     for (const [k, v] of fp) fpProj.set(k, v);
   } catch (err) {
     console.warn("[players] live enrichment failed, omitting usage/projections:", err);
   }
 
-  const players = mergeWithSeed(live, scoring, usage, weekProj, fpProj);
+  // FantasyFootballCalculator ADP: live draft data from thousands of mocks.
+  const teamCount = Number(req.nextUrl.searchParams.get("teams")) || 12;
+  let ffcPlayers: FFCPlayer[] = [];
+  try {
+    const ffcScoring = scoring === "half_ppr" ? "half" : scoring;
+    const ffc = await fetchFFCAdp(ffcScoring, teamCount, season);
+    ffcPlayers = ffc.players;
+  } catch (err) {
+    console.warn("[players] FFC ADP fetch failed:", err);
+  }
+
+  const players = mergeWithSeed(live, scoring, usage, weekProj, fpProj, ffcPlayers);
   const body: PlayersResponse = {
     players,
     source,
