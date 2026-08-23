@@ -17,6 +17,12 @@ import type {
   RosterTemplate,
 } from "@/lib/types";
 import { buildTradeValues, gradeTrade } from "@/lib/trade-value";
+import {
+  fetchFantasyCalc,
+  normalizeFCValue,
+  matchFantasyCalc,
+  type FantasyCalcEntry,
+} from "@/lib/fantasycalc";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { ShareButtons } from "@/components/dashboard/ShareButtons";
@@ -71,6 +77,8 @@ export default function TradePage() {
 
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
+  const [fcEntries, setFcEntries] = useState<FantasyCalcEntry[]>([]);
+  const [fcLoading, setFcLoading] = useState(false);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -120,6 +128,48 @@ export default function TradePage() {
     if (getIds.length > 0) setSideA(getIds);
     if (sendIds.length > 0) setSideB(sendIds);
   }, [players, playersLoading]);
+
+  // Fetch FantasyCalc consensus values (dynasty mode for the community).
+  useEffect(() => {
+    if (fcEntries.length > 0 || fcLoading) return;
+    let cancelled = false;
+    setFcLoading(true);
+    fetchFantasyCalc({
+      isDynasty: false,
+      numQbs: 1,
+      numTeams: league?.teamCount ?? 12,
+      ppr: league?.scoring === "ppr" ? 1 : league?.scoring === "half_ppr" ? 0.5 : 0,
+    })
+      .then((d) => { if (!cancelled) setFcEntries(d); })
+      .catch(() => { /* graceful degrade */ })
+      .finally(() => { if (!cancelled) setFcLoading(false); });
+    return () => { cancelled = true; };
+  }, [league, fcEntries.length, fcLoading]);
+
+  const fcMax = useMemo(() => {
+    if (fcEntries.length === 0) return 1;
+    return Math.max(...fcEntries.map((e) => e.value));
+  }, [fcEntries]);
+
+  /** Map DraftEdge player id → FantasyCalc normalized value (0–100). */
+  const fcValueMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of players) {
+      const match = matchFantasyCalc(p.name, fcEntries);
+      if (match) m.set(p.id, normalizeFCValue(match.value, fcMax));
+    }
+    return m;
+  }, [players, fcEntries, fcMax]);
+
+  /** Map DraftEdge player id → FantasyCalc entry (for rank/trend display). */
+  const fcEntryMap = useMemo(() => {
+    const m = new Map<string, FantasyCalcEntry>();
+    for (const p of players) {
+      const match = matchFantasyCalc(p.name, fcEntries);
+      if (match) m.set(p.id, match);
+    }
+    return m;
+  }, [players, fcEntries]);
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const values = useMemo(() => buildTradeValues(players, league?.teamCount ?? 12), [players, league]);
@@ -177,6 +227,12 @@ export default function TradePage() {
   const aProj = aPlayers.reduce((s, p) => s + p.projection, 0);
   const bProj = bPlayers.reduce((s, p) => s + p.projection, 0);
 
+  // FantasyCalc totals (FC value 0–100 scale)
+  const fcValueOf = (id: string) => fcValueMap.get(id) ?? 0;
+  const aFcTotal = aPlayers.reduce((s, p) => s + fcValueOf(p.id), 0);
+  const bFcTotal = bPlayers.reduce((s, p) => s + fcValueOf(p.id), 0);
+  const fcNet = aFcTotal - bFcTotal;
+
   const net = aValue - bValue;
   const total = aValue + bValue;
   const grade = gradeTrade(net, total);
@@ -204,43 +260,70 @@ export default function TradePage() {
     return qs ? `${base}?${qs}` : base;
   };
 
-  const playerRow = (p: Player, side: Side) => (
-    <div key={p.id} className="rounded-lg bg-zinc-900/60 px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate font-semibold text-zinc-200">{p.name}</span>
-          <PosBadge position={p.position} size="xs" />
-          {side === "A" && myPlayerIds.has(p.id) && (
-            <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300 ring-1 ring-inset ring-amber-400/30">
-              Already owned
-            </span>
+  const playerRow = (p: Player, side: Side) => {
+    const fcVal = fcValueOf(p.id);
+    const fcEntry = fcEntryMap.get(p.id);
+    return (
+      <div key={p.id} className="rounded-lg bg-zinc-900/60 px-3 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-semibold text-zinc-200">{p.name}</span>
+            <PosBadge position={p.position} size="xs" />
+            {side === "A" && myPlayerIds.has(p.id) && (
+              <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300 ring-1 ring-inset ring-amber-400/30">
+                Already owned
+              </span>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="font-tech text-sm font-bold text-emerald-300">{valueOf(p.id).toFixed(1)}</span>
+            {fcVal > 0 && (
+              <span className="font-tech text-[11px] font-semibold text-cyan-300/80">
+                {fcVal.toFixed(1)} <span className="text-[9px] text-zinc-500">FC</span>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => remove(side, p.id)}
+              aria-label={`Remove ${p.name}`}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-700 hover:text-white"
+            >
+              <XIcon size={13} />
+            </button>
+          </div>
+        </div>
+        <div className="mt-0.5 text-[11px] text-zinc-500">
+          {p.projection.toFixed(1)} pts · ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"}
+          {fcEntry && (
+            <>
+              <span className="mx-1">·</span>
+              FC Rank #{fcEntry.overallRank}
+              {fcEntry.trend30Day !== 0 && (
+                <span className={`ml-1 ${fcEntry.trend30Day > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {fcEntry.trend30Day > 0 ? "↑" : "↓"}{Math.abs(fcEntry.trend30Day)}
+                </span>
+              )}
+            </>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="font-tech text-sm font-bold text-emerald-300">{valueOf(p.id).toFixed(1)}</span>
-          <button
-            type="button"
-            onClick={() => remove(side, p.id)}
-            aria-label={`Remove ${p.name}`}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-700 hover:text-white"
-          >
-            <XIcon size={13} />
-          </button>
-        </div>
       </div>
-      <div className="mt-0.5 text-[11px] text-zinc-500">
-        {p.projection.toFixed(1)} pts · ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"}
-      </div>
-    </div>
-  );
+    );
+  };
 
-  const sideColumn = (side: Side, title: string, list: Player[], totalValue: number, totalProj: number) => (
+  const sideColumn = (side: Side, title: string, list: Player[], totalValue: number, totalProj: number, fcTotal: number) => (
     <div className="glass-strong rounded-2xl p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-300">{title}</h2>
-        <span className="font-tech text-lg font-bold text-emerald-300">
-          {totalValue.toFixed(1)} <span className="text-[10px] font-semibold text-zinc-500">VAL</span>
-        </span>
+        <div className="text-right">
+          <span className="font-tech text-lg font-bold text-emerald-300">
+            {totalValue.toFixed(1)} <span className="text-[10px] font-semibold text-zinc-500">VOR</span>
+          </span>
+          {fcTotal > 0 && (
+            <span className="ml-2 font-tech text-sm font-semibold text-cyan-300/80">
+              {fcTotal.toFixed(1)} <span className="text-[10px] text-zinc-500">FC</span>
+            </span>
+          )}
+        </div>
       </div>
       {side === "B" && myRosterPlayers.length > 0 && (
         <div className="mb-3">
@@ -339,8 +422,8 @@ export default function TradePage() {
       ) : (
         <>
           <div className="grid gap-5 md:grid-cols-2">
-            {sideColumn("A", "You receive", aPlayers, aValue, aProj)}
-            {sideColumn("B", "You give up", bPlayers, bValue, bProj)}
+            {sideColumn("A", "You receive", aPlayers, aValue, aProj, aFcTotal)}
+            {sideColumn("B", "You give up", bPlayers, bValue, bProj, bFcTotal)}
           </div>
 
           {/* Verdict */}
@@ -389,10 +472,33 @@ export default function TradePage() {
                 </p>
               )}
 
-              <p className="mt-4 text-[11px] leading-relaxed text-zinc-500">
-                Value = projected points above a replacement-level starter (
-                {league ? `${league.teamCount}-team` : "12-team"} baseline), shown alongside ADP as a
-                market cross-check.
+              {/* FantasyCalc cross-check */}
+              {fcEntries.length > 0 && (
+                <div className="mt-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300/80">
+                      FantasyCalc consensus
+                    </span>
+                    {fcNet !== 0 && (
+                      <span className={`font-tech text-sm font-bold ${fcNet >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                        {fcNet >= 0 ? "+" : ""}{fcNet.toFixed(1)}
+                        <span className="ml-1 text-[10px] text-zinc-500">net</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex h-2 overflow-hidden rounded-full">
+                    <div className="bg-cyan-500" style={{ width: `${aFcTotal + bFcTotal > 0 ? (aFcTotal / (aFcTotal + bFcTotal)) * 100 : 50}%` }} />
+                    <div className="bg-cyan-700" style={{ width: `${aFcTotal + bFcTotal > 0 ? (bFcTotal / (aFcTotal + bFcTotal)) * 100 : 50}%` }} />
+                  </div>
+                  <p className="mt-2 text-[10px] text-zinc-500">
+                    Community trade values from FantasyCalc.com — independent of projection-based VOR.
+                  </p>
+                </div>
+              )}
+
+              <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+                <span className="text-zinc-300">VOR</span> = projected points above replacement ({league ? `${league.teamCount}-team` : "12-team"} baseline).
+                <span className="ml-2 text-cyan-300/80">FC</span> = community consensus from FantasyCalc.com.
               </p>
             </div>
           )}
