@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import type { LeagueConfig, PickOwner, Position } from "@/lib/types";
 import { fetchLeague, persistLeague } from "@/lib/data";
 import { analyzeNeeds, bestAvailable, buildRoster, useDraft } from "@/lib/draft";
+import { buildTradeValues } from "@/lib/trade-value";
 import { usePlayers } from "@/lib/players";
 import { exportRosterCsv } from "@/lib/csv";
 import { Modal, Skeleton } from "@/components/ui";
@@ -78,7 +79,8 @@ export default function DraftPage() {
     [entries, league, draft.state.currentPick, totalPicks]
   );
 
-  const best = useMemo(() => bestAvailable(players, draftedIds), [players, draftedIds]);
+  const vor = useMemo(() => buildTradeValues(players, league?.teamCount ?? 12), [players, league]);
+  const best = useMemo(() => bestAvailable(players, draftedIds, undefined, vor), [players, draftedIds, vor]);
 
   const counts = useMemo(() => {
     const c: Record<Position, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };

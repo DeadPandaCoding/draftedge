@@ -258,13 +258,14 @@ export function analyzeNeeds(
   return warnings;
 }
 
-/** Remaining (undrafted) players sorted by projection, for "best available" lists. */
+/** Remaining (undrafted) players sorted by VOR (or projection), for "best available" lists. */
 export function bestAvailable(
   players: Player[],
   draftedIds: Set<string>,
-  position?: Position
+  position?: Position,
+  vor?: Map<string, number>
 ): Player[] {
   return players
     .filter((p) => !draftedIds.has(p.id) && (!position || p.position === position))
-    .sort((a, b) => b.projection - a.projection);
+    .sort((a, b) => (vor?.get(b.id) ?? b.projection) - (vor?.get(a.id) ?? a.projection));
 }
