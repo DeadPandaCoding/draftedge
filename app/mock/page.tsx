@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { usePlayers } from "@/lib/players";
@@ -20,6 +20,19 @@ interface MockPick {
 
 const TEAM_COUNTS = [8, 10, 12, 14];
 const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
+const PICK_TIMER_SECONDS = 90;
+
+/** Draft phase based on round number with positional guidance. */
+function draftPhase(round: number, totalRounds: number): { label: string; tip: string } {
+  const pct = round / totalRounds;
+  if (pct <= 0.25)
+    return { label: "Early", tip: "Secure elite RB/WR anchors — don't reach for QB/TE yet." };
+  if (pct <= 0.6)
+    return { label: "Mid", tip: "Build depth at RB/WR, consider Hero QB or elite TE builds." };
+  if (pct <= 0.85)
+    return { label: "Late", tip: "Fliers on high-ceiling backups and breakout candidates." };
+  return { label: "Final", tip: "Kicker and D/ST only — never earlier than the last two rounds." };
+}
 
 /** Position counts a given draft slot has already taken. */
 function countPositions(
@@ -95,6 +108,9 @@ export default function MockDraftPage() {
   const [started, setStarted] = useState(false);
   const [picks, setPicks] = useState<MockPick[]>([]);
   const [mockPos, setMockPos] = useState<Position | "ALL">("ALL");
+  const [timerExpired, setTimerExpired] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(PICK_TIMER_SECONDS);
 
   const { players, loading: playersLoading } = usePlayers(scoring);
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
@@ -105,12 +121,11 @@ export default function MockDraftPage() {
   const done = started && currentPick > totalPicks;
   const drafted = useMemo(() => new Set(picks.map((p) => p.playerId)), [picks]);
 
-  useEffect(() => {
-    if (!loading && !user) router.replace("/signin");
-  }, [user, loading, router]);
+  // Determine if it's the user's turn.
+  const isMyTurn = started && !done && slotForPick(currentPick, teams) === mySlot;
 
   /** Advance opponents until it is the user's turn (or the draft ends). */
-  const advance = (list: MockPick[], draftedIds: Set<string>): MockPick[] => {
+  const advance = useCallback((list: MockPick[], draftedIds: Set<string>): MockPick[] => {
     const result = [...list];
     let n = result.length;
     while (n < totalPicks && slotForPick(n + 1, teams) !== mySlot) {
@@ -122,15 +137,9 @@ export default function MockDraftPage() {
       result.push({ playerId: best.id, pickNumber: n, round: roundForPick(n, teams), slot });
     }
     return result;
-  };
+  }, [totalPicks, teams, mySlot, playersById, players]);
 
-  const startDraft = () => {
-    setStarted(true);
-    const ids = new Set<string>();
-    setPicks(advance([], ids));
-  };
-
-  const makeMyPick = (playerId: string) => {
+  const makeMyPick = useCallback((playerId: string) => {
     setPicks((prev) => {
       const ids = new Set(prev.map((p) => p.playerId));
       if (ids.has(playerId)) return prev;
@@ -142,11 +151,58 @@ export default function MockDraftPage() {
       ];
       return advance(withMine, ids);
     });
-  };
+  }, [teams, advance]);
 
-  const autoPick = () => {
+  const autoPick = useCallback(() => {
     const best = pickForSlot(picks, mySlot, playersById, players, drafted, currentPick, teams, totalPicks);
     if (best) makeMyPick(best.id);
+  }, [picks, mySlot, playersById, players, drafted, currentPick, teams, totalPicks, makeMyPick]);
+
+  // Pick clock: reset on each new pick, count down when it's the user's turn.
+  const resetTimer = useCallback(() => {
+    setSecondsLeft(PICK_TIMER_SECONDS);
+    setTimerExpired(false);
+  }, []);
+
+  useEffect(() => {
+    if (isMyTurn && started && !done) {
+      resetTimer();
+    }
+  }, [currentPick, isMyTurn, started, done, resetTimer]);
+
+  useEffect(() => {
+    if (!isMyTurn || done) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+    timerRef.current = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearInterval(timerRef.current!);
+          setTimerExpired(true);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isMyTurn, done]);
+
+  // Auto-pick when timer expires.
+  useEffect(() => {
+    if (timerExpired && isMyTurn) autoPick();
+  }, [timerExpired, isMyTurn, autoPick]);
+
+  useEffect(() => {
+    if (!loading && !user) router.replace("/signin");
+  }, [user, loading, router]);
+
+  const startDraft = () => {
+    setStarted(true);
+    const ids = new Set<string>();
+    setPicks(advance([], ids));
   };
 
   const simulateRest = () => {
@@ -181,7 +237,7 @@ export default function MockDraftPage() {
     const source = pool.length > 0 ? pool : players.filter((p) => !drafted.has(p.id));
     // Sort by Value Over Replacement so QBs don't dominate the list.
     const vor = buildTradeValues(players, teams);
-    return source.sort((a, b) => (vor.get(b.id) ?? 0) - (vor.get(a.id) ?? 0)).slice(0, 12);
+    return source.sort((a, b) => (vor.get(b.id) ?? 0) - (vor.get(a.id) ?? 0)).slice(0, 18);
   }, [players, drafted, currentPick, totalPicks, teams]);
 
   if (loading || !user) {
@@ -335,7 +391,7 @@ export default function MockDraftPage() {
                               {player ? player.name : "—"}
                             </span>
                             <span className="font-tech block text-[9px] text-zinc-500">
-                              {player ? `${player.position} · ${player.projection.toFixed(0)}` : `P${(r - 1) * teams + slot}`}
+                              {player ? `${player.position} · ${player.projection.toFixed(0)}${player.adp > 0 ? ` · ADP${player.adp.toFixed(0)}` : ""}` : `P${(r - 1) * teams + slot}`}
                             </span>
                           </div>
                         );
@@ -394,7 +450,72 @@ export default function MockDraftPage() {
                     Round {roundForPick(currentPick, teams)}
                   </span>
                 </div>
-                <p className="mb-4 text-xs text-zinc-500">Choose a player or auto-pick the best available.</p>
+                {/* Pick clock */}
+                <div className={`mb-3 flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 ${
+                  secondsLeft <= 15
+                    ? "border-rose-500/50 bg-rose-500/10"
+                    : secondsLeft <= 30
+                      ? "border-amber-500/40 bg-amber-500/10"
+                      : "border-emerald-500/30 bg-emerald-500/10"
+                }`}>
+                  <span className="font-tech text-[10px] uppercase tracking-wider text-zinc-500">Clock</span>
+                  <span className={`font-tech text-lg font-bold ${
+                    secondsLeft <= 15 ? "text-rose-300" : secondsLeft <= 30 ? "text-amber-300" : "text-emerald-300"
+                  }`}>
+                    {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
+                  </span>
+                </div>
+                {/* Draft phase */}
+                {(() => {
+                  const phase = draftPhase(roundForPick(currentPick, teams), totalRounds);
+                  return (
+                    <div className="mb-3 rounded-xl border border-zinc-700/50 bg-zinc-800/40 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-zinc-700/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-300">
+                          {phase.label}
+                        </span>
+                        <span className="text-[10px] text-zinc-500">
+                          Round {roundForPick(currentPick, teams)}/{totalRounds}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">{phase.tip}</p>
+                    </div>
+                  );
+                })()}
+                <p className="mb-3 text-xs text-zinc-500">Choose a player or auto-pick the best available.</p>
+                {/* Roster needs */}
+                {(() => {
+                  const myCounts: Record<Position, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
+                  for (const pick of myPicks) {
+                    const p = playersById.get(pick.playerId);
+                    if (p) myCounts[p.position]++;
+                  }
+                  const needs: { pos: Position; have: number; need: number }[] = [
+                    { pos: "QB", have: myCounts.QB, need: DEFAULT_ROSTER.qb },
+                    { pos: "RB", have: myCounts.RB, need: DEFAULT_ROSTER.rb },
+                    { pos: "WR", have: myCounts.WR, need: DEFAULT_ROSTER.wr },
+                    { pos: "TE", have: myCounts.TE, need: DEFAULT_ROSTER.te },
+                  ];
+                  return (
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {needs.map(({ pos, have, need }) => {
+                        const filled = have >= need;
+                        return (
+                          <span
+                            key={pos}
+                            className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${
+                              filled
+                                ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
+                                : "bg-zinc-800/60 text-zinc-500"
+                            }`}
+                          >
+                            {pos} {have}/{need}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 <button
                   type="button"
                   onClick={autoPick}
@@ -435,8 +556,15 @@ export default function MockDraftPage() {
                           {p.team}
                         </span>
                       </span>
-                      <span className="font-tech shrink-0 text-xs text-zinc-400">
-                        {p.position} · {p.projection.toFixed(1)}
+                      <span className="flex shrink-0 items-center gap-2">
+                        {p.adp > 0 && (
+                          <span className="rounded bg-zinc-800 px-1 py-px text-[9px] font-bold text-zinc-500">
+                            ADP {p.adp.toFixed(0)}
+                          </span>
+                        )}
+                        <span className="font-tech text-xs text-zinc-400">
+                          {p.position} · {p.projection.toFixed(1)}
+                        </span>
                       </span>
                     </button>
                   ))}
