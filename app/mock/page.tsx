@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { usePlayers } from "@/lib/players";
 import type { Player, Position, ScoringFormat } from "@/lib/types";
 import { DEFAULT_ROSTER, SCORING_LABELS, roundForPick, rosterSize, slotForPick } from "@/lib/league";
+import { buildTradeValues } from "@/lib/trade-value";
 import AppShell from "@/components/dashboard/AppShell";
 import { Select } from "@/components/ui";
 import { BoltIcon, ResetIcon } from "@/components/icons";
@@ -177,7 +178,9 @@ export default function MockDraftPage() {
       (p) => !drafted.has(p.id) && (late || (p.position !== "K" && p.position !== "DEF"))
     );
     const source = pool.length > 0 ? pool : players.filter((p) => !drafted.has(p.id));
-    return source.sort((a, b) => b.projection - a.projection).slice(0, 12);
+    // Sort by Value Over Replacement so QBs don't dominate the list.
+    const vor = buildTradeValues(players, teams);
+    return source.sort((a, b) => (vor.get(b.id) ?? 0) - (vor.get(a.id) ?? 0)).slice(0, 12);
   }, [players, drafted, currentPick, totalPicks, teams]);
 
   if (loading || !user) {
