@@ -94,6 +94,7 @@ export default function MockDraftPage() {
   const [scoring, setScoring] = useState<ScoringFormat>("ppr");
   const [started, setStarted] = useState(false);
   const [picks, setPicks] = useState<MockPick[]>([]);
+  const [mockPos, setMockPos] = useState<Position | "ALL">("ALL");
 
   const { players, loading: playersLoading } = usePlayers(scoring);
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
@@ -401,8 +402,27 @@ export default function MockDraftPage() {
                 >
                   Auto-pick Best
                 </button>
+                <div className="mb-3 flex gap-1">
+                  {(["ALL", "QB", "RB", "WR", "TE"] as const).map((pos) => (
+                    <button
+                      key={pos}
+                      type="button"
+                      onClick={() => setMockPos(pos)}
+                      aria-pressed={mockPos === pos}
+                      className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                        mockPos === pos
+                          ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
+                          : "bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      {pos}
+                    </button>
+                  ))}
+                </div>
                 <div className="space-y-1.5">
-                  {options.map((p) => (
+                  {options
+                    .filter((p) => mockPos === "ALL" || p.position === mockPos)
+                    .map((p) => (
                     <button
                       key={p.id}
                       type="button"
