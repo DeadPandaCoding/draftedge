@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import type { LeagueConfig } from "@/lib/types";
-import { DEFAULT_ROSTER, SCORING_LABELS, rosterSize } from "@/lib/league";
-import { fetchLeague, persistLeague } from "@/lib/data";
 import KineticGrid from "@/components/ui/kinetic-grid";
 import { Skeleton } from "@/components/ui";
 import { SiteHeader } from "@/components/ui/header";
@@ -23,11 +20,7 @@ import {
   PollIcon,
   SwapIcon,
   TableIcon,
-  UsersIcon,
-  XIcon,
 } from "@/components/icons";
-import { useStarredPlayers } from "@/lib/stars";
-import { playerSlug } from "@/lib/seed-data";
 
 const TOOLS = [
   {
@@ -39,7 +32,7 @@ const TOOLS = [
   {
     icon: <TableIcon size={18} />,
     title: "Cheat Sheets",
-    desc: "Personalized draft board for your league.",
+    desc: "Browse player values, tiers, and ADP.",
     href: "/cheatsheet",
   },
   {
@@ -57,7 +50,7 @@ const TOOLS = [
   {
     icon: <BarChartIcon size={18} />,
     title: "Draft Analytics",
-    desc: "Review your draft and spot value picks.",
+    desc: "Review a draft and spot value picks.",
     href: "/analytics",
   },
   {
@@ -69,7 +62,7 @@ const TOOLS = [
   {
     icon: <ListCheckIcon size={18} />,
     title: "Start/Sit",
-    desc: "Head-to-head player comparisons.",
+    desc: "Compare players and build a strong lineup.",
     href: "/start-sit",
   },
   {
@@ -89,32 +82,10 @@ const TOOLS = [
 export default function HomePage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
-  const { starred, toggleStar } = useStarredPlayers();
-
-  const [league, setLeague] = useState<LeagueConfig | null>(null);
-  const [loadingLeague, setLoadingLeague] = useState(true);
-  const [startingDemo, setStartingDemo] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
   }, [user, loading, router]);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    fetchLeague(user.id)
-      .then((lg) => {
-        if (!cancelled) setLeague(lg);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoadingLeague(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   if (loading || !user) {
     return (
@@ -128,30 +99,6 @@ export default function HomePage() {
       </div>
     );
   }
-
-  const startDemo = async () => {
-    setError(null);
-    setStartingDemo(true);
-    try {
-      const demo: LeagueConfig = {
-        id: `lg_demo_${user.id}`,
-        name: "Demo League",
-        scoring: "ppr",
-        teamCount: 12,
-        draftPosition: 4,
-        rounds: rosterSize(DEFAULT_ROSTER),
-        roster: { ...DEFAULT_ROSTER },
-        status: "pre_draft",
-        pickTimerSeconds: 90,
-        createdAt: Date.now(),
-      };
-      await persistLeague(user.id, demo);
-      router.replace("/draft");
-    } catch {
-      setError("Couldn't start the demo league. Try again.");
-      setStartingDemo(false);
-    }
-  };
 
   const firstName = user.name.split(" ")[0];
 
@@ -187,98 +134,10 @@ export default function HomePage() {
           Welcome, {firstName}
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
-          What would you like to do?
+          Choose a tool to get started.
         </p>
 
-        {/* ── Starred players ────────────────────────────── */}
-        {starred.length > 0 && (
-          <section className="mt-8" aria-label="Starred players">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-zinc-300">Starred players</h2>
-              <span className="text-xs text-zinc-500">{starred.length}</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {starred.map((name) => (
-                <div
-                  key={name}
-                  className="glass flex items-center gap-1 rounded-full py-1 pl-3 pr-1 text-sm"
-                >
-                  <Link
-                    href={`/players/${playerSlug(name)}`}
-                    className="font-semibold text-zinc-100 transition hover:text-emerald-300"
-                  >
-                    {name}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => toggleStar(name)}
-                    aria-label={`Remove ${name} from starred players`}
-                    className="rounded-full p-1 text-zinc-500 transition hover:text-rose-300"
-                  >
-                    <XIcon size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── Primary actions ─────────────────────────────── */}
-        <div className="mt-10 grid gap-3 sm:grid-cols-2">
-          {/* Demo League */}
-          <button
-            onClick={startDemo}
-            disabled={startingDemo}
-            className="group glass-strong relative flex items-center gap-4 rounded-2xl p-5 text-left ring-1 ring-inset ring-emerald-500/30 transition hover:-translate-y-0.5 hover:ring-emerald-500/50"
-          >
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-              <BoltIcon size={22} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-white">Demo League</h2>
-              <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
-                {startingDemo ? "Starting…" : "Jump into a pre-built PPR draft in seconds."}
-              </p>
-            </div>
-            <ChevronRightIcon size={16} className="shrink-0 text-zinc-500 transition group-hover:text-emerald-300" />
-          </button>
-
-          {/* Your League */}
-          <Link
-            href={league ? "/draft" : "/onboarding"}
-            className="group glass-strong flex items-center gap-4 rounded-2xl p-5 ring-1 ring-inset ring-zinc-700/60 transition hover:-translate-y-0.5 hover:ring-zinc-600"
-          >
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-zinc-800/70 text-zinc-300 ring-1 ring-inset ring-zinc-700/60 transition group-hover:text-emerald-300">
-              <UsersIcon size={22} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-white">
-                {league ? "Your League" : "Set Up a League"}
-              </h2>
-              <div className="mt-0.5 text-xs leading-relaxed text-zinc-400">
-                {loadingLeague ? (
-                  <Skeleton className="inline-block h-3 w-32" />
-                ) : league ? (
-                  <>
-                    {league.name} · {SCORING_LABELS[league.scoring]} · {league.teamCount} teams
-                  </>
-                ) : (
-                  "Configure scoring, roster, and draft position."
-                )}
-              </div>
-            </div>
-            <ChevronRightIcon size={16} className="shrink-0 text-zinc-500 transition group-hover:text-emerald-300" />
-          </Link>
-        </div>
-
-        {error && (
-          <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-center text-xs font-medium text-rose-300">
-            {error}
-          </p>
-        )}
-
-        {/* ── Tools ───────────────────────────────────────── */}
-        <section className="mt-12">
+        <section className="mt-10">
           <h2 className="text-sm font-semibold text-zinc-300">Tools</h2>
           <div className="mt-3 divide-y divide-zinc-800/60 rounded-2xl ring-1 ring-inset ring-zinc-800/60">
             {TOOLS.map((t) => (
