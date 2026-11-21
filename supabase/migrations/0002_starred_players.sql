@@ -10,6 +10,8 @@ create table if not exists public.starred_players (
 -- Row Level Security: users can only touch their own stars.
 alter table public.starred_players enable row level security;
 
+grant select, insert, update, delete on table public.starred_players to authenticated;
+
 create policy "Users manage their own starred players" on public.starred_players
   for all
   using (auth.uid() = user_id)

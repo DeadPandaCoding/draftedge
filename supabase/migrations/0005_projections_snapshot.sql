@@ -19,3 +19,4 @@ create index if not exists idx_snapshots_scoring_created
 -- RLS: only the service-role cron job can write (it bypasses RLS).
 -- No public read policy — snapshots are backend-only for now.
 alter table public.projections_snapshots enable row level security;
+grant select, insert on table public.projections_snapshots to service_role;

@@ -19,6 +19,11 @@ create table if not exists public.poll_votes (
 alter table public.polls enable row level security;
 alter table public.poll_votes enable row level security;
 
+grant select on table public.polls to anon, authenticated;
+grant insert, update, delete on table public.polls to authenticated;
+grant select on table public.poll_votes to anon, authenticated;
+grant insert, update on table public.poll_votes to authenticated;
+
 create policy "Anyone can read polls" on public.polls
   for select using (true);
 

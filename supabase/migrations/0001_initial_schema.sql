@@ -30,6 +30,9 @@ create table if not exists public.draft_states (
 alter table public.leagues enable row level security;
 alter table public.draft_states enable row level security;
 
+grant select, insert, update, delete on table public.leagues to authenticated;
+grant select, insert, update, delete on table public.draft_states to authenticated;
+
 create policy "Users manage their own leagues" on public.leagues
   for all
   using (auth.uid() = user_id)

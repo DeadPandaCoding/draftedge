@@ -7,16 +7,10 @@ export const dynamic = "force-dynamic";
 /**
  * Scheduled sync endpoint.
  *
- * GET  — triggered by Vercel Cron (verified via CRON_SECRET bearer token).
- * POST — manual trigger (for testing / admin dashboards).
- *
- * What it does:
- *  1. Fetches `/api/players?scoring=…` for each scoring format, which triggers
- *     the full Sleeper + nflverse + FantasyPros pipeline and caches the result
- *     in Next.js ISR (s-maxage = 3600 s). This "warms" the cache so the next
- *     user request is instant.
- *  2. Stores each format's player array as a JSON snapshot in the
- *     `projections_snapshots` Supabase table, giving a historical time series.
+ * GET and POST require the CRON_SECRET bearer token. Each run builds the fresh
+ * player board for all scoring formats and stores the complete response in
+ * `projections_snapshots`. The public player API serves those snapshots between
+ * scheduled runs.
  *
  * Env vars required:
  *   SUPABASE_SERVICE_ROLE_KEY — to write snapshots (bypasses RLS).
@@ -31,9 +25,7 @@ function isAuthorized(req: Request): boolean {
   // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.
   const auth = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
-  if (secret && auth === `Bearer ${secret}`) return true;
-  // Manual POST (no auth required for local testing — gated by service-role check below).
-  return req.method === "POST";
+  return Boolean(secret && auth === `Bearer ${secret}`);
 }
 
 async function getBaseUrl(): Promise<string> {
@@ -63,14 +55,21 @@ async function runSync(): Promise<NextResponse> {
 
   for (const scoring of SCORING_FORMATS) {
     try {
-      // Fetch the full player board. cache: "no-store" ensures the route
-      // handler actually runs (no stale edge cache), and the response it
-      // produces is what gets cached in ISR for subsequent user requests.
-      const res = await fetch(`${baseUrl}/api/players?scoring=${scoring}`, {
+      // Force a fresh upstream build; the bearer token restricts this path.
+      const res = await fetch(`${baseUrl}/api/players?scoring=${scoring}&refresh=1`, {
         cache: "no-store",
+        headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.json()) as { players: unknown[]; source: string };
+      const body = (await res.json()) as {
+        players: unknown[];
+        source: "live" | "seed";
+        generatedAt: number;
+        weeklyRankingsUpdated?: string;
+      };
+      if (!Array.isArray(body.players) || body.players.length === 0 || body.source !== "live") {
+        throw new Error("Live player data unavailable; keeping the previous snapshot.");
+      }
 
       // Insert a new snapshot row (history, not upsert).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +78,7 @@ async function runSync(): Promise<NextResponse> {
         .insert({
           scoring,
           player_count: body.players?.length ?? 0,
-          data: body.players ?? [],
+          data: body,
         })
         .select("id")
         .single();
@@ -113,7 +112,9 @@ export async function GET(req: Request) {
   return runSync();
 }
 
-export async function POST() {
-  // Manual trigger — still requires service-role key to be configured.
+export async function POST(req: Request) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   return runSync();
 }

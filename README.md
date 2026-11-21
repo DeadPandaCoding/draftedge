@@ -80,13 +80,13 @@ Domains: `style, color, chart, landing, product, ux, typography, google-fonts, i
 Without any configuration the app runs in local demo mode. To enable real auth and cloud sync:
 
 1. Create a free project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Run [`supabase/migrations/0001_initial_schema.sql`](./supabase/migrations/0001_initial_schema.sql) in the project's SQL editor (creates `leagues` + `draft_states` with RLS).
-3. Copy `.env.local.example` to `.env.local` and fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Project Settings → API).
+2. Run the SQL files in [`supabase/migrations`](./supabase/migrations) in numeric order. These create league state, polls, and private player snapshots with RLS.
+3. Copy `.env.local.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from Project Settings → API. Set `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` for server-side snapshots; never expose the service-role key in a `NEXT_PUBLIC_` variable.
 4. **Google OAuth:** Dashboard → Authentication → Providers → Google → enable and add your OAuth Client ID/Secret (create the client in Google Cloud Console with callback URL `https://<your-project-ref>.supabase.co/auth/v1/callback`).
 5. **Redirect URLs:** Authentication → URL Configuration → add your app URL, e.g. `http://localhost:3000/auth/callback`.
 6. Optional: Authentication → Sign In / Up → turn off "Confirm email" for instant signup, or leave it on — signups then prompt users to confirm by email first.
 
-Restart `npm run dev` and the sign-in page switches to real Supabase auth (the Google button says "Continue with Google" instead of "(demo)").
+The existing Vercel Cron runs `/api/cron/sync` daily at 06:00 UTC. With the four variables set, it refreshes and stores each scoring board; `/api/players` serves a snapshot up to 36 hours old and rebuilds live data if no recent snapshot is available. Restart `npm run dev` and the sign-in page switches to real Supabase auth (the Google button says "Continue with Google" instead of "(demo)").
 
 ## End-to-end smoke tests
 

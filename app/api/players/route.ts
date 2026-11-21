@@ -7,11 +7,13 @@ import { fetchSleeperState, fetchSleeperWeeklyProjections } from "@/lib/live-dat
 import { fetchFantasyProsProjections } from "@/lib/fantasypros";
 import { fetchWeeklyRankings, type WeeklyRankings } from "@/lib/fantasypros-weekly-rankings";
 import { fetchFFCAdp, matchFFC, type FFCPlayer } from "@/lib/ffc";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
 const SLEEPER_BASE = "https://api.sleeper.app/v1";
 const REVALIDATE_SECONDS = 3600; // refresh upstream data hourly
+const SNAPSHOT_MAX_AGE_MS = 36 * 60 * 60 * 1000;
 
 /** Max number of live-only players (not in seed) to append per position. */
 const LIVE_CAPS: Record<Position, number> = {
@@ -280,10 +282,66 @@ function mergeWithSeed(
   return result;
 }
 
+async function readLatestSnapshot(scoring: ScoringFormat): Promise<PlayersResponse | null> {
+  const admin = getSupabaseAdmin();
+  if (!admin) return null;
+
+  // The admin client is intentionally untyped because this repo doesn't yet
+  // generate Supabase database types for its migrations.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin as any)
+    .from("projections_snapshots")
+    .select("created_at, data")
+    .eq("scoring", scoring)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[players] Supabase snapshot read failed:", error.message);
+    return null;
+  }
+
+  const row = data as { created_at: string; data: unknown } | null;
+  const snapshot = row?.data as Partial<PlayersResponse> | null;
+  if (!row || !snapshot || !Array.isArray(snapshot.players)) return null;
+
+  const generatedAt = Number(snapshot.generatedAt) || Date.parse(row.created_at);
+  const age = Date.now() - generatedAt;
+  if (!Number.isFinite(generatedAt) || age < 0 || age > SNAPSHOT_MAX_AGE_MS) return null;
+
+  return {
+    players: snapshot.players,
+    source: snapshot.source === "seed" ? "seed" : "live",
+    generatedAt,
+    weeklyRankingsUpdated: snapshot.weeklyRankingsUpdated,
+  };
+}
+
 export async function GET(req: NextRequest) {
   const scoringParam = (req.nextUrl.searchParams.get("scoring") ?? "ppr") as ScoringFormat;
   const scoring: ScoringFormat =
     scoringParam === "half_ppr" || scoringParam === "standard" ? scoringParam : "ppr";
+  const refreshRequested = req.nextUrl.searchParams.get("refresh") === "1";
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (
+    refreshRequested &&
+    (!cronSecret || req.headers.get("authorization") !== `Bearer ${cronSecret}`)
+  ) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!refreshRequested) {
+    const snapshot = await readLatestSnapshot(scoring);
+    if (snapshot) {
+      return NextResponse.json(snapshot, {
+        headers: {
+          "Cache-Control": `public, s-maxage=${REVALIDATE_SECONDS}, stale-while-revalidate=${REVALIDATE_SECONDS}`,
+        },
+      });
+    }
+  }
 
   let live: LivePlayer[] = [];
   let source: "live" | "seed" = "seed";
@@ -366,7 +424,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(body, {
     headers: {
-      "Cache-Control": `public, s-maxage=${REVALIDATE_SECONDS}, stale-while-revalidate=${REVALIDATE_SECONDS}`,
+      "Cache-Control": refreshRequested
+        ? "private, no-store"
+        : `public, s-maxage=${REVALIDATE_SECONDS}, stale-while-revalidate=${REVALIDATE_SECONDS}`,
     },
   });
 }
