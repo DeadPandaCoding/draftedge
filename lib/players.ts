@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import type { Player, PlayersResponse, ScoringFormat } from "./types";
 import { getSeedPlayers } from "./seed-data";
 
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 interface PlayersState {
   players: Player[];
   source: "live" | "seed" | "cache";
   loading: boolean;
   error?: string;
+  weeklyRankingsUpdated?: string;
 }
 
 export function usePlayers(scoring: ScoringFormat): PlayersState {
@@ -22,17 +23,27 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
 
   useEffect(() => {
     let cancelled = false;
-    const cacheKey = `draftedge.players.${scoring}.v3`;
+    const cacheKey = `draftedge.players.${scoring}.v4`;
 
     // 1) Serve from cache immediately if fresh.
     try {
       const raw = localStorage.getItem(cacheKey);
       if (raw) {
-        const cached = JSON.parse(raw) as { players: Player[]; source: "live" | "seed"; t: number };
+        const cached = JSON.parse(raw) as {
+          players: Player[];
+          source: "live" | "seed";
+          weeklyRankingsUpdated?: string;
+          t: number;
+        };
         if (Date.now() - cached.t < CACHE_TTL_MS) {
           // Serve cached board instantly; the fetch below refreshes in the background.
           // eslint-disable-next-line react-hooks/set-state-in-effect
-          setState({ players: cached.players, source: cached.source, loading: false });
+          setState({
+            players: cached.players,
+            source: cached.source,
+            weeklyRankingsUpdated: cached.weeklyRankingsUpdated,
+            loading: false,
+          });
         }
       }
     } catch {
@@ -48,11 +59,24 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
       .then((data) => {
         if (cancelled) return;
         try {
-          localStorage.setItem(cacheKey, JSON.stringify({ players: data.players, source: data.source, t: Date.now() }));
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              players: data.players,
+              source: data.source,
+              weeklyRankingsUpdated: data.weeklyRankingsUpdated,
+              t: Date.now(),
+            }),
+          );
         } catch {
           // storage unavailable — ignore
         }
-        setState({ players: data.players, source: data.source, loading: false });
+        setState({
+          players: data.players,
+          source: data.source,
+          weeklyRankingsUpdated: data.weeklyRankingsUpdated,
+          loading: false,
+        });
       })
       .catch((err) => {
         if (cancelled) return;

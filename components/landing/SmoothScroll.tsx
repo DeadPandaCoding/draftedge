@@ -16,6 +16,7 @@ export function SmoothScroll() {
     const lenis = new Lenis({
       autoRaf: true,
       anchors: true,
+      respectReducedMotion: true,
     });
 
     return () => lenis.destroy();

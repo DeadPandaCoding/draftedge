@@ -5,6 +5,7 @@ import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
 import { fetchNflverseUsage } from "@/lib/nflverse";
 import { fetchSleeperState, fetchSleeperWeeklyProjections } from "@/lib/live-data";
 import { fetchFantasyProsProjections } from "@/lib/fantasypros";
+import { fetchWeeklyRankings, type WeeklyRankings } from "@/lib/fantasypros-weekly-rankings";
 import { fetchFFCAdp, matchFFC, type FFCPlayer } from "@/lib/ffc";
 
 export const runtime = "nodejs";
@@ -42,7 +43,7 @@ interface SleeperPlayer {
 }
 
 async function fetchLivePlayers(): Promise<LivePlayer[]> {
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     POSITIONS.map(async (pos) => {
       const url = `${SLEEPER_BASE}/players/nfl?position=${pos}&active=true`;
       const res = await fetch(url, {
@@ -55,7 +56,13 @@ async function fetchLivePlayers(): Promise<LivePlayer[]> {
   );
 
   const out: LivePlayer[] = [];
-  for (const { pos, data } of results) {
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status === "rejected") {
+      console.warn(`[players] Sleeper ${POSITIONS[i]} fetch failed:`, result.reason);
+      continue;
+    }
+    const { pos, data } = result.value;
     for (const [id, p] of Object.entries(data)) {
       if (!p || typeof p !== "object") continue;
       const status: string = p.status ?? "";
@@ -74,6 +81,7 @@ async function fetchLivePlayers(): Promise<LivePlayer[]> {
       });
     }
   }
+  if (out.length === 0) throw new Error("All Sleeper position requests failed");
   return out;
 }
 
@@ -83,6 +91,7 @@ function mergeWithSeed(
   usage: Map<string, UsageMetrics>,
   weekProj: Map<string, number>,
   fpProj: Map<string, number>,
+  fpWeeklyRanks: WeeklyRankings["byName"],
   ffcPlayers: FFCPlayer[],
 ): Player[] {
   const seed = buildSeedPlayers(scoring);
@@ -178,18 +187,93 @@ function mergeWithSeed(
     }
   }
 
-  // Consensus projection: average all available sources (seed, Sleeper weekly
-  // extrapolated to season, and FantasyPros when configured). During preseason
-  // only the seed is available; once the season starts and the FantasyPros key
-  // is set, all three contribute.
+  // Keep season projections separate from this week's point projections. Only
+  // average sources that both estimate a full season; projecting one week over
+  // 17 games produced a misleading season total in the previous implementation.
   for (const p of result) {
     const sources: number[] = [];
     if (p.projection > 0) sources.push(p.projection);
-    if (p.weekProjection && p.weekProjection > 0) sources.push(p.weekProjection * 17);
     const fp = fpProj.get(normalizeName(p.name));
     if (fp != null && fp > 0) sources.push(fp);
     if (sources.length > 0) {
       p.consensus = Math.round((sources.reduce((a, b) => a + b, 0) / sources.length) * 10) / 10;
+      if (fp != null && fp > 0) {
+        p.projection = p.consensus;
+        p.weeklyAvg = Math.round((p.projection / 17) * 10) / 10;
+      }
+    }
+  }
+
+  if (fpWeeklyRanks.size > 0) {
+    for (const p of result) {
+      const ranking = fpWeeklyRanks.get(normalizeName(p.name));
+      p.weekPositionRank = ranking?.position === p.position ? ranking.positionRank : undefined;
+    }
+
+    const byWeeklyProjection = [...result]
+      .filter((p) => p.weekProjection != null && p.weekProjection > 0)
+      .sort(
+        (a, b) =>
+          (b.weekProjection ?? 0) - (a.weekProjection ?? 0) ||
+          (a.weekPositionRank ?? Number.MAX_SAFE_INTEGER) -
+            (b.weekPositionRank ?? Number.MAX_SAFE_INTEGER) ||
+          a.rank - b.rank,
+      );
+    const rankedIds = new Set<string>();
+    byWeeklyProjection.forEach((p, index) => {
+      p.weekRank = index + 1;
+      rankedIds.add(p.id);
+    });
+
+    [...result]
+      .filter((p) => !rankedIds.has(p.id))
+      .sort(
+        (a, b) =>
+          (a.weekPositionRank ?? Number.MAX_SAFE_INTEGER) -
+            (b.weekPositionRank ?? Number.MAX_SAFE_INTEGER) ||
+          a.rank - b.rank,
+      )
+      .forEach((p, index) => {
+        p.weekRank = byWeeklyProjection.length + index + 1;
+      });
+
+    const byPosition = new Map<Position, Player[]>();
+    for (const p of result) {
+      const list = byPosition.get(p.position) ?? [];
+      list.push(p);
+      byPosition.set(p.position, list);
+    }
+    for (const players of byPosition.values()) {
+      const ordered = [...players].sort(
+        (a, b) =>
+          (a.weekPositionRank ?? Number.MAX_SAFE_INTEGER) -
+            (b.weekPositionRank ?? Number.MAX_SAFE_INTEGER) ||
+          (b.weekProjection ?? 0) - (a.weekProjection ?? 0) ||
+          a.rank - b.rank,
+      );
+      ordered.forEach((p, index) => {
+        p.weekTier = Math.min(5, Math.ceil(((index + 1) / ordered.length) * 5));
+      });
+    }
+  }
+
+  if (fpProj.size > 0) {
+    const overall = [...result].sort((a, b) => b.projection - a.projection || a.rank - b.rank);
+    overall.forEach((p, index) => {
+      p.rank = index + 1;
+    });
+    const byPosition = new Map<Position, Player[]>();
+    for (const p of result) {
+      const list = byPosition.get(p.position) ?? [];
+      list.push(p);
+      byPosition.set(p.position, list);
+    }
+    for (const players of byPosition.values()) {
+      const ordered = [...players].sort((a, b) => b.projection - a.projection || a.rank - b.rank);
+      ordered.forEach((p, index) => {
+        p.positionRank = index + 1;
+        p.tier = Math.min(5, Math.ceil(((index + 1) / ordered.length) * 5));
+      });
     }
   }
 
@@ -215,27 +299,50 @@ export async function GET(req: NextRequest) {
   const usage = new Map<string, UsageMetrics>();
   const weekProj = new Map<string, number>();
   const fpProj = new Map<string, number>();
-  let season = new Date().getFullYear();
+  let fpWeeklyRanks: WeeklyRankings["byName"] = new Map();
+  let weeklyRankingsUpdated: string | undefined;
+  let state: Awaited<ReturnType<typeof fetchSleeperState>> | undefined;
   try {
-    const state = await fetchSleeperState();
-    season = Number(state.season) || season;
-    // nflverse usage: last completed season during preseason, current season otherwise.
-    const rawSeason = state.season_type === "pre" ? (state.previous_season ?? state.season) : state.season;
-    const nflSeason = Number(rawSeason);
-    if (Number.isFinite(nflSeason) && nflSeason >= 1999) {
-      const u = await fetchNflverseUsage(nflSeason);
-      for (const [k, v] of u) usage.set(k, v);
-    }
-    // Sleeper weekly projections (empty until the regular season begins).
-    if (state.season_type === "regular" && state.week >= 1) {
-      const w = await fetchSleeperWeeklyProjections(state.season, state.week, scoring);
-      for (const [k, v] of w) weekProj.set(k, v);
-    }
-    // FantasyPros season-long projections (requires FANTASYPROS_API_KEY env var).
-    const fp = await fetchFantasyProsProjections(season, scoring);
-    for (const [k, v] of fp) fpProj.set(k, v);
+    state = await fetchSleeperState();
   } catch (err) {
-    console.warn("[players] live enrichment failed, omitting usage/projections:", err);
+    console.warn("[players] Sleeper state fetch failed:", err);
+  }
+
+  const season = Number(state?.season) || new Date().getFullYear();
+  const usageSeason = Number(
+    state?.season_type === "pre" ? state.previous_season ?? season - 1 : season,
+  );
+  if (Number.isFinite(usageSeason) && usageSeason >= 1999) {
+    try {
+      const usageData = await fetchNflverseUsage(usageSeason);
+      for (const [k, v] of usageData) usage.set(k, v);
+    } catch (err) {
+      console.warn("[players] nflverse usage fetch failed:", err);
+    }
+  }
+
+  if (state?.season_type === "regular" && state.week >= 1) {
+    try {
+      const projections = await fetchSleeperWeeklyProjections(state.season, state.week, scoring);
+      for (const [k, v] of projections) weekProj.set(k, v);
+    } catch (err) {
+      console.warn("[players] Sleeper weekly projections failed:", err);
+    }
+
+    try {
+      const rankings = await fetchWeeklyRankings();
+      fpWeeklyRanks = rankings.byName;
+      weeklyRankingsUpdated = rankings.byName.size > 0 ? rankings.updatedAt : undefined;
+    } catch (err) {
+      console.warn("[players] weekly consensus rankings failed:", err);
+    }
+  }
+
+  try {
+    const projections = await fetchFantasyProsProjections(season, scoring);
+    for (const [k, v] of projections) fpProj.set(k, v);
+  } catch (err) {
+    console.warn("[players] FantasyPros season projections failed:", err);
   }
 
   // FantasyFootballCalculator ADP: live draft data from thousands of mocks.
@@ -249,16 +356,17 @@ export async function GET(req: NextRequest) {
     console.warn("[players] FFC ADP fetch failed:", err);
   }
 
-  const players = mergeWithSeed(live, scoring, usage, weekProj, fpProj, ffcPlayers);
+  const players = mergeWithSeed(live, scoring, usage, weekProj, fpProj, fpWeeklyRanks, ffcPlayers);
   const body: PlayersResponse = {
     players,
     source,
     generatedAt: Date.now(),
+    weeklyRankingsUpdated,
   };
 
   return NextResponse.json(body, {
     headers: {
-      "Cache-Control": `public, s-maxage=${REVALIDATE_SECONDS}, stale-while-revalidate=86400`,
+      "Cache-Control": `public, s-maxage=${REVALIDATE_SECONDS}, stale-while-revalidate=${REVALIDATE_SECONDS}`,
     },
   });
 }

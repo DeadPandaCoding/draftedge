@@ -12,6 +12,7 @@ import { PlayersTable } from "@/components/dashboard/PlayersTable";
 import { Skeleton } from "@/components/ui";
 import { DownloadIcon, SearchIcon } from "@/components/icons";
 import { exportPlayersCsv } from "@/lib/csv";
+import { RANKINGS_SOURCE } from "@/lib/rankings-data";
 
 const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
 const POSITION_FILTERS = ["ALL", ...POSITIONS] as (Position | "ALL")[];
@@ -23,7 +24,7 @@ export default function RankingsPage() {
   const [position, setPosition] = useState<Position | "ALL">("ALL");
   const [search, setSearch] = useState("");
 
-  const { players, loading: playersLoading } = usePlayers(scoring);
+  const { players, loading: playersLoading, weeklyRankingsUpdated } = usePlayers(scoring);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -48,6 +49,11 @@ export default function RankingsPage() {
           <h1 className="font-display text-3xl tracking-wide text-white">Player Rankings</h1>
           <p className="mt-2 text-sm text-zinc-400">
             Browse projections, tiers, and ADP across every position.
+          </p>
+          <p className="mt-1 text-xs text-zinc-500" aria-live="polite">
+            {weeklyRankingsUpdated
+              ? `FantasyPros weekly ranks · Sleeper weekly projections · updated ${new Date(`${weeklyRankingsUpdated}T00:00:00`).toLocaleDateString()}`
+              : `Weekly rankings unavailable · showing ${RANKINGS_SOURCE.label} from ${RANKINGS_SOURCE.updated}`}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -118,7 +124,7 @@ export default function RankingsPage() {
           ))}
         </div>
       ) : (
-        <PlayersTable players={filtered} />
+        <PlayersTable players={filtered} weekly={Boolean(weeklyRankingsUpdated)} />
       )}
     </AppShell>
   );

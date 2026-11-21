@@ -25,11 +25,16 @@ export interface Player {
   usage?: UsageMetrics;
   /** Current-week projection from Sleeper (empty until the regular season starts). */
   weekProjection?: number;
+  /** Current-week position consensus rank from FantasyPros/ffverse data. */
+  weekPositionRank?: number;
+  /** Overall current-week rank, ordered by Sleeper's weekly point projection. */
+  weekRank?: number;
+  /** Current-week tier, recalculated from the live positional order. */
+  weekTier?: number;
   /**
    * Consensus season projection averaging available sources:
    *   - bundled cheat-sheet projection
-   *   - Sleeper weekly × games (extrapolated, when available)
-   *   - FantasyPros full-season (when API key is configured)
+   *   - FantasyPros full-season (when configured)
    */
   consensus?: number;
 }
@@ -98,4 +103,5 @@ export interface PlayersResponse {
   players: Player[];
   source: "live" | "seed";
   generatedAt: number;
+  weeklyRankingsUpdated?: string;
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BoltIcon, CheckIcon, GridIcon, UsersIcon } from "@/components/icons";
+import { ArrowDownIcon, BoltIcon, CheckIcon, GridIcon, UsersIcon } from "@/components/icons";
 import { SiteHeader } from "@/components/ui/header";
 import { TIER_STYLES } from "@/lib/tiers";
 import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
@@ -10,42 +10,41 @@ import { Reveal } from "@/components/ui/reveal";
 import { TextReveal } from "@/components/ui/text-reveal";
 import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
 import KineticGrid from "@/components/ui/kinetic-grid";
-import { RotatingText } from "@/components/ui/rotating-text";
 import { ScrollText } from "@/components/ui/scroll-text";
 
 const FEATURES = [
   {
     icon: <GridIcon size={20} />,
     title: "Tier-Based Rankings",
-    body: "Move beyond rigid numerical lists. Group players into visual tiers so you never miss a positional run.",
+    body: "See tiers, position runs, and drop-offs instead of treating every rank gap as equal.",
   },
   {
     icon: <CheckIcon size={20} />,
-    title: "Real-Time Draft Sync",
-    body: "Cross off players as they fly off the board in your actual league draft and instantly see updated value projections.",
+    title: "Draft Pick Tracking",
+    body: "Log each pick as it happens. DraftEdge updates the board and helps you track roster needs.",
   },
   {
     icon: <UsersIcon size={20} />,
-    title: "100% Free & Open Data",
-    body: "Powered directly by public NFL and Sleeper data feeds with zero subscription fees or hidden paywalls.",
+    title: "Free & Open Source",
+    body: "Use draft prep and player research tools at no cost. The project code is public on GitHub.",
   },
 ];
 
 const STEPS = [
   {
     n: "1",
-    title: "Configure Your League",
-    body: "Input your scoring format (PPR, Half-PPR, Standard) and league size (e.g., 12-team).",
+    title: "Set your scoring",
+    body: "Choose PPR, Half-PPR, or Standard so the player values fit your league.",
   },
   {
     n: "2",
-    title: "Open Your Cheat Sheet",
-    body: "Access your custom-sorted dashboard optimized for desktop or mobile tablet view.",
+    title: "Find your best picks",
+    body: "Use player rankings, tiers, ADP, and projections to compare the players still available.",
   },
   {
     n: "3",
-    title: "Dominate Your Draft",
-    body: "Check off players as your league drafts, track your roster balance, and secure your championship trophy.",
+    title: "Track the board",
+    body: "Log picks as they happen and keep your roster needs in view while you draft.",
   },
 ];
 
@@ -84,50 +83,64 @@ export function LandingPage() {
         {/* Slow-drifting abstract shapes behind the hero */}
         <span aria-hidden="true" className="ambient-shape ambient-shape--1 left-[-6rem] top-[8%]" />
         <span aria-hidden="true" className="ambient-shape ambient-shape--2 bottom-[6%] right-[-8rem]" />
-        <div className="relative mx-auto flex min-h-svh w-full max-w-7xl flex-col justify-center px-6 py-20 md:py-24">
+        <div className="relative mx-auto flex min-h-svh w-full max-w-7xl flex-col justify-center px-5 py-16 sm:px-6 md:py-20">
         {/* ambient emerald/amber aura behind the mockup column */}
         <div className="pointer-events-none absolute right-[-4%] top-[2%] h-[520px] w-[620px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(52,211,153,0.14),rgba(34,211,238,0.08)_55%,transparent_70%)] blur-2xl" />
         <div className="relative grid items-center gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10">
           {/* Left: headline + CTAs */}
           <div className="max-w-2xl">
-            <h1 className="font-display text-5xl leading-[1.08] tracking-wide text-white sm:text-6xl lg:text-[4rem]">
+            <h1 className="font-display text-4xl leading-[1.08] tracking-wide text-white sm:text-5xl lg:text-[3.75rem]">
               {/* Oversized headline — words slide up, fade in and de-blur. */}
               <TextReveal
-                text="Master Your Fantasy Draft."
+                text="Know your best pick before the clock runs out."
                 className="block"
                 delay={0.05}
                 stagger={0.08}
               />
             </h1>
-            <p className="mt-3 font-display text-2xl tracking-wide sm:text-3xl">
-              <RotatingText
-                phrases={["Zero Cost.", "Maximum Advantage.", "No Paywalls."]}
-                caret={false}
-                className="bg-gradient-to-r from-[#6ee7b7] via-[#34d399] to-[#22d3ee] bg-clip-text text-transparent"
-              />
+            <p className="mt-4 max-w-xl text-lg font-semibold text-emerald-200 sm:text-xl">
+              A free fantasy football draft board, built for the picks that change your plan.
             </p>
             <Reveal delay={250}>
-              <p className="mt-6 max-w-2xl text-xl leading-relaxed text-white/50">
-                An intelligent, real-time draft companion featuring automated tiers, live pick
-                tracking, and custom cheat sheets powered by open data.
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-300 sm:text-lg">
+                Compare player rankings, tiers, ADP, and projections for your scoring format. Log
+                picks as they happen and see who is still available.
               </p>
             </Reveal>
             <Reveal delay={380}>
-              <div className="mt-8 flex flex-wrap items-center gap-5">
+              <div className="mt-7 flex flex-wrap items-center gap-3 sm:gap-5">
                 <Link
                   href="/signin?mode=signup"
-                  className="btn-glass-primary rounded-xl px-8 py-4 text-lg font-bold transition"
+                  className="btn-glass-primary inline-flex min-h-12 items-center rounded-xl px-6 py-3 text-base font-bold transition sm:px-8 sm:text-lg"
                 >
                   Get Started Free
                 </Link>
                 <Link
-                  href="/signin"
-                  className="text-lg font-semibold text-zinc-400 transition hover:text-white"
+                  href="#how-it-works"
+                  className="inline-flex min-h-12 items-center rounded-xl px-4 text-base font-semibold text-zinc-300 transition hover:text-white"
                 >
-                  Sign In
+                  See how it works
                 </Link>
               </div>
             </Reveal>
+            <Link
+              href="#features"
+              className="group mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg pr-3 text-sm font-medium text-zinc-300 transition hover:text-white"
+            >
+              Explore the draft tools
+              <ArrowDownIcon size={16} className="transition-transform group-hover:translate-y-1" />
+            </Link>
+            <div className="mt-3 text-xs font-medium text-zinc-400">
+              Free to use <span className="px-1.5 text-emerald-400">·</span>
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-zinc-600 underline-offset-4 transition hover:text-white"
+              >
+                Open-source project
+              </a>
+            </div>
           </div>
 
           {/* Right: product preview — pointer-reactive mesh-glow frame (React Bits BorderGlow) */}
@@ -153,12 +166,12 @@ export function LandingPage() {
         <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
           <ScrollText
             as="h2"
-            text="Everything you need on draft day — automated tiers, real-time sync, and open data in one calm, focused cheat sheet."
+            text="A better answer to “Who’s next?”"
             className="mx-auto max-w-4xl text-center font-display text-4xl leading-[1.15] tracking-wide text-white sm:text-5xl"
           />
           <Reveal>
             <p className="mx-auto mt-4 max-w-xl text-center text-zinc-300">
-              Built for the pre-draft grind and the two minutes you actually have on the clock.
+              Your top pick is gone. Who moves up next? Start with tiers, then compare the details.
             </p>
           </Reveal>
           {/* Bento — one large feature panel with a live tier preview, two compact panels */}
@@ -225,7 +238,7 @@ export function LandingPage() {
         <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
           <ScrollText
             as="h2"
-            text="From signup to championship in three steps — configure your league, open your cheat sheet, and dominate your draft."
+            text="From scoring settings to your next pick in three steps."
             className="mx-auto max-w-4xl text-center font-display text-4xl leading-[1.15] tracking-wide text-white sm:text-5xl"
           />
           {/* Horizontal timeline — numbered badges joined by a connector line */}

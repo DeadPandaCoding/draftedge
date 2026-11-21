@@ -29,17 +29,29 @@ type Row =
 // Name/ADP sorts shuffle tiers around, so a "break" there would be meaningless.
 const TIER_SORTS = new Set<SortKey>(["rank", "tier", "position"]);
 
-export function PlayersTable({ players }: { players: Player[] }) {
+const rankOf = (player: Player, weekly: boolean) =>
+  weekly ? player.weekRank ?? player.rank : player.rank;
+const tierOf = (player: Player, weekly: boolean) =>
+  weekly ? player.weekTier ?? player.tier : player.tier;
+const projectionOf = (player: Player, weekly: boolean) =>
+  weekly ? player.weekProjection ?? 0 : player.projection;
+
+export function PlayersTable({
+  players,
+  weekly = false,
+}: {
+  players: Player[];
+  weekly?: boolean;
+}) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "rank", dir: 1 });
   const { isStarred, toggleStar } = useStarredPlayers();
-
   const sorted = useMemo(() => {
     const { key, dir } = sort;
     return [...players].sort((a, b) => {
       let cmp = 0;
       switch (key) {
         case "rank":
-          cmp = a.rank - b.rank;
+          cmp = rankOf(a, weekly) - rankOf(b, weekly);
           break;
         case "adp": {
           const av = a.adp === 0 ? Infinity : a.adp;
@@ -48,37 +60,40 @@ export function PlayersTable({ players }: { players: Player[] }) {
           break;
         }
         case "projection":
-          cmp = a.projection - b.projection;
+          cmp = projectionOf(b, weekly) - projectionOf(a, weekly);
           break;
         case "name":
           cmp = a.name.localeCompare(b.name);
           break;
         case "position":
-          cmp = a.position.localeCompare(b.position) || a.positionRank - b.positionRank;
+          cmp = a.position.localeCompare(b.position) ||
+            (weekly ? a.weekPositionRank ?? a.positionRank : a.positionRank) -
+              (weekly ? b.weekPositionRank ?? b.positionRank : b.positionRank);
           break;
         case "tier":
-          cmp = a.tier - b.tier || b.projection - a.projection;
+          cmp = tierOf(a, weekly) - tierOf(b, weekly) ||
+            projectionOf(b, weekly) - projectionOf(a, weekly);
           break;
       }
       return cmp * dir;
     });
-  }, [players, sort]);
+  }, [players, sort, weekly]);
 
   // Per-position, per-tier average projection. Used to size the drop-off
   // between adjacent tiers so the number stays robust to projection noise.
   const tierAverages = useMemo(() => {
     const acc = new Map<string, { sum: number; count: number }>();
     for (const p of players) {
-      const key = `${p.position}:${p.tier}`;
+      const key = `${p.position}:${tierOf(p, weekly)}`;
       const e = acc.get(key) ?? { sum: 0, count: 0 };
-      e.sum += p.projection;
+      e.sum += projectionOf(p, weekly);
       e.count += 1;
       acc.set(key, e);
     }
     const avg = new Map<string, number>();
     for (const [key, e] of acc) avg.set(key, e.sum / e.count);
     return avg;
-  }, [players]);
+  }, [players, weekly]);
 
   // Insert a tier-break divider between two same-position players when their
   // tier climbs, so each position's value drop-off is visible as you draft.
@@ -88,16 +103,19 @@ export function PlayersTable({ players }: { players: Player[] }) {
     for (let i = 0; i < sorted.length; i++) {
       const p = sorted[i];
       const prev = sorted[i - 1];
-      if (prev && prev.position === p.position && prev.tier < p.tier) {
-        const hi = tierAverages.get(`${p.position}:${prev.tier}`);
-        const lo = tierAverages.get(`${p.position}:${p.tier}`);
-        const drop = hi != null && lo != null ? hi - lo : prev.projection - p.projection;
-        out.push({ kind: "break", position: p.position, fromTier: prev.tier, toTier: p.tier, drop });
+      const tier = tierOf(p, weekly);
+      const previousTier = prev ? tierOf(prev, weekly) : 0;
+      if (prev && prev.position === p.position && previousTier < tier) {
+        const hi = tierAverages.get(`${p.position}:${previousTier}`);
+        const lo = tierAverages.get(`${p.position}:${tier}`);
+        const drop = hi != null && lo != null ? hi - lo :
+          projectionOf(prev, weekly) - projectionOf(p, weekly);
+        out.push({ kind: "break", position: p.position, fromTier: previousTier, toTier: tier, drop });
       }
       out.push({ kind: "player", player: p });
     }
     return out;
-  }, [sorted, sort.key, tierAverages]);
+  }, [sorted, sort.key, tierAverages, weekly]);
 
   const toggle = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
@@ -120,7 +138,7 @@ export function PlayersTable({ players }: { players: Player[] }) {
                       sort.key === k ? "text-emerald-300" : "text-zinc-500"
                     }`}
                   >
-                    {SORT_LABELS[k]}
+                    {weekly && k === "rank" ? "Wk Rank" : weekly && k === "projection" ? "Wk Proj" : SORT_LABELS[k]}
                     {sort.key === k &&
                       (sort.dir === 1 ? <ArrowUpIcon size={11} /> : <ArrowDownIcon size={11} />)}
                   </button>
@@ -161,10 +179,10 @@ export function PlayersTable({ players }: { players: Player[] }) {
                 className="border-b border-zinc-800/60 transition-colors hover:bg-zinc-900/60"
               >
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
-                  <TierBadge tier={p.tier} size="xs" />
+                  <TierBadge tier={tierOf(p, weekly)} size="xs" />
                 </td>
                 <td className="font-tech border-b border-zinc-800/60 px-2.5 py-1.5 text-xs text-zinc-400">
-                  {p.rank}
+                  {rankOf(p, weekly)}
                 </td>
                 <td className="font-tech border-b border-zinc-800/60 px-2.5 py-1.5 text-xs text-zinc-400">
                   {p.adp > 0 ? p.adp.toFixed(1) : "—"}
@@ -210,9 +228,9 @@ export function PlayersTable({ players }: { players: Player[] }) {
                 </td>
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
                   <span className="font-tech font-semibold text-zinc-200">
-                    {p.projection > 0 ? p.projection.toFixed(1) : "—"}
+                    {projectionOf(p, weekly) > 0 ? projectionOf(p, weekly).toFixed(1) : "—"}
                   </span>
-                  {p.weeklyAvg > 0 && (
+                  {!weekly && p.weeklyAvg > 0 && (
                     <span className="font-tech ml-1.5 text-[11px] text-zinc-500">
                       {p.weeklyAvg.toFixed(1)}/wk
                     </span>

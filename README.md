@@ -112,7 +112,7 @@ Both scripts exit non-zero on any failed check or console error, and dump screen
 
 ## Data notes
 
-- Sleeper's free tier currently returns no ADP or projections (and the old ADP endpoint is retired), so ADP/projection/tier values come from the bundled baseline dataset; live API data refreshes player names, teams, and positions daily-ish (hourly cache).
+- Player names, teams, and positions come from Sleeper; ADP comes from Fantasy Football Calculator draft data. In season, the rankings page uses Sleeper weekly projections and FantasyPros weekly consensus ranks (via DynastyProcess). Season-long projections and the offseason cheat sheet retain the bundled baseline unless FantasyPros season projections are configured. Live data is cached for about an hour.
 - Bye weeks are 2026-season estimates and live in `BYE_WEEKS` in `lib/seed-data.ts` — update when the real schedule drops.
 
 ## Project structure

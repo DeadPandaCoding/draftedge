@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { BoltIcon } from "@/components/icons";
 
 const MOCK_ROWS = [
@@ -23,6 +26,9 @@ const POS_CLASSES: Record<string, string> = {
 };
 
 export function DraftBoardMockup() {
+  const [showDrafted, setShowDrafted] = useState(false);
+  const rows = showDrafted ? MOCK_ROWS : MOCK_ROWS.filter((row) => !row.drafted);
+
   return (
     <div className="relative mx-auto w-full min-w-0 max-w-3xl">
       {/* No ambient glow here anymore — BorderGlow frames the board and the
@@ -36,12 +42,37 @@ export function DraftBoardMockup() {
               <BoltIcon size={16} />
             </span>
             <span className="font-display text-base tracking-wide text-zinc-100">DraftEdge</span>
-            <span className="ml-2 text-xs font-medium text-zinc-500">The Office League · PPR</span>
+            <span className="ml-2 text-xs font-medium text-zinc-500">Board preview · PPR</span>
           </div>
         </div>
 
         {/* Mockup table */}
         <div className="px-4 py-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-zinc-300">Player availability</span>
+            <div className="flex rounded-lg border border-zinc-700/70 bg-zinc-900/70 p-1" role="group" aria-label="Filter preview players">
+              <button
+                type="button"
+                aria-pressed={!showDrafted}
+                onClick={() => setShowDrafted(false)}
+                className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${
+                  !showDrafted ? "bg-emerald-500/15 text-emerald-200" : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                Available
+              </button>
+              <button
+                type="button"
+                aria-pressed={showDrafted}
+                onClick={() => setShowDrafted(true)}
+                className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${
+                  showDrafted ? "bg-emerald-500/15 text-emerald-200" : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                All players
+              </button>
+            </div>
+          </div>
           <div className="font-tech grid grid-cols-[52px_minmax(0,1fr)_72px_64px_72px] gap-2 px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
             <span>Tier</span>
             <span>Player</span>
@@ -50,7 +81,7 @@ export function DraftBoardMockup() {
             <span className="text-right">Proj</span>
           </div>
           <div className="space-y-1">
-            {MOCK_ROWS.map((r) => (
+            {rows.map((r) => (
               <div
                 key={r.name}
                 className={`grid grid-cols-[52px_minmax(0,1fr)_72px_64px_72px] items-center gap-2 rounded-lg border px-2 py-2 text-sm transition ${
