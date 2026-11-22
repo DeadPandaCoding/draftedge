@@ -16,7 +16,7 @@ export interface Player {
   bye: number; // bye week (0 = unknown)
   adp: number; // average draft position (0 = unknown)
   projection: number; // season total, adjusted to league scoring format
-  weeklyAvg: number; // projection / 17
+  weeklyAvg: number; // season projection / expected 17 games
   tier: number; // 1 = best, computed per position
   rank: number; // overall rank (1..n) by projection
   positionRank: number; // rank within position
@@ -27,6 +27,10 @@ export interface Player {
   weekProjection?: number;
   /** Sleeper projection summed from the current NFL week through week 18. */
   rosProjection?: number;
+  /** Completed-week points from Sleeper, in the selected scoring format. */
+  actualPoints?: number;
+  /** Completed actual points plus the ROS estimate, when all source weeks exist. */
+  seasonProjection?: number;
   /** Overall ROS rank, derived only from players with a ROS projection. */
   rosRank?: number;
   /** Positional ROS rank and tier. */
@@ -39,9 +43,7 @@ export interface Player {
   /** Current-week tier, recalculated from the live positional order. */
   weekTier?: number;
   /**
-   * Consensus season projection averaging available sources:
-   *   - bundled cheat-sheet projection
-   *   - FantasyPros full-season (when configured)
+   * Consensus season projection, including Sleeper actuals + ROS when available.
    */
   consensus?: number;
 }
@@ -110,5 +112,6 @@ export interface PlayersResponse {
   players: Player[];
   source: "live" | "seed";
   generatedAt: number;
+  schemaVersion?: number;
   weeklyRankingsUpdated?: string;
 }

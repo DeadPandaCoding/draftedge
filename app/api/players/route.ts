@@ -3,7 +3,7 @@ import type { Player, Position, PlayersResponse, ScoringFormat, UsageMetrics } f
 import { POSITIONS } from "@/lib/types";
 import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
 import { fetchNflverseUsage } from "@/lib/nflverse";
-import { fetchSleeperProjectionRange, fetchSleeperState } from "@/lib/live-data";
+import { fetchSleeperProjectionRange, fetchSleeperSeasonTotals, fetchSleeperState } from "@/lib/live-data";
 import { fetchFantasyProsProjections } from "@/lib/fantasypros";
 import { fetchWeeklyRankings, type WeeklyRankings } from "@/lib/fantasypros-weekly-rankings";
 import { fetchFFCAdp, matchFFC, type FFCPlayer } from "@/lib/ffc";
@@ -93,6 +93,8 @@ function mergeWithSeed(
   usage: Map<string, UsageMetrics>,
   weekProj: Map<string, number>,
   rosProj: Map<string, number>,
+  actualPoints: Map<string, number>,
+  seasonProj: Map<string, number>,
   fpProj: Map<string, number>,
   fpWeeklyRanks: WeeklyRankings["byName"],
   ffcPlayers: FFCPlayer[],
@@ -123,6 +125,10 @@ function mergeWithSeed(
       if (wp0 != null) match.weekProjection = wp0;
       const ros0 = rosProj.get(l.id);
       if (ros0 != null) match.rosProjection = ros0;
+      const actual0 = actualPoints.get(l.id);
+      if (actual0 != null) match.actualPoints = actual0;
+      const season0 = seasonProj.get(l.id);
+      if (season0 != null) match.seasonProjection = season0;
     }
   }
 
@@ -147,6 +153,10 @@ function mergeWithSeed(
         if (wp1 != null) byName.weekProjection = wp1;
         const ros1 = rosProj.get(l.id);
         if (ros1 != null) byName.rosProjection = ros1;
+        const actual1 = actualPoints.get(l.id);
+        if (actual1 != null) byName.actualPoints = actual1;
+        const season1 = seasonProj.get(l.id);
+        if (season1 != null) byName.seasonProjection = season1;
         continue;
       }
       capped.push({
@@ -156,8 +166,8 @@ function mergeWithSeed(
         team: l.team,
         bye: byeForTeam(l.team),
         adp: 0,
-        projection: 0,
-        weeklyAvg: 0,
+        projection: seasonProj.get(l.id) ?? 0,
+        weeklyAvg: seasonProj.has(l.id) ? Math.round(((seasonProj.get(l.id) ?? 0) / 17) * 10) / 10 : 0,
         tier: 5,
         rank: 0,
         positionRank: 0,
@@ -165,6 +175,8 @@ function mergeWithSeed(
         usage: l.gsisId ? usage.get(l.gsisId) : undefined,
         weekProjection: weekProj.get(l.id),
         rosProjection: rosProj.get(l.id),
+        actualPoints: actualPoints.get(l.id),
+        seasonProjection: seasonProj.get(l.id),
       });
     }
   }
@@ -199,6 +211,12 @@ function mergeWithSeed(
   // average sources that both estimate a full season; projecting one week over
   // 17 games produced a misleading season total in the previous implementation.
   for (const p of result) {
+    if (p.seasonProjection != null) {
+      p.projection = p.seasonProjection;
+      p.consensus = p.seasonProjection;
+      p.weeklyAvg = Math.round((p.seasonProjection / 17) * 10) / 10;
+      continue;
+    }
     const sources: number[] = [];
     if (p.projection > 0) sources.push(p.projection);
     const fp = fpProj.get(normalizeName(p.name));
@@ -265,7 +283,7 @@ function mergeWithSeed(
     }
   }
 
-  if (fpProj.size > 0) {
+  if (fpProj.size > 0 || seasonProj.size > 0) {
     const overall = [...result].sort((a, b) => b.projection - a.projection || a.rank - b.rank);
     overall.forEach((p, index) => {
       p.rank = index + 1;
@@ -330,7 +348,7 @@ async function readLatestSnapshot(scoring: ScoringFormat): Promise<PlayersRespon
 
   const row = data as { created_at: string; data: unknown } | null;
   const snapshot = row?.data as Partial<PlayersResponse> | null;
-  if (!row || !snapshot || !Array.isArray(snapshot.players)) return null;
+  if (!row || !snapshot || snapshot.schemaVersion !== 2 || !Array.isArray(snapshot.players)) return null;
 
   const generatedAt = Number(snapshot.generatedAt) || Date.parse(row.created_at);
   const age = Date.now() - generatedAt;
@@ -340,6 +358,7 @@ async function readLatestSnapshot(scoring: ScoringFormat): Promise<PlayersRespon
     players: snapshot.players,
     source: snapshot.source === "seed" ? "seed" : "live",
     generatedAt,
+    schemaVersion: 2,
     weeklyRankingsUpdated: snapshot.weeklyRankingsUpdated,
   };
 }
@@ -383,6 +402,8 @@ export async function GET(req: NextRequest) {
   const usage = new Map<string, UsageMetrics>();
   const weekProj = new Map<string, number>();
   const rosProj = new Map<string, number>();
+  const actualPoints = new Map<string, number>();
+  const seasonProj = new Map<string, number>();
   const fpProj = new Map<string, number>();
   let fpWeeklyRanks: WeeklyRankings["byName"] = new Map();
   let weeklyRankingsUpdated: string | undefined;
@@ -419,6 +440,22 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+      const actualAndSeason = await fetchSleeperSeasonTotals(
+        state.season,
+        state.week - 1,
+        scoring,
+        rosProj,
+      );
+      for (const [id, points] of actualAndSeason.actualPoints) actualPoints.set(id, points);
+      for (const [id, points] of actualAndSeason.fullSeasonProjection) seasonProj.set(id, points);
+      if (actualAndSeason.unavailableStatsWeeks.length > 0) {
+        console.warn("[players] Full-season totals unavailable for completed weeks:", actualAndSeason.unavailableStatsWeeks);
+      }
+    } catch (err) {
+      console.warn("[players] Sleeper actual stats failed:", err);
+    }
+
+    try {
       const rankings = await fetchWeeklyRankings();
       fpWeeklyRanks = rankings.byName;
       weeklyRankingsUpdated = rankings.byName.size > 0 ? rankings.updatedAt : undefined;
@@ -445,11 +482,12 @@ export async function GET(req: NextRequest) {
     console.warn("[players] FFC ADP fetch failed:", err);
   }
 
-  const players = mergeWithSeed(live, scoring, usage, weekProj, rosProj, fpProj, fpWeeklyRanks, ffcPlayers);
+  const players = mergeWithSeed(live, scoring, usage, weekProj, rosProj, actualPoints, seasonProj, fpProj, fpWeeklyRanks, ffcPlayers);
   const body: PlayersResponse = {
     players,
     source,
     generatedAt: Date.now(),
+    schemaVersion: 2,
     weeklyRankingsUpdated,
   };
 

@@ -238,6 +238,11 @@ export function PlayersTable({
                       {p.weeklyAvg.toFixed(1)}/wk
                     </span>
                   )}
+                  {!weekly && !ros && p.actualPoints != null && (
+                    <span className="font-tech ml-1.5 text-[11px] text-zinc-500">
+                      · {p.actualPoints.toFixed(1)} actual
+                    </span>
+                  )}
                 </td>
               </tr>
               );

@@ -35,10 +35,21 @@ interface SleeperProjection {
   [key: string]: unknown;
 }
 
+interface SleeperStatLine {
+  stats?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export interface SleeperProjectionRange {
   currentWeek: Map<string, number>;
   restOfSeason: Map<string, number>;
   unavailableWeeks: number[];
+}
+
+export interface SleeperSeasonTotals {
+  actualPoints: Map<string, number>;
+  fullSeasonProjection: Map<string, number>;
+  unavailableStatsWeeks: number[];
 }
 
 /**
@@ -67,7 +78,7 @@ export async function fetchSleeperProjectionRange(
       const points = new Map<string, number>();
       for (const [id, player] of Object.entries(data)) {
         const value = player?.stats?.[key];
-        if (typeof value === "number" && Number.isFinite(value) && value > 0) points.set(id, value);
+        if (typeof value === "number" && Number.isFinite(value)) points.set(id, value);
       }
       return { week, points };
     })
@@ -93,5 +104,67 @@ export async function fetchSleeperProjectionRange(
     currentWeek: currentResult.value.points,
     restOfSeason: unavailableWeeks.length === 0 ? totals : new Map(),
     unavailableWeeks,
+  };
+}
+
+/**
+ * Sums completed-week actual points and adds the current ROS estimate. Sleeper's
+ * weekly stats endpoint is undocumented, so incomplete weeks invalidate the
+ * full-season total rather than silently understating it.
+ */
+export async function fetchSleeperSeasonTotals(
+  season: string,
+  completedWeeks: number,
+  scoring: ScoringFormat,
+  rosProjection: Map<string, number>
+): Promise<SleeperSeasonTotals> {
+  const weeks = Array.from({ length: Math.max(0, Math.min(18, completedWeeks)) }, (_, i) => i + 1);
+  const results = await Promise.allSettled(
+    weeks.map(async (week) => {
+      const url = `${SLEEPER_BASE}/stats/nfl/regular/${season}/${week}`;
+      const res = await fetch(url, {
+        next: { revalidate: REVALIDATE_SECONDS },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) throw new Error(`Sleeper actual stats week ${week} failed (${res.status})`);
+      const data = (await res.json()) as Record<string, SleeperStatLine>;
+      const key = SCORING_STAT[scoring];
+      const points = new Map<string, number>();
+      for (const [id, line] of Object.entries(data)) {
+        const raw = line?.stats?.[key] ?? line?.[key];
+        const value = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+        if (Number.isFinite(value)) points.set(id, value);
+      }
+      if (points.size === 0) throw new Error(`Sleeper actual stats week ${week} returned no ${key} values`);
+      return { week, points };
+    })
+  );
+
+  const unavailableStatsWeeks: number[] = [];
+  const actualPoints = new Map<string, number>();
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status === "rejected") {
+      unavailableStatsWeeks.push(weeks[i]);
+      continue;
+    }
+    for (const [id, points] of result.value.points) {
+      actualPoints.set(id, (actualPoints.get(id) ?? 0) + points);
+    }
+  }
+
+  const fullSeasonProjection = new Map<string, number>();
+  if (unavailableStatsWeeks.length === 0 && rosProjection.size > 0) {
+    const playerIds = new Set([...actualPoints.keys(), ...rosProjection.keys()]);
+    for (const id of playerIds) {
+      const total = (actualPoints.get(id) ?? 0) + (rosProjection.get(id) ?? 0);
+      fullSeasonProjection.set(id, Math.round(total * 10) / 10);
+    }
+  }
+
+  return {
+    actualPoints: unavailableStatsWeeks.length === 0 ? actualPoints : new Map(),
+    fullSeasonProjection,
+    unavailableStatsWeeks,
   };
 }
