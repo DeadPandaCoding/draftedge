@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import KineticGrid from "@/components/ui/kinetic-grid";
 import {
   AtSignIcon,
   BoltIcon,
@@ -75,14 +74,6 @@ function AuthCard() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
-      {/* Kinetic grid background — warps toward the pointer, ripples on click */}
-      <KineticGrid globalColor="default" className="pointer-events-none fixed inset-0 z-0" />
-
-      {/* Brand glow above the grid */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-32 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
-      </div>
-
       <div className="relative z-10 w-full max-w-[880px]">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">

@@ -78,7 +78,7 @@ export default function TradePage() {
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
   const [fcEntries, setFcEntries] = useState<FantasyCalcEntry[]>([]);
-  const [fcLoading, setFcLoading] = useState(false);
+  const fcRequested = useRef(false);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -131,9 +131,9 @@ export default function TradePage() {
 
   // Fetch FantasyCalc consensus values (dynasty mode for the community).
   useEffect(() => {
-    if (fcEntries.length > 0 || fcLoading) return;
+    if (fcRequested.current) return;
+    fcRequested.current = true;
     let cancelled = false;
-    setFcLoading(true);
     fetchFantasyCalc({
       isDynasty: false,
       numQbs: 1,
@@ -141,10 +141,9 @@ export default function TradePage() {
       ppr: league?.scoring === "ppr" ? 1 : league?.scoring === "half_ppr" ? 0.5 : 0,
     })
       .then((d) => { if (!cancelled) setFcEntries(d); })
-      .catch(() => { /* graceful degrade */ })
-      .finally(() => { if (!cancelled) setFcLoading(false); });
+      .catch(() => { /* graceful degrade */ });
     return () => { cancelled = true; };
-  }, [league, fcEntries.length, fcLoading]);
+  }, [league]);
 
   const fcMax = useMemo(() => {
     if (fcEntries.length === 0) return 1;

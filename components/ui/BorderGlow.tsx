@@ -5,19 +5,19 @@ import { useRef, useCallback, useEffect, type CSSProperties, type ReactNode } fr
 import "./BorderGlow.css";
 
 /**
- * Shared glow look for DraftEdge surfaces (hero frame + all popups):
- * periwinkle/taupe mesh border, dark navy card, cursor-reactive cone glow.
+ * Shared glow look for DraftEdge surfaces (hero frame + popups):
+ * subtle emerald edge highlight on a dark surface.
  * Individual usages override `borderRadius` (and `animated` where wanted).
  */
 export const GLOW_PRESET = {
-  edgeSensitivity: 25,
+  edgeSensitivity: 35,
   glowColor: "160 84 39",
-  backgroundColor: "#04120d",
-  glowRadius: 36,
-  glowIntensity: 1.0,
-  coneSpread: 25,
-  fillOpacity: 0.35,
-  colors: ["#34d399", "#22d3ee", "#6366f1"],
+  backgroundColor: "#0B1512",
+  glowRadius: 18,
+  glowIntensity: 0.45,
+  coneSpread: 20,
+  fillOpacity: 0.12,
+  colors: ["#10b981", "#34d399", "#059669"],
 };
 
 interface BorderGlowProps {

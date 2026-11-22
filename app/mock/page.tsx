@@ -161,7 +161,6 @@ function gradeDraft(
   }
 
   const ideal = roster.qb + roster.rb + roster.wr + roster.te + roster.flex + roster.k + roster.def;
-  const filled = Math.min(ideal, myPicks.length);
   const starterCoverage =
     (Math.min(counts.QB, roster.qb) +
       Math.min(counts.RB, roster.rb) +
@@ -263,6 +262,8 @@ export default function MockDraftPage() {
 
   const makeMyPick = useCallback(
     (playerId: string) => {
+      setSecondsLeft(pickTimer);
+      setTimerExpired(false);
       setPicks((prev) => {
         const ids = new Set(prev.map((p) => p.playerId));
         if (ids.has(playerId)) return prev;
@@ -275,7 +276,7 @@ export default function MockDraftPage() {
         return advance(withMine, ids);
       });
     },
-    [teams, advance],
+    [teams, advance, pickTimer],
   );
 
   const autoPick = useCallback(() => {
@@ -284,15 +285,6 @@ export default function MockDraftPage() {
   }, [picks, mySlot, playersById, players, drafted, currentPick, teams, totalPicks, roster, strategy, makeMyPick]);
 
   /* ── Pick clock ── */
-
-  const resetTimer = useCallback(() => {
-    setSecondsLeft(pickTimer);
-    setTimerExpired(false);
-  }, [pickTimer]);
-
-  useEffect(() => {
-    if (isMyTurn && started && !done) resetTimer();
-  }, [currentPick, isMyTurn, started, done, resetTimer]);
 
   useEffect(() => {
     if (!isMyTurn || done || pickTimer === 0) {
@@ -313,6 +305,9 @@ export default function MockDraftPage() {
   }, [isMyTurn, done, pickTimer]);
 
   useEffect(() => {
+    // The timeout is an external timer event, so its action intentionally
+    // advances the draft after the timer state has updated.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (timerExpired && isMyTurn) autoPick();
   }, [timerExpired, isMyTurn, autoPick]);
 
@@ -323,6 +318,8 @@ export default function MockDraftPage() {
   /* ── Actions ── */
 
   const startDraft = () => {
+    setSecondsLeft(pickTimer);
+    setTimerExpired(false);
     setStarted(true);
     const ids = new Set<string>();
     setPicks(advance([], ids));

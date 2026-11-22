@@ -1,16 +1,14 @@
 import Link from "next/link";
-import { ArrowDownIcon, BoltIcon, CheckIcon, GridIcon, UsersIcon } from "@/components/icons";
+import { BoltIcon, CheckIcon, GridIcon, UsersIcon } from "@/components/icons";
 import { SiteHeader } from "@/components/ui/header";
 import { TIER_STYLES } from "@/lib/tiers";
 import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
 import { SmoothScroll } from "@/components/landing/SmoothScroll";
-import { GrainOverlay } from "@/components/ui/grain";
 import { Reveal } from "@/components/ui/reveal";
 import { TextReveal } from "@/components/ui/text-reveal";
-import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
-import KineticGrid from "@/components/ui/kinetic-grid";
 import { ScrollText } from "@/components/ui/scroll-text";
+import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
 
 const FEATURES = [
   {
@@ -65,28 +63,17 @@ export function LandingPage() {
     <div className="relative flex min-h-screen flex-col text-zinc-200">
       {/* Lenis smooth scrolling (client-side island) */}
       <SmoothScroll />
-      {/* Animated film grain over the whole viewport */}
-      <GrainOverlay />
-
-      {/* Background: the global aurora provides the color field; the
-          mouse-interactive kinetic grid (same as sign-in/home) backs the hero
-          and the final "How it works" band, with the features section kept
-          clean so the glass panels read against the aurora. */}
-
       {/* ── Nav (shared sticky header) ──────────────────────── */}
       <SiteHeader variant="marketing" />
 
       {/* ── Hero (two-column: left-aligned text, board on the right) ── */}
-      <section className="relative z-10 min-h-svh overflow-hidden">
-        {/* Mouse-interactive kinetic grid behind the hero content */}
-        <KineticGrid contained className="pointer-events-none" />
-        {/* Slow-drifting abstract shapes behind the hero */}
-        <span aria-hidden="true" className="ambient-shape ambient-shape--1 left-[-6rem] top-[8%]" />
-        <span aria-hidden="true" className="ambient-shape ambient-shape--2 bottom-[6%] right-[-8rem]" />
-        <div className="relative mx-auto flex min-h-svh w-full max-w-7xl flex-col justify-center px-5 py-16 sm:px-6 md:py-20">
-        {/* ambient emerald/amber aura behind the mockup column */}
-        <div className="pointer-events-none absolute right-[-4%] top-[2%] h-[520px] w-[620px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(52,211,153,0.14),rgba(34,211,238,0.08)_55%,transparent_70%)] blur-2xl" />
-        <div className="relative grid items-center gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10">
+      <section className="relative z-10 min-h-svh overflow-hidden border-b border-white/[0.07] bg-[#080E0C]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[65%] bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(16,185,129,0.13),transparent)]"
+        />
+        <div className="relative mx-auto flex min-h-svh w-full max-w-7xl flex-col px-5 pb-16 pt-20 sm:px-6 md:pb-20 md:pt-24">
+        <div className="relative grid items-start gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10">
           {/* Left: headline + CTAs */}
           <div className="max-w-2xl">
             <h1 className="font-display text-4xl leading-[1.08] tracking-wide text-white sm:text-5xl lg:text-[3.75rem]">
@@ -98,54 +85,30 @@ export function LandingPage() {
                 stagger={0.08}
               />
             </h1>
-            <p className="mt-4 max-w-xl text-lg font-semibold text-emerald-200 sm:text-xl">
-              A free fantasy football draft board, built for the picks that change your plan.
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-zinc-300 sm:text-xl">
+              Live rankings, scoring-aware projections, and a draft board that keeps every pick in context.
             </p>
             <Reveal delay={250}>
-              <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-300 sm:text-lg">
-                Compare player rankings, tiers, ADP, and projections for your scoring format. Log
-                picks as they happen and see who is still available.
-              </p>
-            </Reveal>
-            <Reveal delay={380}>
-              <div className="mt-7 flex flex-wrap items-center gap-3 sm:gap-5">
+              <div className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
                 <Link
-                  href="/signin?mode=signup"
-                  className="btn-glass-primary inline-flex min-h-12 items-center rounded-xl px-6 py-3 text-base font-bold transition sm:px-8 sm:text-lg"
+                  href="/mock"
+                  className="inline-flex min-h-12 items-center rounded-lg bg-emerald-500 px-6 py-3 text-base font-semibold text-zinc-950 transition hover:bg-emerald-400"
                 >
-                  Get Started Free
+                  Start a Mock Draft
                 </Link>
                 <Link
-                  href="#how-it-works"
-                  className="inline-flex min-h-12 items-center rounded-xl px-4 text-base font-semibold text-zinc-300 transition hover:text-white"
+                  href="/rankings"
+                  className="inline-flex min-h-12 items-center rounded-lg border border-white/[0.12] px-5 py-3 text-base font-semibold text-zinc-200 transition hover:border-emerald-400/40 hover:text-white"
                 >
-                  See how it works
+                  Explore Rankings
                 </Link>
               </div>
             </Reveal>
-            <Link
-              href="#features"
-              className="group mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg pr-3 text-sm font-medium text-zinc-300 transition hover:text-white"
-            >
-              Explore the draft tools
-              <ArrowDownIcon size={16} className="transition-transform group-hover:translate-y-1" />
-            </Link>
-            <div className="mt-3 text-xs font-medium text-zinc-400">
-              Free to use <span className="px-1.5 text-emerald-400">·</span>
-              <a
-                href={GITHUB_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline decoration-zinc-600 underline-offset-4 transition hover:text-white"
-              >
-                Open-source project
-              </a>
-            </div>
           </div>
 
-          {/* Right: product preview — pointer-reactive mesh-glow frame (React Bits BorderGlow) */}
+          {/* Right: compact product preview framed with a simple border */}
           <Reveal delay={200} className="w-full min-w-0">
-            <BorderGlow {...GLOW_PRESET} className="mx-auto w-full max-w-3xl" borderRadius={24} animated>
+            <BorderGlow {...GLOW_PRESET} className="mx-auto w-full max-w-3xl" borderRadius={24}>
               <DraftBoardMockup />
             </BorderGlow>
           </Reveal>
@@ -154,15 +117,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Features ────────────────────────────────────────── */}
-      <section id="features" className="relative z-10 scroll-mt-20 overflow-hidden border-t border-emerald-400/10">
-        {/* Grid runs behind a frosted emerald pane — same treatment as the
-            footer's frosted band, but in green: the grid glows through the
-            frost instead of sitting directly on the aurora. */}
-        <KineticGrid contained className="pointer-events-none" />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-emerald-950/45 backdrop-blur-[2px]"
-        />
+      <section id="features" className="relative z-10 scroll-mt-20 overflow-hidden border-b border-white/[0.07]">
         <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
           <ScrollText
             as="h2"
@@ -177,7 +132,7 @@ export function LandingPage() {
           {/* Bento — one large feature panel with a live tier preview, two compact panels */}
           <Reveal delay={140}>
           <div className="mt-12 grid gap-5 md:grid-cols-3 md:grid-rows-2">
-            <div className="glass glass-hover relative overflow-hidden rounded-2xl p-7 md:col-span-2 md:row-span-2 hover:-translate-y-1">
+            <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0D1412] p-7 transition hover:-translate-y-1 md:col-span-2 md:row-span-2">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                 {featureTiers.icon}
               </div>
@@ -211,7 +166,7 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="glass glass-hover relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
+            <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0D1412] p-6 transition hover:-translate-y-1">
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                 {featureSync.icon}
               </div>
@@ -219,7 +174,7 @@ export function LandingPage() {
               <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">{featureSync.body}</p>
             </div>
 
-            <div className="glass glass-hover relative overflow-hidden rounded-2xl p-6 hover:-translate-y-1">
+            <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0D1412] p-6 transition hover:-translate-y-1">
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                 {featureFree.icon}
               </div>
@@ -232,9 +187,7 @@ export function LandingPage() {
       </section>
 
       {/* ── How it works ────────────────────────────────────── */}
-      <section id="how-it-works" className="relative z-10 scroll-mt-20 overflow-hidden border-t border-emerald-400/10">
-        {/* Mouse-interactive kinetic grid behind the final CTA band */}
-        <KineticGrid contained className="pointer-events-none" />
+      <section id="how-it-works" className="relative z-10 scroll-mt-20 overflow-hidden border-b border-white/[0.07]">
         <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
           <ScrollText
             as="h2"
@@ -253,7 +206,7 @@ export function LandingPage() {
                       {s.n}
                     </span>
                   </div>
-                  <div className="glass glass-hover relative rounded-2xl p-7 text-center">
+                  <div className="relative rounded-2xl border border-white/[0.08] bg-[#0D1412] p-7 text-center transition hover:-translate-y-1">
                     <h3 className="text-lg font-semibold text-white">{s.title}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-zinc-300">{s.body}</p>
                   </div>
@@ -266,7 +219,7 @@ export function LandingPage() {
           <div className="mt-14 text-center">
             <Link
               href="/signin?mode=signup"
-              className="btn-glass-primary inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-base font-bold transition"
+              className="inline-flex min-h-12 items-center gap-2 rounded-lg bg-emerald-500 px-7 py-3.5 text-base font-semibold text-zinc-950 transition hover:bg-emerald-400"
             >
               <BoltIcon size={16} />
               Start your draft prep — free
@@ -278,8 +231,6 @@ export function LandingPage() {
 
       {/* ── Footer ──────────────────────────────────────────── */}
       <footer className="relative z-10 mt-auto overflow-hidden border-t border-emerald-400/10 bg-zinc-950/60">
-        {/* Grid runs through the footer band too, dimmed by the footer tint. */}
-        <KineticGrid contained className="pointer-events-none opacity-50" />
         <div className="relative mx-auto w-full max-w-6xl px-6 py-14">
           <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
             {/* Stay Connected */}

@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import KineticGrid from "@/components/ui/kinetic-grid";
 import { Skeleton } from "@/components/ui";
 import { SiteHeader } from "@/components/ui/header";
 import {
@@ -104,12 +103,6 @@ export default function HomePage() {
 
   return (
     <div className="relative flex min-h-screen flex-col text-zinc-200">
-      <KineticGrid globalColor="default" className="pointer-events-none fixed inset-0 z-0" />
-
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 h-[480px] w-[820px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
-      </div>
-
       <SiteHeader
         variant="app"
         actions={
@@ -128,7 +121,7 @@ export default function HomePage() {
         }
       />
 
-      <main className="relative z-10 mx-auto w-full max-w-2xl flex-1 px-6 pb-20 pt-12">
+      <main className="relative mx-auto w-full max-w-5xl flex-1 px-5 pb-20 pt-12 sm:px-6">
         {/* ── Welcome ────────────────────────────────────── */}
         <h1 className="font-display text-3xl tracking-wide text-white sm:text-4xl">
           Welcome, {firstName}
@@ -139,12 +132,12 @@ export default function HomePage() {
 
         <section className="mt-10">
           <h2 className="text-sm font-semibold text-zinc-300">Tools</h2>
-          <div className="mt-3 divide-y divide-zinc-800/60 rounded-2xl ring-1 ring-inset ring-zinc-800/60">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {TOOLS.map((t) => (
               <Link
                 key={t.title}
                 href={t.href}
-                className="group flex items-center gap-4 px-5 py-4 transition hover:bg-zinc-800/30"
+                className="glass glass-hover group flex min-h-28 items-center gap-4 rounded-xl p-4 transition hover:-translate-y-0.5"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-400 transition group-hover:text-emerald-300">
                   {t.icon}

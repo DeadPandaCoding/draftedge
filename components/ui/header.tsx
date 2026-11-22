@@ -10,15 +10,12 @@ import {
   BoltIcon,
   ChevronDownIcon,
   ClockIcon,
-  EyeIcon,
   FlaskIcon,
   ListCheckIcon,
-  LockIcon,
   MenuIcon,
   PollIcon,
   SwapIcon,
   TableIcon,
-  UsersIcon,
   XIcon,
 } from "@/components/icons";
 
@@ -29,8 +26,6 @@ type HeaderItem = {
   icon?: ReactNode;
   external?: boolean;
 };
-
-const GITHUB_URL = "https://github.com/DeadPandaCoding/draftedge";
 
 const TOOLS: HeaderItem[] = [
   {
@@ -89,53 +84,14 @@ const TOOLS: HeaderItem[] = [
   },
 ];
 
-const COMPANY: HeaderItem[] = [
-  {
-    label: "How it works",
-    href: "#how-it-works",
-    icon: <ClockIcon size={18} />,
-    description: "Three steps from setup to draft day.",
-  },
-  {
-    label: "Open source",
-    href: GITHUB_URL,
-    icon: <UsersIcon size={18} />,
-    description: "Built in the open on GitHub.",
-    external: true,
-  },
-  {
-    label: "Terms of Service",
-    href: "/terms",
-    icon: <LockIcon size={18} />,
-    description: "The fine print.",
-  },
-  {
-    label: "Privacy Policy",
-    href: "/privacy",
-    icon: <EyeIcon size={18} />,
-    description: "How we handle your data.",
-  },
-  {
-    label: "Accessibility",
-    href: "/accessibility",
-    icon: <UsersIcon size={18} />,
-    description: "Our commitment to inclusive design.",
-  },
-  {
-    label: "Disclaimers",
-    href: "/disclaimers",
-    icon: <LockIcon size={18} />,
-    description: "Legal disclaimers and attribution.",
-  },
-];
-
 const NAV = {
   marketing: {
-    menus: [
-      { trigger: "Product", items: TOOLS },
-      { trigger: "Company", items: COMPANY },
+    menus: [{ trigger: "Tools", items: TOOLS }],
+    links: [
+      { label: "Rankings", href: "/rankings" },
+      { label: "Trade Analyzer", href: "/trade" },
+      { label: "Mock Drafts", href: "/mock" },
     ],
-    links: [{ label: "Features", href: "#features" }],
   },
   app: {
     menus: [{ trigger: "Tools", items: TOOLS }],
@@ -184,7 +140,7 @@ function MenuLink({ item, onNavigate }: { item: HeaderItem; onNavigate?: () => v
 /**
  * Shared DraftEdge header, adapted from the shadcn reference into the project's
  * Liquid Glass system. Two variants:
- *   - "marketing": Product/Company dropdowns + Features link + Sign In / Get Started
+ *   - "marketing": direct tool links + Tools dropdown + Sign In / Launch App
  *   - "app":        Tools dropdown + Home link + caller-supplied actions (e.g. Log Out)
  */
 export function SiteHeader({
@@ -243,10 +199,10 @@ export function SiteHeader({
           Sign In
         </Link>
         <Link
-          href="/signin?mode=signup"
-          className="btn-glass-primary rounded-lg px-4 py-2 text-sm font-bold transition"
+          href="/home"
+          className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400"
         >
-          Get Started Free
+          Launch App
         </Link>
       </>
     ) : (
