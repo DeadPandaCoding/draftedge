@@ -227,7 +227,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.signUp({
           email: normalizeEmail(email),
           password,
-          options: { data: { name: name.trim() } },
+          options: {
+            data: { name: name.trim() },
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fhome`,
+          },
         });
         if (error) return { ok: false, error: error.message };
         // If email confirmation is enabled, no session is returned yet.
