@@ -6,6 +6,7 @@ import type { ScoringFormat } from "./types";
  */
 
 export const SLEEPER_BASE = "https://api.sleeper.app/v1";
+const SLEEPER_PROJECTION_BASE = "https://api.sleeper.com";
 const REVALIDATE_SECONDS = 3600;
 
 export interface SleeperNflState {
@@ -31,6 +32,7 @@ const SCORING_STAT: Record<ScoringFormat, string> = {
 };
 
 interface SleeperProjection {
+  player_id?: string;
   stats?: Record<string, number | undefined>;
   [key: string]: unknown;
 }
@@ -67,16 +69,20 @@ export async function fetchSleeperProjectionRange(
 
   const results = await Promise.allSettled(
     weeks.map(async (week) => {
-      const url = `${SLEEPER_BASE}/projections/nfl/${season}/${week}?season_type=regular`;
+      const url = `${SLEEPER_PROJECTION_BASE}/projections/nfl/${season}/${week}?season_type=regular`;
       const res = await fetch(url, {
         next: { revalidate: REVALIDATE_SECONDS },
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) throw new Error(`Sleeper projections week ${week} failed (${res.status})`);
-      const data = (await res.json()) as Record<string, SleeperProjection>;
+      const data = (await res.json()) as Record<string, SleeperProjection> | SleeperProjection[];
       const key = SCORING_STAT[scoring];
       const points = new Map<string, number>();
-      for (const [id, player] of Object.entries(data)) {
+      const rows = Array.isArray(data)
+        ? data.map((player) => [player.player_id ?? "", player] as const)
+        : Object.entries(data);
+      for (const [id, player] of rows) {
+        if (!id) continue;
         const value = player?.stats?.[key];
         if (typeof value === "number" && Number.isFinite(value)) points.set(id, value);
       }

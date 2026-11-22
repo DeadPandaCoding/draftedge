@@ -14,6 +14,7 @@ export const runtime = "nodejs";
 const SLEEPER_BASE = "https://api.sleeper.app/v1";
 const REVALIDATE_SECONDS = 3600; // refresh upstream data hourly
 const SNAPSHOT_MAX_AGE_MS = 36 * 60 * 60 * 1000;
+const SNAPSHOT_SCHEMA_VERSION = 3;
 
 /** Max number of live-only players (not in seed) to append per position. */
 const LIVE_CAPS: Record<Position, number> = {
@@ -348,7 +349,7 @@ async function readLatestSnapshot(scoring: ScoringFormat): Promise<PlayersRespon
 
   const row = data as { created_at: string; data: unknown } | null;
   const snapshot = row?.data as Partial<PlayersResponse> | null;
-  if (!row || !snapshot || snapshot.schemaVersion !== 2 || !Array.isArray(snapshot.players)) return null;
+  if (!row || !snapshot || snapshot.schemaVersion !== SNAPSHOT_SCHEMA_VERSION || !Array.isArray(snapshot.players)) return null;
 
   const generatedAt = Number(snapshot.generatedAt) || Date.parse(row.created_at);
   const age = Date.now() - generatedAt;
@@ -358,7 +359,7 @@ async function readLatestSnapshot(scoring: ScoringFormat): Promise<PlayersRespon
     players: snapshot.players,
     source: snapshot.source === "seed" ? "seed" : "live",
     generatedAt,
-    schemaVersion: 2,
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     weeklyRankingsUpdated: snapshot.weeklyRankingsUpdated,
   };
 }
@@ -487,7 +488,7 @@ export async function GET(req: NextRequest) {
     players,
     source,
     generatedAt: Date.now(),
-    schemaVersion: 2,
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     weeklyRankingsUpdated,
   };
 
