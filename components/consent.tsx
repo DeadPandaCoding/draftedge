@@ -12,10 +12,7 @@ import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
  * persists it to both localStorage and a first-party cookie so it survives
  * across sessions and (in future) can be read server-side.
  *
- * The only cookies DraftEdge actually sets today are strictly necessary ones
- * (Supabase auth session). The Preferences / Analytics / Marketing categories
- * are recorded so the framework is in place before optional integrations are
- * added — nothing is loaded against them yet.
+ * The only cookies DraftEdge sets are strictly necessary ones (Supabase auth session). Vercel Web Analytics loads only after analytics consent is granted; preferences and marketing are currently recorded but unused.
  */
 
 export type ConsentCategory = "preferences" | "analytics" | "marketing";
@@ -29,6 +26,7 @@ export interface ConsentCategories {
 
 const CONSENT_KEY = "draftedge.consent.v1";
 const CONSENT_COOKIE = "draftedge_consent";
+const CONSENT_CHANGE_EVENT = "draftedge:consent-change";
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 const ALL_ACCEPTED: ConsentCategories = {
@@ -86,6 +84,7 @@ function writeConsent(c: ConsentCategories) {
     // storage may be unavailable (private mode) — cookie still works
   }
   document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(value)}; max-age=${ONE_YEAR}; path=/; SameSite=Lax`;
+  window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT));
 }
 
 const OPTIONAL: {

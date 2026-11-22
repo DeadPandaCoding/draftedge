@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { CookieConsent } from "@/components/consent";
+import { ConsentAwareAnalytics } from "@/components/analytics";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full bg-[#080E0C] text-zinc-100" suppressHydrationWarning>
         <AuthProvider>{children}</AuthProvider>
         <CookieConsent />
+        <ConsentAwareAnalytics />
       </body>
     </html>
   );
