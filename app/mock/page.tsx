@@ -736,10 +736,10 @@ export default function MockDraftPage() {
                 {/* Pick clock */}
                 {pickTimer > 0 && (
                   <div className={`mb-3 flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 ${
-                    secondsLeft <= 15 ? "border-rose-500/50 bg-rose-500/10" : secondsLeft <= 30 ? "border-amber-500/40 bg-amber-500/10" : "border-emerald-500/30 bg-emerald-500/10"
+                    secondsLeft <= 15 ? "border-pop-border bg-pop-soft" : secondsLeft <= 30 ? "border-amber-500/40 bg-amber-500/10" : "border-emerald-500/30 bg-emerald-500/10"
                   }`}>
                     <span className="font-tech text-[10px] uppercase tracking-wider text-zinc-500">Clock</span>
-                    <span className={`font-tech text-lg font-bold ${secondsLeft <= 15 ? "text-rose-300" : secondsLeft <= 30 ? "text-amber-300" : "text-emerald-300"}`}>
+                    <span className={`font-tech text-lg font-bold tabular-nums ${secondsLeft <= 15 ? "text-pop" : secondsLeft <= 30 ? "text-amber-300" : "text-emerald-300"}`}>
                       {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
                     </span>
                   </div>

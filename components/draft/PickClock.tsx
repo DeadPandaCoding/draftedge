@@ -40,11 +40,11 @@ export function PickClock({
   const remaining = Math.ceil(remainingMs / 1000);
 
   const expired = status === "live" && remaining <= 0;
-  const low = status === "live" && remaining <= 10 && !expired;
+  const low = status === "live" && remaining <= 15 && !expired;
   const warm = status === "live" && remaining <= 30 && !low && !expired;
 
   const tone = expired || low
-    ? "border-rose-500/50 bg-rose-500/15 text-rose-300 animate-pulse"
+    ? "border-pop-border bg-pop-soft text-pop animate-pulse"
     : warm
       ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
       : status === "live"

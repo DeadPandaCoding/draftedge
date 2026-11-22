@@ -26,6 +26,9 @@
   --color-ink: #04120d;
   --color-navy: #0c221a;
   --color-periwinkle: #e2f3ea;
+  --color-pop: #ff3e9d;
+  --color-pop-soft: rgb(255 62 157 / 0.14);
+  --color-pop-border: rgb(255 62 157 / 0.35);
 
   /* Accent — remap `emerald-*` → emerald/teal ramp */
   --color-emerald-50: #ecfdf5;
