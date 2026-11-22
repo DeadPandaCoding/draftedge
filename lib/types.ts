@@ -25,6 +25,13 @@ export interface Player {
   usage?: UsageMetrics;
   /** Current-week projection from Sleeper (empty until the regular season starts). */
   weekProjection?: number;
+  /** Sleeper projection summed from the current NFL week through week 18. */
+  rosProjection?: number;
+  /** Overall ROS rank, derived only from players with a ROS projection. */
+  rosRank?: number;
+  /** Positional ROS rank and tier. */
+  rosPositionRank?: number;
+  rosTier?: number;
   /** Current-week position consensus rank from FantasyPros/ffverse data. */
   weekPositionRank?: number;
   /** Overall current-week rank, ordered by Sleeper's weekly point projection. */

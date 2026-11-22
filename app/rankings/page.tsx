@@ -23,8 +23,11 @@ export default function RankingsPage() {
   const [scoring, setScoring] = useState<ScoringFormat>("ppr");
   const [position, setPosition] = useState<Position | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [projectionView, setProjectionView] = useState<"season" | "week" | "ros">("week");
 
   const { players, loading: playersLoading, weeklyRankingsUpdated } = usePlayers(scoring);
+  const hasRosProjections = players.some((player) => player.rosProjection != null);
+  const activeProjectionView = projectionView === "week" && !weeklyRankingsUpdated ? "season" : projectionView;
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -85,6 +88,22 @@ export default function RankingsPage() {
       </div>
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-1" aria-label="Projection view">
+          {(["season", "week", "ros"] as const).map((view) => (
+            <button
+              key={view}
+              type="button"
+              onClick={() => setProjectionView(view)}
+              disabled={(view === "week" && !weeklyRankingsUpdated) || (view === "ros" && !hasRosProjections)}
+              aria-pressed={activeProjectionView === view}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                activeProjectionView === view ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              {view === "ros" ? "Rest of season" : view === "week" ? "This week" : "Season"}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {POSITION_FILTERS.map((pos) => (
             <button
@@ -117,6 +136,14 @@ export default function RankingsPage() {
         </div>
       </div>
 
+      <p className="mb-3 text-xs text-zinc-500" aria-live="polite">
+        {activeProjectionView === "ros"
+          ? "ROS points sum Sleeper weekly projections from the current NFL week through Week 18."
+          : activeProjectionView === "week"
+            ? "Weekly points use Sleeper projections; weekly ranks use the latest available consensus."
+            : "Season points are full-season estimates from the available projection sources."}
+      </p>
+
       {playersLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -124,7 +151,11 @@ export default function RankingsPage() {
           ))}
         </div>
       ) : (
-        <PlayersTable players={filtered} weekly={Boolean(weeklyRankingsUpdated)} />
+        <PlayersTable
+          players={filtered}
+          weekly={activeProjectionView === "week"}
+          ros={activeProjectionView === "ros"}
+        />
       )}
     </AppShell>
   );

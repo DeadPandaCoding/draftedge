@@ -3,7 +3,7 @@ import type { Player, Position, PlayersResponse, ScoringFormat, UsageMetrics } f
 import { POSITIONS } from "@/lib/types";
 import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
 import { fetchNflverseUsage } from "@/lib/nflverse";
-import { fetchSleeperState, fetchSleeperWeeklyProjections } from "@/lib/live-data";
+import { fetchSleeperProjectionRange, fetchSleeperState } from "@/lib/live-data";
 import { fetchFantasyProsProjections } from "@/lib/fantasypros";
 import { fetchWeeklyRankings, type WeeklyRankings } from "@/lib/fantasypros-weekly-rankings";
 import { fetchFFCAdp, matchFFC, type FFCPlayer } from "@/lib/ffc";
@@ -92,6 +92,7 @@ function mergeWithSeed(
   scoring: ScoringFormat,
   usage: Map<string, UsageMetrics>,
   weekProj: Map<string, number>,
+  rosProj: Map<string, number>,
   fpProj: Map<string, number>,
   fpWeeklyRanks: WeeklyRankings["byName"],
   ffcPlayers: FFCPlayer[],
@@ -120,6 +121,8 @@ function mergeWithSeed(
       if (l.gsisId) match.usage = usage.get(l.gsisId);
       const wp0 = weekProj.get(l.id);
       if (wp0 != null) match.weekProjection = wp0;
+      const ros0 = rosProj.get(l.id);
+      if (ros0 != null) match.rosProjection = ros0;
     }
   }
 
@@ -142,6 +145,8 @@ function mergeWithSeed(
         if (l.gsisId) byName.usage = usage.get(l.gsisId);
         const wp1 = weekProj.get(l.id);
         if (wp1 != null) byName.weekProjection = wp1;
+        const ros1 = rosProj.get(l.id);
+        if (ros1 != null) byName.rosProjection = ros1;
         continue;
       }
       capped.push({
@@ -159,6 +164,7 @@ function mergeWithSeed(
         source: "live",
         usage: l.gsisId ? usage.get(l.gsisId) : undefined,
         weekProjection: weekProj.get(l.id),
+        rosProjection: rosProj.get(l.id),
       });
     }
   }
@@ -279,6 +285,26 @@ function mergeWithSeed(
     }
   }
 
+  const rosPlayers = result.filter((p) => p.rosProjection != null && p.rosProjection > 0);
+  rosPlayers.sort((a, b) => (b.rosProjection ?? 0) - (a.rosProjection ?? 0) || a.rank - b.rank);
+  rosPlayers.forEach((p, index) => {
+    p.rosRank = index + 1;
+  });
+  const byRosPosition = new Map<Position, Player[]>();
+  for (const p of rosPlayers) {
+    const list = byRosPosition.get(p.position) ?? [];
+    list.push(p);
+    byRosPosition.set(p.position, list);
+  }
+  for (const players of byRosPosition.values()) {
+    players
+      .sort((a, b) => (b.rosProjection ?? 0) - (a.rosProjection ?? 0) || a.rank - b.rank)
+      .forEach((p, index) => {
+        p.rosPositionRank = index + 1;
+        p.rosTier = Math.min(5, Math.ceil(((index + 1) / players.length) * 5));
+      });
+  }
+
   return result;
 }
 
@@ -356,6 +382,7 @@ export async function GET(req: NextRequest) {
   // All non-fatal — players still load (just without those fields) on failure.
   const usage = new Map<string, UsageMetrics>();
   const weekProj = new Map<string, number>();
+  const rosProj = new Map<string, number>();
   const fpProj = new Map<string, number>();
   let fpWeeklyRanks: WeeklyRankings["byName"] = new Map();
   let weeklyRankingsUpdated: string | undefined;
@@ -381,8 +408,12 @@ export async function GET(req: NextRequest) {
 
   if (state?.season_type === "regular" && state.week >= 1) {
     try {
-      const projections = await fetchSleeperWeeklyProjections(state.season, state.week, scoring);
-      for (const [k, v] of projections) weekProj.set(k, v);
+      const projections = await fetchSleeperProjectionRange(state.season, state.week, scoring);
+      for (const [k, v] of projections.currentWeek) weekProj.set(k, v);
+      for (const [k, v] of projections.restOfSeason) rosProj.set(k, v);
+      if (projections.unavailableWeeks.length > 0) {
+        console.warn("[players] Sleeper ROS projections unavailable for weeks:", projections.unavailableWeeks);
+      }
     } catch (err) {
       console.warn("[players] Sleeper weekly projections failed:", err);
     }
@@ -414,7 +445,7 @@ export async function GET(req: NextRequest) {
     console.warn("[players] FFC ADP fetch failed:", err);
   }
 
-  const players = mergeWithSeed(live, scoring, usage, weekProj, fpProj, fpWeeklyRanks, ffcPlayers);
+  const players = mergeWithSeed(live, scoring, usage, weekProj, rosProj, fpProj, fpWeeklyRanks, ffcPlayers);
   const body: PlayersResponse = {
     players,
     source,
