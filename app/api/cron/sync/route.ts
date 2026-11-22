@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { GET as getPlayers } from "@/app/api/players/route";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -28,12 +29,6 @@ function isAuthorized(req: Request): boolean {
   return Boolean(secret && auth === `Bearer ${secret}`);
 }
 
-async function getBaseUrl(): Promise<string> {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  // Local dev fallback.
-  return "http://localhost:3000";
-}
-
 interface SyncResult {
   scoring: string;
   playerCount: number;
@@ -50,16 +45,17 @@ async function runSync(): Promise<NextResponse> {
     );
   }
 
-  const baseUrl = await getBaseUrl();
   const results: SyncResult[] = [];
 
   for (const scoring of SCORING_FORMATS) {
     try {
-      // Force a fresh upstream build; the bearer token restricts this path.
-      const res = await fetch(`${baseUrl}/api/players?scoring=${scoring}&refresh=1`, {
-        cache: "no-store",
-        headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` },
-      });
+      // Invoke the protected handler in-process so deployment protection cannot
+      // intercept an HTTP loopback request from this Vercel function.
+      const request = new NextRequest(
+        `http://localhost/api/players?scoring=${scoring}&refresh=1`,
+        { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } },
+      );
+      const res = await getPlayers(request);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.json()) as {
         players: unknown[];
