@@ -8,6 +8,7 @@ import { buildRoster } from "@/lib/draft";
 import { SCORING_LABELS } from "@/lib/league";
 import { usePlayers } from "@/lib/players";
 import { normalizeName } from "@/lib/seed-data";
+import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import type {
   DraftPick,
   DraftState,
@@ -16,6 +17,7 @@ import type {
   RosterEntry,
   RosterTemplate,
 } from "@/lib/types";
+import { buildMatchupContext, MATCHUP_DATA_UNAVAILABLE } from "@/lib/matchup-context";
 import { buildTradeValues, gradeTrade } from "@/lib/trade-value";
 import {
   fetchFantasyCalc,
@@ -26,8 +28,8 @@ import {
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { ShareButtons } from "@/components/dashboard/ShareButtons";
-import { PosBadge, Skeleton } from "@/components/ui";
-import { SwapIcon, XIcon } from "@/components/icons";
+import { InjuryBadge, PosBadge, Skeleton } from "@/components/ui";
+import { XIcon } from "@/components/icons";
 
 type Side = "A" | "B";
 
@@ -70,15 +72,19 @@ function snapshotRoster(
 export default function TradePage() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { activeLeague } = useSyncedLeagues();
   const [league, setLeague] = useState<LeagueConfig | null>(null);
   const [draftState, setDraftState] = useState<DraftState | null>(null);
 
-  const { players, loading: playersLoading } = usePlayers(league?.scoring ?? "ppr");
+  const scoring = activeLeague ? toScoringFormat(activeLeague.scoring_format) : league?.scoring ?? "ppr";
+  const teamCount = activeLeague?.total_teams ?? league?.teamCount ?? 12;
+  const { players, loading: playersLoading } = usePlayers(scoring);
 
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState("");
   const [fcEntries, setFcEntries] = useState<FantasyCalcEntry[]>([]);
-  const fcRequested = useRef(false);
+  const fcRequested = useRef<string | null>(null);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -131,19 +137,20 @@ export default function TradePage() {
 
   // Fetch FantasyCalc consensus values (dynasty mode for the community).
   useEffect(() => {
-    if (fcRequested.current) return;
-    fcRequested.current = true;
+    const requestKey = `${teamCount}:${scoring}`;
+    if (fcRequested.current === requestKey) return;
+    fcRequested.current = requestKey;
     let cancelled = false;
     fetchFantasyCalc({
       isDynasty: false,
       numQbs: 1,
-      numTeams: league?.teamCount ?? 12,
-      ppr: league?.scoring === "ppr" ? 1 : league?.scoring === "half_ppr" ? 0.5 : 0,
+      numTeams: teamCount,
+      ppr: scoring === "ppr" ? 1 : scoring === "half_ppr" ? 0.5 : 0,
     })
       .then((d) => { if (!cancelled) setFcEntries(d); })
       .catch(() => { /* graceful degrade */ });
     return () => { cancelled = true; };
-  }, [league]);
+  }, [teamCount, scoring]);
 
   const fcMax = useMemo(() => {
     if (fcEntries.length === 0) return 1;
@@ -171,11 +178,21 @@ export default function TradePage() {
   }, [players, fcEntries]);
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  const values = useMemo(() => buildTradeValues(players, league?.teamCount ?? 12), [players, league]);
+  const contexts = useMemo(() => buildMatchupContext(players, league?.format ?? "redraft"), [players, league?.format]);
+  const values = useMemo(() => buildTradeValues(players.map((p) => ({ ...p, projection: contexts.get(p.id)?.adjustedRosPoints ?? p.projection })), teamCount), [players, teamCount, contexts]);
   const excluded = useMemo(() => new Set([...sideA, ...sideB]), [sideA, sideB]);
 
   const aPlayers = sideA.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
   const bPlayers = sideB.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
+  const importedRosters = activeLeague?.rosters ?? [];
+  const mySyncedRoster = importedRosters.find((roster) => roster.is_user);
+  const partnerRoster = importedRosters.find((roster) => roster.owner_id === selectedPartnerId);
+  const resolveSleeperIds = (ids: string[]) => resolveSleeperPlayerIds(players, ids).map((id) => playersById.get(id)).filter((player): player is Player => Boolean(player));
+  const importRoster = (target: Side, rosterIds: string[]) => {
+    const setter = target === "A" ? setSideA : setSideB;
+    const importedIds = resolveSleeperIds(rosterIds).map((player) => player.id);
+    setter((previous) => [...new Set([...previous, ...importedIds])]);
+  };
 
   const myPicks = useMemo(
     () => (draftState?.picks ?? []).filter((p) => p.owner === "me"),
@@ -223,8 +240,8 @@ export default function TradePage() {
   const valueOf = (id: string) => values.get(id) ?? 0;
   const aValue = aPlayers.reduce((s, p) => s + valueOf(p.id), 0);
   const bValue = bPlayers.reduce((s, p) => s + valueOf(p.id), 0);
-  const aProj = aPlayers.reduce((s, p) => s + p.projection, 0);
-  const bProj = bPlayers.reduce((s, p) => s + p.projection, 0);
+  const aProj = aPlayers.reduce((s, p) => s + (contexts.get(p.id)?.adjustedRosPoints ?? p.projection), 0);
+  const bProj = bPlayers.reduce((s, p) => s + (contexts.get(p.id)?.adjustedRosPoints ?? p.projection), 0);
 
   // FantasyCalc totals (FC value 0–100 scale)
   const fcValueOf = (id: string) => fcValueMap.get(id) ?? 0;
@@ -267,6 +284,7 @@ export default function TradePage() {
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate font-semibold text-zinc-200">{p.name}</span>
+            <InjuryBadge status={p.injuryStatus} />
             <PosBadge position={p.position} size="xs" />
             {side === "A" && myPlayerIds.has(p.id) && (
               <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300 ring-1 ring-inset ring-amber-400/30">
@@ -292,7 +310,7 @@ export default function TradePage() {
           </div>
         </div>
         <div className="mt-0.5 text-[11px] text-zinc-500">
-          {p.projection.toFixed(1)} pts · ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"}
+          {(contexts.get(p.id)?.adjustedRosPoints ?? p.projection).toFixed(1)} ROS pts · ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"}
           {fcEntry && (
             <>
               <span className="mx-1">·</span>
@@ -356,6 +374,7 @@ export default function TradePage() {
         <PlayerPicker
           players={players}
           exclude={excluded}
+          tradeValues={values}
           onPick={(p) => add(side, p)}
           placeholder={side === "A" ? "Add players you receive…" : "Add players you give up…"}
         />
@@ -386,14 +405,11 @@ export default function TradePage() {
     <AppShell maxWidth="max-w-5xl" className="pt-12">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-            <SwapIcon size={20} />
-          </span>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="font-display text-3xl tracking-wide text-white">Trade Analyzer</h1>
               <span className="rounded-full border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                {SCORING_LABELS[league?.scoring ?? "ppr"]}
+              {SCORING_LABELS[scoring]}
               </span>
             </div>
             <p className="mt-2 text-sm text-zinc-400">
@@ -411,6 +427,21 @@ export default function TradePage() {
           />
         )}
       </div>
+
+      {activeLeague && (
+        <section className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-[#0D1412] p-3">
+          <div className="mr-auto">
+            <p className="text-xs font-semibold text-zinc-200">Import from {activeLeague.league_name}</p>
+            <p className="mt-0.5 text-[10px] text-zinc-500">Adds actual Sleeper roster players to the trade sides.</p>
+          </div>
+          <button type="button" disabled={!mySyncedRoster} onClick={() => mySyncedRoster && importRoster("B", mySyncedRoster.players)} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/[0.04] disabled:opacity-40">Load my roster → You Give Up</button>
+          <select aria-label="Trading partner roster" value={selectedPartnerId} onChange={(event) => setSelectedPartnerId(event.target.value)} className="rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs text-zinc-200">
+            <option value="">Trading partner…</option>
+            {importedRosters.filter((roster) => !roster.is_user && roster.owner_id).map((roster) => <option key={roster.owner_id} value={roster.owner_id!}>{roster.team_name}</option>)}
+          </select>
+          <button type="button" disabled={!partnerRoster} onClick={() => partnerRoster && importRoster("A", partnerRoster.players)} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/[0.04] disabled:opacity-40">Load partner → You Receive</button>
+        </section>
+      )}
 
       {playersLoading ? (
         <div className="space-y-2">
@@ -461,6 +492,21 @@ export default function TradePage() {
                   <span className="font-tech">{aValue.toFixed(1)} value</span>
                   <span className="font-tech">{bValue.toFixed(1)} value</span>
                 </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 border-t border-white/[0.08] pt-4 sm:grid-cols-2">
+                {([["You receive", aPlayers, aValue, aProj], ["You give up", bPlayers, bValue, bProj]] as const).map(([label, list, value, ros]) => {
+                  const ppgValues = list.map((p) => contexts.get(p.id)?.ppg).filter((n): n is number => n != null);
+                  const ppg = ppgValues.length ? ppgValues.reduce((sum, n) => sum + n, 0) / ppgValues.length : null;
+                  return <div key={label} className="space-y-1 rounded-lg border border-white/[0.06] bg-[#0D1412] p-3 text-xs">
+                    <p className="font-semibold text-zinc-200">{label}</p>
+                    <p className="text-zinc-400">Trade value <span className="float-right font-mono tabular-nums text-zinc-100">{value.toFixed(1)}</span></p>
+                    <p className="text-zinc-400">Adjusted ROS points <span className="float-right font-mono tabular-nums text-zinc-100">{ros.toFixed(1)}</span></p>
+                    <p className="text-zinc-400">Avg PPG <span className="float-right font-mono tabular-nums text-zinc-100">{ppg == null ? "—" : ppg.toFixed(1)}</span></p>
+                    <p className="text-zinc-400" title={MATCHUP_DATA_UNAVAILABLE}>ROS SOS <span className="float-right text-zinc-500">Unavailable</span></p>
+                    {list.flatMap((p) => (contexts.get(p.id)?.reasonTags ?? []).map((tag) => <span key={`${p.id}-${tag}`} className="mr-1 mt-1 inline-flex rounded border border-white/[0.08] px-1.5 py-0.5 text-[10px] text-zinc-300">{p.name}: {tag}</span>))}
+                  </div>;
+                })}
               </div>
 
               {aPlayers.length !== bPlayers.length && (

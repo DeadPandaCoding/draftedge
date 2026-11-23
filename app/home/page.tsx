@@ -6,17 +6,14 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui";
 import { SiteHeader } from "@/components/ui/header";
+import { LeagueSyncCard } from "@/components/dashboard/LeagueSyncCard";
 import {
-  ActivityIcon,
   ArrowUpIcon,
-  BarChartIcon,
   BoltIcon,
   ChevronRightIcon,
   ClockIcon,
-  FlaskIcon,
   ListCheckIcon,
   LogoutIcon,
-  PollIcon,
   SwapIcon,
   TableIcon,
 } from "@/components/icons";
@@ -47,34 +44,10 @@ const TOOLS = [
     href: "/rankings",
   },
   {
-    icon: <BarChartIcon size={18} />,
-    title: "Draft Analytics",
-    desc: "Review a draft and spot value picks.",
-    href: "/analytics",
-  },
-  {
-    icon: <FlaskIcon size={18} />,
-    title: "Research Hub",
-    desc: "Value leaders and positional depth.",
-    href: "/research",
-  },
-  {
     icon: <ListCheckIcon size={18} />,
     title: "Start/Sit",
     desc: "Compare players and build a strong lineup.",
     href: "/start-sit",
-  },
-  {
-    icon: <ActivityIcon size={18} />,
-    title: "Advanced Metrics",
-    desc: "Usage data and efficiency across positions.",
-    href: "/metrics",
-  },
-  {
-    icon: <PollIcon size={18} />,
-    title: "Community Polls",
-    desc: "Vote and see the crowd consensus.",
-    href: "/polls",
   },
 ];
 
@@ -130,25 +103,27 @@ export default function HomePage() {
           Choose a tool to get started.
         </p>
 
+        <LeagueSyncCard />
+
         <section className="mt-10">
           <h2 className="text-sm font-semibold text-zinc-300">Tools</h2>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {TOOLS.map((t) => (
               <Link
                 key={t.title}
                 href={t.href}
-                className="glass glass-hover group flex min-h-28 items-center gap-4 rounded-xl p-4 transition hover:-translate-y-0.5"
+                className="group flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-[#0D1412] p-5 transition hover:border-emerald-500/30 hover:bg-[#131D1A]"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-400 transition group-hover:text-emerald-300">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-zinc-400 transition group-hover:text-emerald-400">
                   {t.icon}
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-semibold text-zinc-100 transition group-hover:text-white">
                     {t.title}
                   </h3>
-                  <p className="mt-0.5 text-xs text-zinc-500">{t.desc}</p>
+                  <p className="mt-0.5 text-xs text-zinc-400">{t.desc}</p>
                 </div>
-                <ChevronRightIcon size={14} className="shrink-0 text-zinc-600 transition group-hover:text-emerald-400" />
+                <ChevronRightIcon size={15} className="shrink-0 text-zinc-600 transition group-hover:text-emerald-400" />
               </Link>
             ))}
           </div>

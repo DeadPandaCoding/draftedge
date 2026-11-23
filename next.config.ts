@@ -26,6 +26,15 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Stop advertising the framework in X-Powered-By (fingerprinting).
   poweredByHeader: false,
+  async redirects() {
+    return [
+      {
+        source: "/:path(analytics|research|metrics|polls)",
+        destination: "/home",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {

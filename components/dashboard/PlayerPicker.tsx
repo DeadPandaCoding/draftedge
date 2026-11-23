@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Player } from "@/lib/types";
-import { PosBadge } from "@/components/ui";
+import { InjuryBadge, PosBadge } from "@/components/ui";
 import { SearchIcon } from "@/components/icons";
 
 export function PlayerPicker({
@@ -10,11 +10,13 @@ export function PlayerPicker({
   exclude,
   onPick,
   placeholder = "Search players…",
+  tradeValues,
 }: {
   players: Player[];
   exclude: Set<string>;
   onPick: (player: Player) => void;
   placeholder?: string;
+  tradeValues?: Map<string, number>;
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -63,8 +65,8 @@ export function PlayerPicker({
       </div>
 
       {open && matches.length > 0 && (
-        <div className="glass-popover absolute z-40 mt-2 w-full overflow-hidden rounded-xl">
-          <div className="max-h-64 overflow-y-auto p-1">
+        <div className="absolute z-40 mt-2 w-full overflow-hidden rounded-xl border border-white/[0.12] bg-[#0B1210] shadow-xl">
+          <div className="max-h-80 divide-y divide-white/[0.06] overflow-y-auto">
             {matches.map((p) => (
               <button
                 key={p.id}
@@ -74,17 +76,19 @@ export function PlayerPicker({
                   setQ("");
                   setOpen(false);
                 }}
-                className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-zinc-800"
+                className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
               >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate font-semibold text-zinc-100">{p.name}</span>
-                  <span className="rounded bg-zinc-800 px-1 py-px text-[10px] font-bold text-zinc-400">
-                    {p.team}
-                  </span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-sm font-semibold text-zinc-100">{p.name}</span>
+                  <InjuryBadge status={p.injuryStatus} />
                 </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <PosBadge position={p.position} size="xs" />
-                  <span className="font-tech text-xs text-zinc-400">{p.projection.toFixed(1)}</span>
+                <span className="row-span-2"><PosBadge position={p.position} size="xs" /></span>
+                <span className="row-span-2 text-right font-mono text-[11px] tabular-nums text-zinc-300">
+                  <span className="block">ROS {((p.rosProjection ?? p.projection) || 0).toFixed(1)}</span>
+                  <span className="text-zinc-500">VOR {tradeValues?.get(p.id)?.toFixed(1) ?? "—"}</span>
+                </span>
+                <span className="min-w-0 truncate text-[10px] text-zinc-500">
+                  {p.team} · BYE {p.bye || "—"} · PPG {p.usage?.games && p.actualPoints != null ? (p.actualPoints / p.usage.games).toFixed(1) : "—"}
                 </span>
               </button>
             ))}

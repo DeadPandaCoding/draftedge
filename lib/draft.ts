@@ -177,6 +177,7 @@ export function buildRoster(
 
   const isEligible = (p: Player, group: string): boolean => {
     if (group === "FLEX") return p.position === "RB" || p.position === "WR" || p.position === "TE";
+    if (group === "SUPERFLEX") return p.position === "QB" || p.position === "RB" || p.position === "WR" || p.position === "TE";
     return p.position === group;
   };
 
@@ -198,7 +199,14 @@ export function buildRoster(
     const alreadySlotted = entries.some((e) => e.playerId === p.playerId);
     if (!alreadySlotted && isEligible(player, "FLEX")) push("FLEX", p.playerId);
   }
-  // 3) Bench (everything else)
+  // 3) Superflex (QB/RB/WR/TE)
+  for (const p of mine) {
+    const player = playersById.get(p.playerId);
+    if (!player || (counters.superflex ?? 0) >= (roster.superflex ?? 0)) break;
+    const alreadySlotted = entries.some((e) => e.playerId === p.playerId);
+    if (!alreadySlotted && isEligible(player, "SUPERFLEX")) push("SUPERFLEX", p.playerId);
+  }
+  // 4) Bench (everything else)
   for (const p of mine) {
     const alreadySlotted = entries.some((e) => e.playerId === p.playerId);
     if (!alreadySlotted && (counters.bench ?? 0) < roster.bench) push("BENCH", p.playerId);
@@ -238,6 +246,7 @@ export function analyzeNeeds(
     { group: "K", need: roster.k, label: "K" },
     { group: "DEF", need: roster.def, label: "DEF" },
     { group: "FLEX", need: roster.flex, label: "FLEX" },
+    { group: "SUPERFLEX", need: roster.superflex ?? 0, label: "SUPERFLEX" },
   ];
 
   const warnings: NeedsWarning[] = [];

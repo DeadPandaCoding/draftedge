@@ -9,9 +9,11 @@ import { SCORING_LABELS } from "@/lib/league";
 import { usePlayers } from "@/lib/players";
 import type { DraftState, LeagueConfig, Player } from "@/lib/types";
 import { buildTradeValues } from "@/lib/trade-value";
+import { buildMatchupContext } from "@/lib/matchup-context";
+import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
-import { PosBadge, Skeleton } from "@/components/ui";
+import { InjuryBadge, PosBadge, Skeleton } from "@/components/ui";
 import { ListCheckIcon, XIcon } from "@/components/icons";
 
 /** Confidence band from the projection gap between two players. */
@@ -39,10 +41,12 @@ function confidence(diff: number) {
 export default function StartSitPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { activeLeague } = useSyncedLeagues();
   const [league, setLeague] = useState<LeagueConfig | null>(null);
   const [draftState, setDraftState] = useState<DraftState | null>(null);
 
-  const { players, loading: playersLoading } = usePlayers(league?.scoring ?? "ppr");
+  const scoring = activeLeague ? toScoringFormat(activeLeague.scoring_format) : league?.scoring ?? "ppr";
+  const { players, loading: playersLoading } = usePlayers(scoring);
 
   const [sideA, setSideA] = useState<string | null>(null);
   const [sideB, setSideB] = useState<string | null>(null);
@@ -73,7 +77,8 @@ export default function StartSitPage() {
   }, [user]);
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  const values = useMemo(() => buildTradeValues(players, league?.teamCount ?? 12), [players, league]);
+  const contexts = useMemo(() => buildMatchupContext(players, league?.format ?? "redraft"), [players, league?.format]);
+  const values = useMemo(() => buildTradeValues(players.map((p) => ({ ...p, projection: contexts.get(p.id)?.adjustedRosPoints ?? p.projection })), league?.teamCount ?? 12), [players, league, contexts]);
 
   const a = sideA ? playersById.get(sideA) : undefined;
   const b = sideB ? playersById.get(sideB) : undefined;
@@ -90,6 +95,20 @@ export default function StartSitPage() {
     [draftState]
   );
 
+  const syncedRoster = activeLeague?.rosters.find((rosterEntry) => rosterEntry.is_user);
+  const syncedPlayers = useMemo(() => {
+    if (!syncedRoster) return [];
+    const knownIds = resolveSleeperPlayerIds(players, syncedRoster.players);
+    const starterIds = new Set(resolveSleeperPlayerIds(players, syncedRoster.starters));
+    return knownIds.map((id) => ({ player: playersById.get(id), isStarter: starterIds.has(id) }))
+      .filter((entry): entry is { player: Player; isStarter: boolean } => Boolean(entry.player));
+  }, [syncedRoster, players, playersById]);
+  const selectSyncedPlayer = (id: string) => {
+    if (!sideA) setSideA(id);
+    else if (!sideB && sideA !== id) setSideB(id);
+    else setSideB(id);
+  };
+
   const roster = useMemo(
     () => (league ? buildRoster(myPicks, playersById, league.roster) : []),
     [league, myPicks, playersById]
@@ -98,8 +117,8 @@ export default function StartSitPage() {
   // Prefer this week's Sleeper projection when both players have one; fall
   // back to the season projection (the only signal available in the offseason).
   const useWeek = Boolean(a && b && a.weekProjection != null && b.weekProjection != null);
-  const aScore = a ? (useWeek ? a.weekProjection ?? a.projection : a.projection) : 0;
-  const bScore = b ? (useWeek ? b.weekProjection ?? b.projection : b.projection) : 0;
+  const aScore = a ? (useWeek ? contexts.get(a.id)?.adjustedWeeklyPoints ?? a.weekProjection ?? a.projection : contexts.get(a.id)?.adjustedRosPoints ?? a.projection) : 0;
+  const bScore = b ? (useWeek ? contexts.get(b.id)?.adjustedWeeklyPoints ?? b.weekProjection ?? b.projection : contexts.get(b.id)?.adjustedRosPoints ?? b.projection) : 0;
   const diff = a && b ? aScore - bScore : 0;
   const band = a && b ? confidence(diff) : null;
   const winner = a && b ? (aScore >= bScore ? a : b) : null;
@@ -130,19 +149,23 @@ export default function StartSitPage() {
       </div>
       <div className="flex items-center gap-2">
         <span className="truncate text-lg font-bold text-white">{p.name}</span>
+        <InjuryBadge status={p.injuryStatus} />
         <PosBadge position={p.position} size="sm" />
       </div>
       <div className="mt-1 text-xs text-zinc-500">
         {p.team} · ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"}
       </div>
       <div className="mt-4">
-        {statRow("Projection", `${p.projection.toFixed(1)} pts`, winner === p)}
+        {statRow("ROS projection", `${(contexts.get(p.id)?.adjustedRosPoints ?? p.projection).toFixed(1)} pts`, winner === p)}
         {p.weekProjection != null &&
-          statRow("This week", `${p.weekProjection.toFixed(1)} pts`, winner === p)}
+          statRow("This week (adjusted)", `${(contexts.get(p.id)?.adjustedWeeklyPoints ?? p.weekProjection).toFixed(1)} pts`, winner === p)}
         {statRow("Weekly avg", p.weeklyAvg.toFixed(1))}
+        {statRow("Season PPG", contexts.get(p.id)?.ppg == null ? "Unavailable" : `${contexts.get(p.id)!.ppg!.toFixed(1)} pts`)}
+        {statRow("Opponent rank", "Unavailable")}
         {statRow("Trade value", (values.get(p.id) ?? 0).toFixed(1))}
         {statRow("Tier", `T${p.tier}`)}
         {statRow("Position rank", `#${p.positionRank}`)}
+        {(contexts.get(p.id)?.reasonTags ?? []).map((tag) => <p key={tag} className="mt-2 rounded border border-white/[0.08] px-2 py-1 text-[10px] text-zinc-300">{tag}</p>)}
       </div>
     </div>
   );
@@ -161,7 +184,7 @@ export default function StartSitPage() {
           <div className="flex items-center gap-3">
             <h1 className="font-display text-3xl tracking-wide text-white">Start/Sit Optimizer</h1>
             <span className="rounded-full border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              {SCORING_LABELS[league?.scoring ?? "ppr"]}
+              {SCORING_LABELS[scoring]}
             </span>
           </div>
           <p className="mt-2 text-sm text-zinc-400">
@@ -169,6 +192,18 @@ export default function StartSitPage() {
           </p>
         </div>
       </div>
+
+      {activeLeague && syncedRoster && <section className="mb-5 rounded-xl border border-white/[0.08] bg-[#0D1412] p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><p className="text-xs font-semibold text-zinc-200">Load My Roster</p><p className="mt-0.5 text-[10px] text-zinc-500">{activeLeague.league_name} · click players to fill the comparison.</p></div>
+          <span className="font-mono text-[10px] text-zinc-500">{syncedPlayers.filter((entry) => entry.isStarter).length} starters · {syncedPlayers.filter((entry) => !entry.isStarter).length} bench</span>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {syncedPlayers.map(({ player, isStarter }) => <button key={player.id} type="button" onClick={() => selectSyncedPlayer(player.id)} className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#080E0C] px-2 py-1.5 text-xs text-zinc-300 hover:border-emerald-500/30">
+            <span className="font-mono text-[9px] text-zinc-500">{isStarter ? "START" : "BENCH"}</span>{player.name}
+          </button>)}
+        </div>
+      </section>}
 
       {playersLoading ? (
         <div className="space-y-2">
@@ -188,6 +223,7 @@ export default function StartSitPage() {
                 <PlayerPicker
                   players={players}
                   exclude={excluded}
+                  tradeValues={values}
                   onPick={(p) => setSideA(p.id)}
                   placeholder="Search a player…"
                 />
@@ -202,6 +238,7 @@ export default function StartSitPage() {
                 <PlayerPicker
                   players={players}
                   exclude={excluded}
+                  tradeValues={values}
                   onPick={(p) => setSideB(p.id)}
                   placeholder="Search a player…"
                 />
@@ -231,6 +268,12 @@ export default function StartSitPage() {
                 <span className="rounded-full bg-zinc-900/60 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                   {band.label}
                 </span>
+                <ul className="mt-1 space-y-1 text-left text-xs text-zinc-300">
+                  <li>• Adjusted {useWeek ? "weekly" : "ROS"} projection: {Math.abs(diff).toFixed(1)} point edge for {winner.name}.</li>
+                  <li>• Season PPG: {contexts.get(winner.id)?.ppg == null ? "unavailable" : `${contexts.get(winner.id)!.ppg!.toFixed(1)} points`}.</li>
+                  <li>• Opponent positional rank is unavailable until a schedule matchup source is connected.</li>
+                  {(contexts.get(winner.id)?.reasonTags ?? []).map((tag) => <li key={tag}>• {tag}</li>)}
+                </ul>
               </div>
             </div>
           )}

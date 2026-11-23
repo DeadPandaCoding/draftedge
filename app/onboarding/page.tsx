@@ -31,6 +31,7 @@ const SLOTS: SlotDef[] = [
   { key: "wr", label: "WR", min: 1, max: 8 },
   { key: "te", label: "TE", min: 1, max: 3 },
   { key: "flex", label: "FLEX", min: 0, max: 4 },
+  { key: "superflex", label: "SUPERFLEX", min: 0, max: 4 },
   { key: "k", label: "K", min: 0, max: 1 },
   { key: "def", label: "DEF", min: 0, max: 1 },
   { key: "bench", label: "BENCH", min: 0, max: 15 },

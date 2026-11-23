@@ -14,6 +14,7 @@ import AppShell from "@/components/dashboard/AppShell";
 import { PlayersTable } from "@/components/dashboard/PlayersTable";
 import { Skeleton } from "@/components/ui";
 import { DownloadIcon, SearchIcon } from "@/components/icons";
+import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 
 const POSITION_FILTERS = ["ALL", ...POSITIONS] as (Position | "ALL")[];
 
@@ -24,8 +25,12 @@ export default function CheatSheetPage() {
   const [leagueLoaded, setLeagueLoaded] = useState(false);
   const [position, setPosition] = useState<Position | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [hideOutIr, setHideOutIr] = useState(false);
+  const [showKDef, setShowKDef] = useState(true);
+  const [syncLiveDraft, setSyncLiveDraft] = useState(false);
+  const { activeLeague, syncNow, loading: syncLoading } = useSyncedLeagues();
 
-  const scoring = league?.scoring ?? "ppr";
+  const scoring = activeLeague ? toScoringFormat(activeLeague.scoring_format) : league?.scoring ?? "ppr";
   const { players, loading: playersLoading } = usePlayers(scoring);
 
   useEffect(() => {
@@ -50,11 +55,14 @@ export default function CheatSheetPage() {
 
   const filtered = useMemo(() => {
     let list = players;
+    if (hideOutIr) list = list.filter((p) => !["O", "IR", "PUP"].includes(p.injuryStatus ?? ""));
+    if (!showKDef) list = list.filter((p) => p.position !== "K" && p.position !== "DEF");
     if (position !== "ALL") list = list.filter((p) => p.position === position);
     const q = search.trim().toLowerCase();
     if (q) list = list.filter((p) => p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q));
     return list;
-  }, [players, position, search]);
+  }, [players, position, search, hideOutIr, showKDef]);
+  const draftedPlayerIds = useMemo(() => syncLiveDraft ? new Set(resolveSleeperPlayerIds(players, activeLeague?.drafted_player_ids ?? [])) : undefined, [syncLiveDraft, activeLeague?.drafted_player_ids, players]);
 
   if (loading || !user) {
     return <div className="min-h-screen" aria-busy="true" aria-label="Loading" />;
@@ -66,9 +74,11 @@ export default function CheatSheetPage() {
         <div>
           <h1 className="font-display text-3xl tracking-wide text-white">Cheat Sheet</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            {league
-              ? `${league.name} · ${SCORING_LABELS[league.scoring]} · ${league.teamCount}-team`
-              : "Default PPR board — set up a league to personalize it."}
+            {activeLeague
+              ? `${activeLeague.league_name} · ${SCORING_LABELS[scoring]} · ${activeLeague.total_teams}-team`
+              : league
+                ? `${league.name} · ${SCORING_LABELS[scoring]} · ${league.teamCount}-team`
+                : "Default PPR board — connect a Sleeper league to personalize it."}
           </p>
         </div>
         <button
@@ -87,7 +97,7 @@ export default function CheatSheetPage() {
             <Skeleton key={i} className="h-9 w-full rounded-lg" />
           ))}
         </div>
-      ) : !league ? (
+      ) : !league && !activeLeague ? (
         <div className="glass-strong mb-6 flex flex-col items-start gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-zinc-400">
             This board is using default PPR scoring. Create a league to tune it to your format.
@@ -103,7 +113,7 @@ export default function CheatSheetPage() {
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex flex-wrap gap-1.5">
-          {POSITION_FILTERS.map((pos) => (
+          {POSITION_FILTERS.filter((pos) => showKDef || (pos !== "K" && pos !== "DEF")).map((pos) => (
             <button
               key={pos}
               type="button"
@@ -119,6 +129,14 @@ export default function CheatSheetPage() {
             </button>
           ))}
         </div>
+        <label className="inline-flex items-center gap-2 text-xs text-zinc-400">
+          <input type="checkbox" checked={hideOutIr} onChange={(e) => setHideOutIr(e.target.checked)} className="accent-emerald-500" />
+          Hide Out/IR
+        </label>
+        <label className="inline-flex items-center gap-2 text-xs text-zinc-400">
+          <input type="checkbox" checked={showKDef} onChange={(e) => setShowKDef(e.target.checked)} className="accent-emerald-500" />
+          K/DEF
+        </label>
         <div className="relative sm:ml-auto sm:w-64">
           <SearchIcon
             size={15}
@@ -134,6 +152,15 @@ export default function CheatSheetPage() {
         </div>
       </div>
 
+      {activeLeague && <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-[#0D1412] px-3 py-2.5">
+        <label className="inline-flex items-center gap-2 text-xs font-medium text-zinc-300">
+          <input type="checkbox" checked={syncLiveDraft} onChange={(event) => setSyncLiveDraft(event.target.checked)} className="accent-emerald-500" />
+          Sync Live Sleeper Draft
+        </label>
+        <span className="text-[10px] text-zinc-500">{activeLeague.league_name} · {activeLeague.drafted_player_ids.length} picks synced</span>
+        <button type="button" disabled={syncLoading} onClick={() => void syncNow(activeLeague.platform_league_id).catch(() => {})} className="ml-auto rounded-lg border border-white/[0.1] px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-white/[0.04] disabled:opacity-50">{syncLoading ? "Refreshing…" : "Refresh Picks"}</button>
+      </div>}
+
       {playersLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -141,7 +168,7 @@ export default function CheatSheetPage() {
           ))}
         </div>
       ) : (
-        <PlayersTable players={filtered} />
+        <PlayersTable players={filtered} draftedPlayerIds={draftedPlayerIds} />
       )}
     </AppShell>
   );

@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { usePlayers } from "@/lib/players";
-import type { Player, Position, RosterTemplate, ScoringFormat } from "@/lib/types";
+import type { DraftType, LeagueFormat, Player, Position, RosterTemplate, ScoringFormat } from "@/lib/types";
 import { DEFAULT_ROSTER, SCORING_LABELS, roundForPick, rosterSize, slotForPick } from "@/lib/league";
 import { buildTradeValues } from "@/lib/trade-value";
+import { toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
-import { Select } from "@/components/ui";
+import { InjuryBadge, Select } from "@/components/ui";
 import { BoltIcon, ResetIcon, ShuffleIcon } from "@/components/icons";
 
 /* ───────── Types ───────── */
@@ -40,12 +41,6 @@ const STRATEGIES: { value: Strategy; label: string; tip: string }[] = [
   { value: "robust_rb", label: "Robust RB", tip: "Secure 2-3 RBs in the first 4 rounds before touching WR." },
   { value: "elite_qb", label: "Elite QB", tip: "Grab an elite dual-threat QB in rounds 1-3." },
   { value: "elite_te", label: "Elite TE", tip: "Target a top-3 TE early, then build RB/WR around them." },
-];
-
-const BENCH_PRESETS = [
-  { value: 5, label: "5 Bench" },
-  { value: 7, label: "7 Bench" },
-  { value: 9, label: "9 Bench" },
 ];
 
 /* ───────── Helpers ───────── */
@@ -133,6 +128,11 @@ function pickForSlot(
   if (counts.RB + counts.WR + counts.TE < flexCapacity) {
     return bestAt(players, draftedIds, ["RB", "WR", "TE"]);
   }
+  const superflexEligible = counts.QB + counts.RB + counts.WR + counts.TE;
+  const superflexNeed = (roster.superflex ?? 0) + roster.qb;
+  if (superflexEligible < superflexNeed) {
+    return bestAt(players, draftedIds, ["QB", "RB", "WR", "TE"]);
+  }
 
   // 3) K / DEF in closing rounds.
   const specialists: Position[] = [];
@@ -160,13 +160,14 @@ function gradeDraft(
     totalProj += p.projection;
   }
 
-  const ideal = roster.qb + roster.rb + roster.wr + roster.te + roster.flex + roster.k + roster.def;
+  const ideal = roster.qb + roster.rb + roster.wr + roster.te + roster.flex + (roster.superflex ?? 0) + roster.k + roster.def;
   const starterCoverage =
     (Math.min(counts.QB, roster.qb) +
       Math.min(counts.RB, roster.rb) +
       Math.min(counts.WR, roster.wr) +
       Math.min(counts.TE, roster.te) +
-      Math.min(counts.RB + counts.WR + counts.TE - roster.rb - roster.wr - roster.te, roster.flex)) /
+      Math.min(counts.RB + counts.WR + counts.TE - roster.rb - roster.wr - roster.te, roster.flex) +
+      Math.min(Math.max(0, counts.QB + counts.RB + counts.WR + counts.TE - roster.qb - roster.rb - roster.wr - roster.te - roster.flex), roster.superflex ?? 0)) /
     ideal;
 
   // Avg projection rank of picks vs expected.
@@ -193,6 +194,7 @@ function gradeDraft(
 export default function MockDraftPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { activeLeague } = useSyncedLeagues();
 
   // Pre-draft settings
   const [teams, setTeams] = useState(12);
@@ -200,11 +202,12 @@ export default function MockDraftPage() {
   const [scoring, setScoring] = useState<ScoringFormat>("ppr");
   const [strategy, setStrategy] = useState<Strategy>("balanced");
   const [pickTimer, setPickTimer] = useState(90);
-  const [superflex, setSuperflex] = useState(false);
-  const [benchCount, setBenchCount] = useState(5);
-  const [hasK, setHasK] = useState(true);
-  const [hasDef, setHasDef] = useState(true);
+  const [leagueFormat, setLeagueFormat] = useState<LeagueFormat>("redraft");
+  const [draftType, setDraftType] = useState<DraftType>("snake");
+  const [tePremium, setTePremium] = useState(false);
+  const [roster, setRoster] = useState<RosterTemplate>({ ...DEFAULT_ROSTER });
   const [irSlots, setIrSlots] = useState(0);
+  const [hideOutIr, setHideOutIr] = useState(false);
 
   // Draft state
   const [started, setStarted] = useState(false);
@@ -219,18 +222,16 @@ export default function MockDraftPage() {
   const [targetIds, setTargetIds] = useState<Set<string>>(new Set());
 
   // Computed roster
-  const roster: RosterTemplate = useMemo(
-    () => ({
-      ...DEFAULT_ROSTER,
-      qb: superflex ? 2 : 1,
-      bench: benchCount,
-      k: hasK ? 1 : 0,
-      def: hasDef ? 1 : 0,
-    }),
-    [superflex, benchCount, hasK, hasDef],
-  );
-
   const { players, loading: playersLoading } = usePlayers(scoring);
+  const teamCountOptions = activeLeague
+    ? Array.from(new Set([...TEAM_COUNTS, activeLeague.total_teams])).sort((a, b) => a - b)
+    : TEAM_COUNTS;
+  const draftPlayers = useMemo(() => players.map((player) => ({
+    ...player,
+    projection: player.projection + (tePremium && player.position === "TE" && player.usage?.games
+      ? (player.usage.receptions / player.usage.games) * 17 * 0.5
+      : 0),
+  })), [players, tePremium]);
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
   const totalRounds = rosterSize(roster);
@@ -239,7 +240,7 @@ export default function MockDraftPage() {
   const done = started && currentPick > totalPicks;
   const drafted = useMemo(() => new Set(picks.map((p) => p.playerId)), [picks]);
 
-  const isMyTurn = started && !done && slotForPick(currentPick, teams) === mySlot;
+  const isMyTurn = started && !done && slotForPick(currentPick, teams, draftType) === mySlot;
 
   /* ── Draft logic ── */
 
@@ -247,9 +248,9 @@ export default function MockDraftPage() {
     (list: MockPick[], draftedIds: Set<string>): MockPick[] => {
       const result = [...list];
       let n = result.length;
-      while (n < totalPicks && slotForPick(n + 1, teams) !== mySlot) {
-        const slot = slotForPick(n + 1, teams);
-        const best = pickForSlot(result, slot, playersById, players, draftedIds, n + 1, teams, totalPicks, roster, strategy);
+      while (n < totalPicks && slotForPick(n + 1, teams, draftType) !== mySlot) {
+        const slot = slotForPick(n + 1, teams, draftType);
+        const best = pickForSlot(result, slot, playersById, draftPlayers, draftedIds, n + 1, teams, totalPicks, roster, strategy);
         if (!best) break;
         draftedIds.add(best.id);
         n += 1;
@@ -257,7 +258,7 @@ export default function MockDraftPage() {
       }
       return result;
     },
-    [totalPicks, teams, mySlot, playersById, players, roster, strategy],
+    [totalPicks, teams, mySlot, playersById, draftPlayers, roster, strategy, draftType],
   );
 
   const makeMyPick = useCallback(
@@ -271,18 +272,18 @@ export default function MockDraftPage() {
         const n = prev.length + 1;
         const withMine = [
           ...prev,
-          { playerId, pickNumber: n, round: roundForPick(n, teams), slot: slotForPick(n, teams) },
+          { playerId, pickNumber: n, round: roundForPick(n, teams), slot: slotForPick(n, teams, draftType) },
         ];
         return advance(withMine, ids);
       });
     },
-    [teams, advance, pickTimer],
+    [teams, advance, pickTimer, draftType],
   );
 
   const autoPick = useCallback(() => {
-    const best = pickForSlot(picks, mySlot, playersById, players, drafted, currentPick, teams, totalPicks, roster, strategy);
+    const best = pickForSlot(picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy);
     if (best) makeMyPick(best.id);
-  }, [picks, mySlot, playersById, players, drafted, currentPick, teams, totalPicks, roster, strategy, makeMyPick]);
+  }, [picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy, makeMyPick]);
 
   /* ── Pick clock ── */
 
@@ -331,8 +332,8 @@ export default function MockDraftPage() {
       const ids = new Set(prev.map((p) => p.playerId));
       let n = result.length;
       while (n < totalPicks) {
-        const slot = slotForPick(n + 1, teams);
-        const best = pickForSlot(result, slot, playersById, players, ids, n + 1, teams, totalPicks, roster, strategy);
+        const slot = slotForPick(n + 1, teams, draftType);
+        const best = pickForSlot(result, slot, playersById, draftPlayers, ids, n + 1, teams, totalPicks, roster, strategy);
         if (!best) break;
         ids.add(best.id);
         n += 1;
@@ -345,6 +346,28 @@ export default function MockDraftPage() {
   const reset = () => { setPicks([]); setStarted(false); };
 
   const randomizeSlot = () => setMySlot(Math.floor(Math.random() * teams) + 1);
+
+  const applySyncedSettings = () => {
+    if (!activeLeague) return;
+    const counts: RosterTemplate = { qb: 0, rb: 0, wr: 0, te: 0, flex: 0, superflex: 0, k: 0, def: 0, bench: 0 };
+    for (const rawPosition of activeLeague.roster_positions) {
+      const position = rawPosition.toUpperCase();
+      if (position === "QB") counts.qb++;
+      else if (position === "RB") counts.rb++;
+      else if (position === "WR") counts.wr++;
+      else if (position === "TE") counts.te++;
+      else if (position === "K") counts.k++;
+      else if (position === "DEF" || position === "DST") counts.def++;
+      else if (position === "SUPER_FLEX" || position === "SUPERFLEX") counts.superflex++;
+      else if (position === "FLEX" || position === "REC_FLEX" || position === "WRRB_FLEX") counts.flex++;
+      else if (position === "BN" || position === "BENCH") counts.bench++;
+    }
+    setTeams(activeLeague.total_teams);
+    setMySlot((slot) => Math.min(slot, activeLeague.total_teams));
+    setScoring(toScoringFormat(activeLeague.scoring_format));
+    setTePremium(activeLeague.te_premium);
+    setRoster(counts);
+  };
 
   const toggleDnd = (id: string) => {
     setDndIds((prev) => {
@@ -371,12 +394,14 @@ export default function MockDraftPage() {
   const options = useMemo(() => {
     const late = Math.ceil((totalPicks - currentPick + 1) / teams) <= 2;
     const pool = players.filter(
-      (p) => !drafted.has(p.id) && (late || (p.position !== "K" && p.position !== "DEF")),
+      (p) => !drafted.has(p.id) && (!hideOutIr || !["O", "IR", "PUP"].includes(p.injuryStatus ?? "")) &&
+        (p.position !== "K" || roster.k > 0) && (p.position !== "DEF" || roster.def > 0) &&
+        (late || (p.position !== "K" && p.position !== "DEF")),
     );
     const source = pool.length > 0 ? pool : players.filter((p) => !drafted.has(p.id));
-    const vor = buildTradeValues(players, teams);
+    const vor = buildTradeValues(draftPlayers, teams);
     return source.sort((a, b) => (vor.get(b.id) ?? 0) - (vor.get(a.id) ?? 0)).slice(0, 24);
-  }, [players, drafted, currentPick, totalPicks, teams]);
+  }, [players, draftPlayers, drafted, currentPick, totalPicks, teams, hideOutIr, roster.k, roster.def]);
 
   // Post-draft audit
   const draftGrade = useMemo(() => (done ? gradeDraft(myPicks, playersById, roster, teams) : null), [done, myPicks, playersById, roster, teams]);
@@ -457,6 +482,11 @@ export default function MockDraftPage() {
         <div className="glass-strong mx-auto max-w-2xl rounded-2xl p-7">
           <div className="space-y-5">
 
+            {activeLeague && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0D1412] px-3 py-2.5">
+              <div><p className="text-xs font-semibold text-zinc-200">{activeLeague.league_name}</p><p className="mt-0.5 text-[10px] text-zinc-500">Sleeper settings available for this mock.</p></div>
+              <button type="button" onClick={applySyncedSettings} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-emerald-400">Use League Settings</button>
+            </div>}
+
             {/* Scoring */}
             <div>
               <label className="mb-2 block text-xs font-semibold text-zinc-400">Scoring Format</label>
@@ -468,6 +498,23 @@ export default function MockDraftPage() {
                   </button>
                 ))}
               </div>
+              <label className="mt-3 inline-flex items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={tePremium} onChange={(e) => setTePremium(e.target.checked)} className="accent-emerald-500" />
+                TE Premium (+0.5 PPR; historical usage estimate)
+              </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-zinc-400">League Format
+                <select value={leagueFormat} onChange={(e) => setLeagueFormat(e.target.value as LeagueFormat)} className="glass-input mt-2 w-full rounded-lg px-3 py-2 text-zinc-100">
+                  <option value="redraft">Redraft</option><option value="dynasty">Dynasty</option><option value="keeper">Keeper</option>
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-zinc-400">Draft Type
+                <select value={draftType} onChange={(e) => setDraftType(e.target.value as DraftType)} className="glass-input mt-2 w-full rounded-lg px-3 py-2 text-zinc-100">
+                  <option value="snake">Snake</option><option value="linear">Linear</option><option value="third_round_reversal">3rd-Round Reversal</option>
+                </select>
+              </label>
             </div>
 
             {/* League size + slot */}
@@ -475,7 +522,7 @@ export default function MockDraftPage() {
               <div>
                 <label className="mb-2 block text-xs font-semibold text-zinc-400">League Size</label>
                 <div className="flex gap-1.5">
-                  {TEAM_COUNTS.map((t) => (
+                  {teamCountOptions.map((t) => (
                     <button key={t} type="button" onClick={() => { setTeams(t); setMySlot((s) => Math.min(s, t)); }}
                       aria-pressed={teams === t}
                       className={`flex-1 rounded-lg border py-2 text-sm font-bold transition ${teams === t ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300" : "border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-zinc-600"}`}>
@@ -502,38 +549,14 @@ export default function MockDraftPage() {
             {/* Roster builder */}
             <div>
               <label className="mb-2 block text-xs font-semibold text-zinc-400">Roster Settings</label>
-              <div className="rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-300">Superflex (2-QB)</span>
-                  <button type="button" onClick={() => setSuperflex(!superflex)}
-                    className={`relative h-5 w-9 rounded-full transition ${superflex ? "bg-emerald-500" : "bg-zinc-700"}`}>
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${superflex ? "left-[18px]" : "left-0.5"}`} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-300">Kicker</span>
-                  <button type="button" onClick={() => setHasK(!hasK)}
-                    className={`relative h-5 w-9 rounded-full transition ${hasK ? "bg-emerald-500" : "bg-zinc-700"}`}>
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${hasK ? "left-[18px]" : "left-0.5"}`} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-300">Defense/Special Teams</span>
-                  <button type="button" onClick={() => setHasDef(!hasDef)}
-                    className={`relative h-5 w-9 rounded-full transition ${hasDef ? "bg-emerald-500" : "bg-zinc-700"}`}>
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${hasDef ? "left-[18px]" : "left-0.5"}`} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-zinc-300">Bench</span>
-                  <div className="flex gap-1">
-                    {BENCH_PRESETS.map((b) => (
-                      <button key={b.value} type="button" onClick={() => setBenchCount(b.value)}
-                        className={`rounded-lg px-2.5 py-1 text-[10px] font-bold transition ${benchCount === b.value ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40" : "bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"}`}>
-                        {b.label}
-                      </button>
-                    ))}
-                  </div>
+              <div className="rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-3 space-y-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {(["qb", "rb", "wr", "te", "flex", "superflex", "k", "def", "bench"] as const).map((key) => (
+                    <label key={key} className="flex items-center justify-between gap-2 rounded-lg bg-[#0D1412] px-2.5 py-2 text-xs text-zinc-300">
+                      <span>{key === "superflex" ? "SUPERFLEX" : key.toUpperCase()}</span>
+                      <input aria-label={`${key} roster slots`} type="number" min={0} max={key === "bench" ? 15 : 8} value={roster[key]} onChange={(e) => setRoster((r) => ({ ...r, [key]: Math.max(0, Math.min(key === "bench" ? 15 : 8, Number(e.target.value) || 0)) }))} className="w-12 rounded border border-white/[0.08] bg-[#080E0C] px-1.5 py-1 text-right font-mono tabular-nums text-white" />
+                    </label>
+                  ))}
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-zinc-300">IR Slots</span>
@@ -548,7 +571,7 @@ export default function MockDraftPage() {
                 </div>
               </div>
               <p className="mt-1.5 text-[10px] text-zinc-600">
-                {superflex ? "2 QB" : "1 QB"} · 2 RB · 2 WR · 1 TE · 1 Flex · {hasK ? "1 K" : "No K"} · {hasDef ? "1 DEF" : "No DEF"} · {benchCount} Bench{irSlots > 0 ? ` · ${irSlots} IR` : ""} · {rosterSize(roster)} total rounds
+                {leagueFormat} · {draftType.replaceAll("_", " ")} · {rosterSize(roster)} rounds{irSlots > 0 ? ` · ${irSlots} IR` : ""}
               </p>
             </div>
 
@@ -788,13 +811,16 @@ export default function MockDraftPage() {
                 </button>
 
                 {/* Position filters */}
-                <div className="mb-3 flex gap-1">
-                  {(["ALL", "QB", "RB", "WR", "TE"] as const).map((pos) => (
+                <div className="mb-3 flex flex-wrap gap-1">
+                  {(["ALL", "QB", "RB", "WR", "TE", ...(roster.k > 0 ? ["K" as const] : []), ...(roster.def > 0 ? ["DEF" as const] : [])] as const).map((pos) => (
                     <button key={pos} type="button" onClick={() => setMockPos(pos)} aria-pressed={mockPos === pos}
                       className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${mockPos === pos ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40" : "bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"}`}>
                       {pos}
                     </button>
                   ))}
+                  <label className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-zinc-500">
+                    <input type="checkbox" checked={hideOutIr} onChange={(e) => setHideOutIr(e.target.checked)} className="accent-emerald-500" /> Hide Out/IR
+                  </label>
                 </div>
 
                 {/* Player list */}
@@ -812,6 +838,7 @@ export default function MockDraftPage() {
                             <span className="flex min-w-0 items-center gap-2">
                               {isTarget && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />}
                               <span className="truncate font-semibold text-zinc-200">{p.name}</span>
+                              <InjuryBadge status={p.injuryStatus} />
                               <span className="rounded bg-zinc-800 px-1 py-px text-[10px] font-bold text-zinc-400">{p.team}</span>
                               {p.bye > 0 && <span className="text-[9px] text-zinc-600">BYE {p.bye}</span>}
                             </span>

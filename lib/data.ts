@@ -129,7 +129,7 @@ function rowToLeague(row: LeagueRow): LeagueConfig {
     teamCount: row.team_count,
     draftPosition: row.draft_position,
     rounds: row.rounds,
-    roster: row.roster,
+    roster: { ...row.roster, superflex: row.roster.superflex ?? 0 },
     status: row.status,
     pickTimerSeconds: row.pick_timer_seconds ?? undefined,
     liveSince: row.live_since ?? undefined,

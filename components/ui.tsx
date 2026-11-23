@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from "react";
-import type { Position } from "@/lib/types";
+import type { InjuryStatus, Position } from "@/lib/types";
 import { POSITION_STYLES, TIER_STYLES } from "@/lib/tiers";
 import { CheckIcon, ChevronDownIcon } from "@/components/icons";
 import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
@@ -32,6 +32,14 @@ export function PosBadge({ position, size = "sm" }: { position: Position; size?:
       {position}
     </span>
   );
+}
+
+export function InjuryBadge({ status }: { status?: InjuryStatus | null }) {
+  if (!status) return null;
+  const style = status === "Q"
+    ? "bg-amber-500/15 text-amber-300 ring-amber-500/30"
+    : "bg-rose-500/15 text-rose-300 ring-rose-500/30";
+  return <span title={`Injury status: ${status}`} className={`inline-flex rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ring-1 ring-inset ${style}`}>{status}</span>;
 }
 
 export function Modal({

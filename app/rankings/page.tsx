@@ -24,6 +24,8 @@ export default function RankingsPage() {
   const [position, setPosition] = useState<Position | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const [projectionView, setProjectionView] = useState<"season" | "week" | "ros">("week");
+  const [hideOutIr, setHideOutIr] = useState(false);
+  const [showKDef, setShowKDef] = useState(true);
 
   const { players, loading: playersLoading, weeklyRankingsUpdated } = usePlayers(scoring);
   const hasRosProjections = players.some((player) => player.rosProjection != null);
@@ -35,11 +37,13 @@ export default function RankingsPage() {
 
   const filtered = useMemo(() => {
     let list = players;
+    if (hideOutIr) list = list.filter((p) => !["O", "IR", "PUP"].includes(p.injuryStatus ?? ""));
+    if (!showKDef) list = list.filter((p) => p.position !== "K" && p.position !== "DEF");
     if (position !== "ALL") list = list.filter((p) => p.position === position);
     const q = search.trim().toLowerCase();
     if (q) list = list.filter((p) => p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q));
     return list;
-  }, [players, position, search]);
+  }, [players, position, search, hideOutIr, showKDef]);
 
   if (loading || !user) {
     return <div className="min-h-screen" aria-busy="true" aria-label="Loading" />;
@@ -105,7 +109,7 @@ export default function RankingsPage() {
           ))}
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {POSITION_FILTERS.map((pos) => (
+          {POSITION_FILTERS.filter((pos) => showKDef || (pos !== "K" && pos !== "DEF")).map((pos) => (
             <button
               key={pos}
               type="button"
@@ -121,6 +125,14 @@ export default function RankingsPage() {
             </button>
           ))}
         </div>
+        <label className="inline-flex items-center gap-2 text-xs text-zinc-400">
+          <input type="checkbox" checked={hideOutIr} onChange={(e) => setHideOutIr(e.target.checked)} className="accent-emerald-500" />
+          Hide Out/IR
+        </label>
+        <label className="inline-flex items-center gap-2 text-xs text-zinc-400">
+          <input type="checkbox" checked={showKDef} onChange={(e) => setShowKDef(e.target.checked)} className="accent-emerald-500" />
+          K/DEF
+        </label>
         <div className="relative sm:ml-auto sm:w-64">
           <SearchIcon
             size={15}

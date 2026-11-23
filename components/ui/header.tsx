@@ -3,16 +3,13 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useSyncedLeagues } from "@/lib/league-context";
 import {
-  ActivityIcon,
   ArrowUpIcon,
-  BarChartIcon,
   ChevronDownIcon,
   ClockIcon,
-  FlaskIcon,
   ListCheckIcon,
   MenuIcon,
-  PollIcon,
   SwapIcon,
   TableIcon,
   DraftEdgeLogo,
@@ -53,34 +50,10 @@ const TOOLS: HeaderItem[] = [
     description: "Projections, tiers, and ADP.",
   },
   {
-    label: "Draft Analytics",
-    href: "/analytics",
-    icon: <BarChartIcon size={18} />,
-    description: "Grade your draft and spot value.",
-  },
-  {
-    label: "Research Hub",
-    href: "/research",
-    icon: <FlaskIcon size={18} />,
-    description: "Value leaders and positional depth.",
-  },
-  {
     label: "Start/Sit",
     href: "/start-sit",
     icon: <ListCheckIcon size={18} />,
     description: "Head-to-head calls and your best lineup.",
-  },
-  {
-    label: "Advanced Metrics",
-    href: "/metrics",
-    icon: <ActivityIcon size={18} />,
-    description: "Value and efficiency across positions.",
-  },
-  {
-    label: "Community Polls",
-    href: "/polls",
-    icon: <PollIcon size={18} />,
-    description: "Vote and see the crowd consensus.",
   },
 ];
 
@@ -153,6 +126,7 @@ export function SiteHeader({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const { leagues, activeLeague, setActiveLeagueId } = useSyncedLeagues();
 
   const { menus, links } = NAV[variant];
   const logoHref = variant === "marketing" ? "/" : "/home";
@@ -265,7 +239,16 @@ export function SiteHeader({
             </div>
           </div>
 
-          <div className="hidden items-center gap-2 md:flex">{rightActions}</div>
+          <div className="hidden items-center gap-2 md:flex">
+            {variant === "app" && activeLeague && (leagues.length > 1 ? (
+              <select aria-label="Switch active Sleeper league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="max-w-48 rounded-lg border border-white/[0.08] bg-[#0D1412] px-2.5 py-2 text-xs text-zinc-300">
+                {leagues.map((league) => <option key={league.id} value={league.id}>{league.league_name}</option>)}
+              </select>
+            ) : (
+              <span className="max-w-48 truncate rounded-lg border border-white/[0.08] bg-[#0D1412] px-2.5 py-2 text-xs text-zinc-400" title={activeLeague.league_name}>{activeLeague.league_name}</span>
+            ))}
+            {rightActions}
+          </div>
 
           <button
             type="button"
@@ -288,6 +271,13 @@ export function SiteHeader({
           className="fixed inset-0 z-40 bg-zinc-950/95 backdrop-blur-xl md:hidden"
         >
           <div className="flex h-full flex-col overflow-y-auto px-4 pb-10 pt-24 sm:px-6">
+            {variant === "app" && activeLeague && (
+              <label className="mb-4 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Active Sleeper league
+                <select aria-label="Switch active Sleeper league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#0D1412] px-3 py-2.5 text-sm font-medium text-zinc-200">
+                  {leagues.map((league) => <option key={league.id} value={league.id}>{league.league_name}</option>)}
+                </select>
+              </label>
+            )}
             {links.map((link) => (
               <Link
                 key={link.label}

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { CookieConsent } from "@/components/consent";
 import { ConsentAwareAnalytics } from "@/components/analytics";
+import { LeagueContextProvider } from "@/lib/league-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,7 +40,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} ${display.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-[#080E0C] text-zinc-100" suppressHydrationWarning>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <LeagueContextProvider>{children}</LeagueContextProvider>
+        </AuthProvider>
         <CookieConsent />
         <ConsentAwareAnalytics />
       </body>

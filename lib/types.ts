@@ -1,4 +1,7 @@
 export type Position = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
+export type InjuryStatus = "Q" | "D" | "O" | "IR" | "PUP";
+export type LeagueFormat = "redraft" | "dynasty" | "keeper";
+export type DraftType = "snake" | "linear" | "third_round_reversal";
 
 export const POSITIONS: Position[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 
@@ -10,6 +13,8 @@ export type PickOwner = "me" | "opponent";
 
 export interface Player {
   id: string;
+  /** Sleeper's platform ID when matched into a DraftEdge seed record. */
+  sleeperId?: string;
   name: string;
   position: Position;
   team: string; // NFL abbreviation, "FA" when unassigned
@@ -21,12 +26,16 @@ export interface Player {
   rank: number; // overall rank (1..n) by projection
   positionRank: number; // rank within position
   source: "seed" | "live"; // where the record came from
+  injuryStatus?: InjuryStatus | null;
+  injuryBodyPart?: string | null;
   /** Seasonal usage/efficiency from nflverse, when live data is available. */
   usage?: UsageMetrics;
   /** Current-week projection from Sleeper (empty until the regular season starts). */
   weekProjection?: number;
   /** Sleeper projection summed from the current NFL week through week 18. */
   rosProjection?: number;
+  /** Projected catches from the remaining schedule, when Sleeper provides them. */
+  rosReceptions?: number;
   /** Completed-week points from Sleeper, in the selected scoring format. */
   actualPoints?: number;
   /** Completed actual points plus the ROS estimate, when all source weeks exist. */
@@ -68,6 +77,8 @@ export interface RosterTemplate {
   wr: number;
   te: number;
   flex: number;
+  /** FLEX slot eligible for QB/RB/WR/TE (Superflex). */
+  superflex: number;
   k: number;
   def: number;
   bench: number;
@@ -77,6 +88,7 @@ export interface LeagueConfig {
   id: string;
   name: string;
   scoring: ScoringFormat;
+  format?: LeagueFormat;
   teamCount: number;
   draftPosition: number; // 1..teamCount
   rounds: number;

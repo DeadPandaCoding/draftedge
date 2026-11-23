@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Player, Position, PlayersResponse, ScoringFormat, UsageMetrics } from "@/lib/types";
+import type { InjuryStatus, Player, Position, PlayersResponse, ScoringFormat, UsageMetrics } from "@/lib/types";
 import { POSITIONS } from "@/lib/types";
 import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
 import { fetchNflverseUsage } from "@/lib/nflverse";
@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 const SLEEPER_BASE = "https://api.sleeper.app/v1";
 const REVALIDATE_SECONDS = 3600; // refresh upstream data hourly
 const SNAPSHOT_MAX_AGE_MS = 36 * 60 * 60 * 1000;
-const SNAPSHOT_SCHEMA_VERSION = 3;
+const SNAPSHOT_SCHEMA_VERSION = 5;
 
 /** Max number of live-only players (not in seed) to append per position. */
 const LIVE_CAPS: Record<Position, number> = {
@@ -33,6 +33,8 @@ interface LivePlayer {
   team: string;
   searchRank: number;
   gsisId: string;
+  injuryStatus: InjuryStatus | null;
+  injuryBodyPart: string | null;
 }
 
 /** Subset of the Sleeper player object we actually consume. */
@@ -43,6 +45,19 @@ interface SleeperPlayer {
   last_name?: string;
   search_rank?: number;
   gsis_id?: string | null;
+  injury_status?: string | null;
+  injury_body_part?: string | null;
+}
+
+function normalizeInjuryStatus(raw?: string | null): InjuryStatus | null {
+  const value = raw?.trim().toUpperCase();
+  if (!value) return null;
+  if (value === "Q" || value.includes("QUESTIONABLE")) return "Q";
+  if (value === "D" || value.includes("DOUBTFUL")) return "D";
+  if (value === "O" || value === "OUT") return "O";
+  if (value === "IR" || value.includes("INJURED RESERVE")) return "IR";
+  if (value === "PUP" || value.includes("PHYSICALLY UNABLE")) return "PUP";
+  return null;
 }
 
 async function fetchLivePlayers(): Promise<LivePlayer[]> {
@@ -81,6 +96,8 @@ async function fetchLivePlayers(): Promise<LivePlayer[]> {
         team,
         searchRank: Number(p.search_rank ?? 9999999),
         gsisId: p.gsis_id ?? "",
+        injuryStatus: normalizeInjuryStatus(p.injury_status),
+        injuryBodyPart: p.injury_body_part ?? null,
       });
     }
   }
@@ -121,6 +138,9 @@ function mergeWithSeed(
       match.team = l.team;
       match.position = l.position;
       match.source = "live";
+      match.sleeperId = l.id;
+      match.injuryStatus = l.injuryStatus;
+      match.injuryBodyPart = l.injuryBodyPart;
       if (l.gsisId) match.usage = usage.get(l.gsisId);
       const wp0 = weekProj.get(l.id);
       if (wp0 != null) match.weekProjection = wp0;
@@ -149,6 +169,9 @@ function mergeWithSeed(
         byName.name = l.name;
         byName.team = l.team;
         byName.source = "live";
+        byName.sleeperId = l.id;
+        byName.injuryStatus = l.injuryStatus;
+        byName.injuryBodyPart = l.injuryBodyPart;
         if (l.gsisId) byName.usage = usage.get(l.gsisId);
         const wp1 = weekProj.get(l.id);
         if (wp1 != null) byName.weekProjection = wp1;
@@ -162,6 +185,7 @@ function mergeWithSeed(
       }
       capped.push({
         id: l.id,
+        sleeperId: l.id,
         name: l.name,
         position: l.position,
         team: l.team,
@@ -173,6 +197,8 @@ function mergeWithSeed(
         rank: 0,
         positionRank: 0,
         source: "live",
+        injuryStatus: l.injuryStatus,
+        injuryBodyPart: l.injuryBodyPart,
         usage: l.gsisId ? usage.get(l.gsisId) : undefined,
         weekProjection: weekProj.get(l.id),
         rosProjection: rosProj.get(l.id),

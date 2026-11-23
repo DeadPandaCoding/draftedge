@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BoltIcon } from "@/components/icons";
 import type { Player, PlayersResponse, ScoringFormat } from "@/lib/types";
 
 const SCORING_FORMATS: { value: ScoringFormat; label: string }[] = [
@@ -10,13 +9,13 @@ const SCORING_FORMATS: { value: ScoringFormat; label: string }[] = [
   { value: "standard", label: "Standard" },
 ];
 
-const POS_CLASSES: Record<string, string> = {
-  WR: "text-emerald-300",
-  RB: "text-sky-300",
-  QB: "text-rose-300",
-  TE: "text-violet-300",
-  K: "text-amber-300",
-  DEF: "text-cyan-300",
+const POS_BADGE_CLASSES: Record<string, string> = {
+  WR: "bg-sky-500/15 text-sky-400",
+  RB: "bg-emerald-500/15 text-emerald-400",
+  QB: "bg-rose-500/15 text-rose-400",
+  TE: "bg-amber-500/15 text-amber-400",
+  K: "bg-violet-500/15 text-violet-400",
+  DEF: "bg-cyan-500/15 text-cyan-400",
 };
 
 const TIER_CLASSES: Record<number, string> = {
@@ -88,84 +87,64 @@ export function DraftBoardMockup() {
     setScoring(format);
   }
 
+  const draftedCount = draftedIds.size;
+
   return (
-    <div className="relative mx-auto w-full min-w-0 max-w-3xl">
-      <div className="relative overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-950/95 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.85)]">
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3.5 sm:px-5">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
-              <BoltIcon size={16} />
+    <div className="relative mx-auto w-full min-w-0 max-w-3xl text-left">
+      <div className="overflow-hidden rounded-[19px] border border-white/[0.08] bg-[#0B1210]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] bg-[#080E0C] px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#FF3E9D]/35 bg-[#FF3E9D]/10 px-2 py-1 font-mono text-[11px] font-bold tabular-nums text-[#FF3E9D]">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-[#FF3E9D]" />
+              PICK 1.{String(draftedCount + 1).padStart(2, "0")}
             </span>
-            <span className="font-display text-base tracking-wide text-zinc-100">DraftEdge</span>
-            <span className="hidden text-xs font-medium text-zinc-500 sm:inline">
-              {source === "live" ? "Live player snapshot" : "Player snapshot"}
+            <span className="truncate font-mono text-xs text-zinc-400">
+              {source === "live" ? "Live snapshot" : "Baseline snapshot"} · <span className="text-zinc-200">{scoring === "half_ppr" ? "Half-PPR" : scoring.toUpperCase()}</span>
             </span>
           </div>
-          <div className="flex rounded-lg border border-zinc-700/70 bg-zinc-900/70 p-1" role="group" aria-label="Scoring format">
+          <div className="inline-flex rounded-lg border border-white/[0.08] bg-[#0D1613] p-0.5" role="group" aria-label="Scoring format">
             {SCORING_FORMATS.map((format) => (
-              <button
-                key={format.value}
-                type="button"
-                aria-pressed={scoring === format.value}
-                onClick={() => changeScoring(format.value)}
-                className={`min-h-8 rounded-md px-2 text-[11px] font-semibold transition sm:px-2.5 ${
-                  scoring === format.value ? "bg-emerald-500/15 text-emerald-200" : "text-zinc-400 hover:text-white"
-                }`}
-              >
+              <button key={format.value} type="button" aria-pressed={scoring === format.value} onClick={() => changeScoring(format.value)} className={`min-h-8 rounded-md px-2 font-mono text-[10px] font-semibold transition sm:px-2.5 sm:text-[11px] ${scoring === format.value ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"}`}>
                 {format.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="px-3 py-4 sm:px-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-zinc-300">Tap a player to mark drafted</span>
-            <div className="flex rounded-lg border border-zinc-700/70 bg-zinc-900/70 p-1" role="group" aria-label="Filter preview players">
-              <button type="button" aria-pressed={!showAll} onClick={() => setShowAll(false)} className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${!showAll ? "bg-emerald-500/15 text-emerald-200" : "text-zinc-400 hover:text-white"}`}>
-                Available
-              </button>
-              <button type="button" aria-pressed={showAll} onClick={() => setShowAll(true)} className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${showAll ? "bg-emerald-500/15 text-emerald-200" : "text-zinc-400 hover:text-white"}`}>
-                All players
-              </button>
-            </div>
+        <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-2.5 sm:px-5">
+          <div className="inline-flex rounded-lg border border-white/[0.07] bg-[#080E0C] p-0.5 text-xs" role="group" aria-label="Player filter">
+            <button type="button" aria-pressed={!showAll} onClick={() => setShowAll(false)} className={`min-h-8 rounded-md px-2.5 font-medium transition ${!showAll ? "bg-white/[0.09] text-white" : "text-zinc-400 hover:text-zinc-200"}`}>Available</button>
+            <button type="button" aria-pressed={showAll} onClick={() => setShowAll(true)} className={`min-h-8 rounded-md px-2.5 font-medium transition ${showAll ? "bg-white/[0.09] text-white" : "text-zinc-400 hover:text-zinc-200"}`}>All players</button>
           </div>
+          <span className="font-mono text-[11px] tabular-nums text-zinc-500">{rows.length} players</span>
+        </div>
 
-          <div className="grid grid-cols-[42px_minmax(0,1fr)_48px_48px_58px] gap-1.5 px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 sm:grid-cols-[52px_minmax(0,1fr)_58px_58px_72px] sm:gap-2 sm:text-xs">
-            <span>Tier</span><span>Player</span><span className="text-right">Pos</span><span className="text-right">Bye</span><span className="text-right">Proj</span>
-          </div>
-          <div className="space-y-1" aria-live="polite">
-            {loading && <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-6 text-center text-sm text-zinc-400">Loading live player rankings…</div>}
-            {!loading && loadError && <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-6 text-center text-sm text-zinc-400">Live rankings are temporarily unavailable.</div>}
-            {!loading && !loadError && rows.map((player) => {
-              const drafted = draftedIds.has(player.id);
-              const tier = Math.min(player.tier || 3, 3);
-              return (
-                <button
-                  key={player.id}
-                  type="button"
-                  aria-pressed={drafted}
-                  aria-label={`${player.name}, ${player.position}, ${formatPoints(player.seasonProjection ?? player.projection)} projected points${drafted ? ", drafted" : ", available"}`}
-                  onClick={() => toggleDrafted(player.id)}
-                  className={`grid w-full grid-cols-[42px_minmax(0,1fr)_48px_48px_58px] items-center gap-1.5 rounded-lg border px-2 py-2.5 text-left text-sm transition hover:border-emerald-400/35 hover:bg-zinc-800/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 sm:grid-cols-[52px_minmax(0,1fr)_58px_58px_72px] sm:gap-2 ${drafted ? "border-zinc-800 bg-zinc-900/35 opacity-50" : "border-zinc-800 bg-zinc-900/70"}`}
-                >
-                  <span className={`w-fit rounded-full px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset sm:px-2 ${TIER_CLASSES[tier]}`}>
-                    T{tier}
-                  </span>
-                  <span className={`flex min-w-0 items-center gap-1.5 font-semibold ${drafted ? "line-through" : "text-zinc-100"}`}>
-                    <span className="truncate">{player.name}</span>
-                    <span className="hidden rounded bg-zinc-800 px-1.5 text-[10px] font-bold text-zinc-400 sm:inline">{player.team}</span>
-                    {drafted && <span className="hidden text-[10px] font-bold uppercase text-rose-400/80 sm:inline">Drafted</span>}
-                  </span>
-                  <span className={`text-right text-xs font-bold sm:text-sm ${POS_CLASSES[player.position]}`}>{player.position}</span>
-                  <span className="font-tech text-right text-zinc-400">{player.bye || "—"}</span>
-                  <span className="font-tech text-right text-xs font-semibold text-zinc-200 sm:text-sm">{formatPoints(player.seasonProjection ?? player.projection)}</span>
-                </button>
-              );
-            })}
-            {!loading && !loadError && rows.length === 0 && <p className="py-6 text-center text-sm text-zinc-400">All preview players are drafted. Switch to All players to reset the board.</p>}
-          </div>
-          <p className="mt-3 text-right text-[10px] text-zinc-500">Season points · {scoring === "half_ppr" ? "Half-PPR" : scoring.toUpperCase()}</p>
+        <div className="grid grid-cols-[42px_minmax(0,1fr)_42px_32px_54px_50px] items-center border-b border-white/[0.06] bg-[#080E0C]/60 px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-wider text-zinc-500 sm:grid-cols-[48px_minmax(0,1fr)_52px_42px_64px_62px] sm:px-5 sm:text-[10px]">
+          <span>Tier</span><span>Player</span><span>Pos</span><span className="text-right">Bye</span><span className="text-right">Proj</span><span className="text-right">Action</span>
+        </div>
+
+        <div className="divide-y divide-white/[0.06]" aria-live="polite">
+          {loading && <div className="px-4 py-8 text-center text-sm text-zinc-400">Loading live player rankings…</div>}
+          {!loading && loadError && <div className="px-4 py-8 text-center text-sm text-zinc-400">Live rankings are temporarily unavailable.</div>}
+          {!loading && !loadError && rows.map((player) => {
+            const drafted = draftedIds.has(player.id);
+            const tier = Math.min(player.tier || 3, 3);
+            const positionClass = POS_BADGE_CLASSES[player.position] ?? "bg-zinc-500/15 text-zinc-300";
+            return (
+              <button key={player.id} type="button" aria-pressed={drafted} aria-label={`${drafted ? "Mark" : "Draft"} ${player.name}, ${player.position}`} onClick={() => toggleDrafted(player.id)} className={`grid w-full grid-cols-[42px_minmax(0,1fr)_42px_32px_54px_50px] items-center px-3 py-3 text-left transition focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 sm:grid-cols-[48px_minmax(0,1fr)_52px_42px_64px_62px] sm:px-5 ${drafted ? "bg-black/30 opacity-50" : "hover:bg-white/[0.035]"}`}>
+                <span><span className={`inline-flex rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ring-1 ring-inset ${TIER_CLASSES[tier]}`}>T{tier}</span></span>
+                <span className="flex min-w-0 items-center gap-1.5 pr-1">
+                  <span className={`truncate text-xs font-semibold sm:text-sm ${drafted ? "line-through text-zinc-500" : "text-white"}`}>{player.name}</span>
+                  <span className="hidden shrink-0 rounded bg-white/[0.05] px-1 py-0.5 font-mono text-[9px] text-zinc-400 sm:inline">{player.team}</span>
+                </span>
+                <span><span className={`inline-flex rounded px-1 py-0.5 font-mono text-[9px] font-bold sm:px-1.5 sm:text-[10px] ${positionClass}`}>{player.position}</span></span>
+                <span className="text-right font-mono text-[11px] tabular-nums text-zinc-400 sm:text-xs">{player.bye || "—"}</span>
+                <span className="text-right font-mono text-[11px] font-semibold tabular-nums text-zinc-100 sm:text-xs">{formatPoints(player.seasonProjection ?? player.projection)}</span>
+                <span className="text-right"><span className={`inline-block rounded px-1.5 py-1 font-mono text-[9px] font-bold sm:px-2 sm:text-[10px] ${drafted ? "bg-zinc-800 text-zinc-400" : "bg-emerald-500/15 text-emerald-400"}`}>{drafted ? "Taken" : "Draft"}</span></span>
+              </button>
+            );
+          })}
+          {!loading && !loadError && rows.length === 0 && <p className="px-4 py-8 text-center text-sm text-zinc-400">All preview players are drafted. Switch to All players to reset the board.</p>}
         </div>
       </div>
     </div>

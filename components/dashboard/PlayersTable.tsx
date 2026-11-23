@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Player } from "@/lib/types";
-import { TierBadge, PosBadge } from "@/components/ui";
+import { InjuryBadge, TierBadge, PosBadge } from "@/components/ui";
 import { ArrowDownIcon, ArrowUpIcon, StarIcon } from "@/components/icons";
 import { playerSlug } from "@/lib/seed-data";
 import { useStarredPlayers } from "@/lib/stars";
@@ -40,10 +40,12 @@ export function PlayersTable({
   players,
   weekly = false,
   ros = false,
+  draftedPlayerIds,
 }: {
   players: Player[];
   weekly?: boolean;
   ros?: boolean;
+  draftedPlayerIds?: Set<string>;
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "rank", dir: 1 });
   const { isStarred, toggleStar } = useStarredPlayers();
@@ -176,10 +178,11 @@ export function PlayersTable({
                 );
               }
               const p = item.player;
+              const isDrafted = draftedPlayerIds?.has(p.id) ?? false;
               return (
               <tr
                 key={p.id}
-                className="border-b border-zinc-800/60 transition-colors hover:bg-zinc-900/60"
+                className={`border-b border-zinc-800/60 transition-colors hover:bg-zinc-900/60 ${isDrafted ? "opacity-45" : ""}`}
               >
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
                   <TierBadge tier={tierOf(p, weekly, ros)} size="xs" />
@@ -213,6 +216,8 @@ export function PlayersTable({
                     >
                       {p.name}
                     </Link>
+                    <InjuryBadge status={p.injuryStatus} />
+                    {isDrafted && <span className="rounded bg-pop-soft px-1.5 py-0.5 font-mono text-[9px] font-bold text-pop">DRAFTED</span>}
                     <span className="rounded bg-zinc-800 px-1 py-px text-[10px] font-bold text-zinc-400">
                       {p.team}
                     </span>
