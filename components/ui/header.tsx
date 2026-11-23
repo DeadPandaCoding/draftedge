@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useSyncedLeagues } from "@/lib/league-context";
+import { PlayerQuickSearch } from "@/components/dashboard/PlayerQuickSearch";
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -239,6 +240,8 @@ export function SiteHeader({
             </div>
           </div>
 
+          {variant === "app" && <div className="hidden w-64 xl:block"><PlayerQuickSearch /></div>}
+
           <div className="hidden items-center gap-2 md:flex">
             {variant === "app" && activeLeague && (leagues.length > 1 ? (
               <select aria-label="Switch active fantasy league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="max-w-48 rounded-lg border border-white/[0.08] bg-[#0D1412] px-2.5 py-2 text-xs text-zinc-300">
@@ -278,6 +281,7 @@ export function SiteHeader({
                 </select>
               </label>
             )}
+            {variant === "app" && mobileOpen && <div className="mb-4"><PlayerQuickSearch /></div>}
             {links.map((link) => (
               <Link
                 key={link.label}

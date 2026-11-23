@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui";
 import { SiteHeader } from "@/components/ui/header";
 import { LeagueSyncCard } from "@/components/dashboard/LeagueSyncCard";
+import { useSyncedLeagues } from "@/lib/league-context";
+import { usePlayers } from "@/lib/players";
 import {
   ArrowUpIcon,
   ChevronRightIcon,
@@ -53,6 +55,8 @@ const TOOLS = [
 export default function HomePage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
+  const { leagues, activeLeague, setActiveLeagueId } = useSyncedLeagues();
+  const { currentWeek } = usePlayers("ppr");
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -70,6 +74,14 @@ export default function HomePage() {
   }
 
   const firstName = user.name.split(" ")[0];
+  const weekContext = currentWeek
+    ? `Week ${currentWeek} · Set your lineup and check player values before kickoff.`
+    : "Offseason · Build your board and compare player values.";
+
+  const openLeagueTool = (leagueId: string | undefined, path: string) => {
+    if (leagueId) setActiveLeagueId(leagueId);
+    router.push(path);
+  };
 
   return (
     <div className="relative flex min-h-screen flex-col text-zinc-200">
@@ -97,10 +109,49 @@ export default function HomePage() {
           Welcome, {firstName}
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Choose a tool to get started.
+          {weekContext}
+        </p>
+        <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-lg border border-white/[0.08] bg-[#0D1412] px-3 py-2 text-xs text-zinc-400">
+          <span className={`size-1.5 shrink-0 rounded-full ${activeLeague ? "bg-emerald-400" : "bg-zinc-600"}`} />
+          <span className="truncate">{activeLeague ? `${activeLeague.league_name} · ${activeLeague.platform.toUpperCase()} league connected` : "No league synced yet — connect Sleeper or ESPN below."}</span>
         </p>
 
-        <LeagueSyncCard />
+        {leagues.length > 0 && (
+          <section className="mt-8" aria-labelledby="synced-leagues-heading">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id="synced-leagues-heading" className="text-sm font-semibold text-zinc-200">Your Synced Leagues</h2>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">{leagues.length} connected</span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {leagues.map((league, index) => {
+                const hasSuperflex = league.roster_positions.some((slot) => slot.toUpperCase().replace(/[^A-Z]/g, "").includes("SUPERFLEX"));
+                return (
+                  <article key={league.id ?? `${league.platform}-${league.platform_league_id}-${index}`} className={`rounded-2xl border bg-[#0D1412] p-4 ${league.id === activeLeague?.id ? "border-emerald-500/30" : "border-white/[0.08]"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold text-white">{league.league_name}</h3>
+                        <p className="mt-1 text-xs text-zinc-500">{league.platform.toUpperCase()}</p>
+                      </div>
+                      {league.id === activeLeague?.id && <span className="shrink-0 rounded border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-wide text-emerald-300">Active</span>}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      <span className="rounded border border-white/[0.08] bg-[#080E0C] px-2 py-1 font-mono text-[10px] text-zinc-300">{league.scoring_format}</span>
+                      {league.te_premium && <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 font-mono text-[10px] text-amber-300">TE Premium</span>}
+                      {hasSuperflex && <span className="rounded border border-sky-500/20 bg-sky-500/10 px-2 py-1 font-mono text-[10px] text-sky-300">Superflex</span>}
+                      <span className="rounded border border-white/[0.08] bg-[#080E0C] px-2 py-1 font-mono text-[10px] text-zinc-400">{league.total_teams} teams</span>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => openLeagueTool(league.id, "/start-sit")} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-emerald-400">Open Roster in Start/Sit</button>
+                      <button type="button" onClick={() => openLeagueTool(league.id, "/trade")} className="rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-emerald-500/30 hover:text-white">Analyze Trade</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <LeagueSyncCard compactWhenConnected={leagues.length > 0} />
 
         <section className="mt-10">
           <h2 className="text-sm font-semibold text-zinc-300">Tools</h2>
@@ -109,7 +160,7 @@ export default function HomePage() {
               <Link
                 key={t.title}
                 href={t.href}
-                className="group flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-[#0D1412] p-5 transition hover:border-emerald-500/30 hover:bg-[#131D1A]"
+                className={`group flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-[#0D1412] p-5 transition hover:border-emerald-500/30 hover:bg-[#131D1A] ${t.title === "Start/Sit" ? "sm:col-span-2" : ""}`}
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-zinc-400 transition group-hover:text-emerald-400">
                   {t.icon}

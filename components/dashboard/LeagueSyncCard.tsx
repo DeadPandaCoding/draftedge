@@ -17,7 +17,7 @@ function relativeTime(timestamp: string): string {
 
 type Platform = "sleeper" | "espn";
 
-export function LeagueSyncCard() {
+export function LeagueSyncCard({ compactWhenConnected = false }: { compactWhenConnected?: boolean }) {
   const { supabaseEnabled } = useAuth();
   const { leagues, activeLeague, loading, error, connectSleeper, connectEspn, syncNow, disconnectLeague, setActiveLeagueId } = useSyncedLeagues();
   const [platform, setPlatform] = useState<Platform>("sleeper");
@@ -66,7 +66,15 @@ export function LeagueSyncCard() {
         {activeLeague && <span className="rounded border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 font-mono text-[10px] font-bold text-emerald-300">LEAGUE CONNECTED</span>}
       </div>
 
-      {activeLeague && !showConnectForm ? (
+      {activeLeague && !showConnectForm && compactWhenConnected ? (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-zinc-400">{activeLeague.league_name} · {activeLeague.total_teams} teams · synced {relativeTime(activeLeague.last_synced_at)}</p>
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={loading} onClick={() => void syncNow(activeLeague.platform_league_id).catch(() => {})} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/[0.04] hover:text-white disabled:opacity-50">{loading ? "Syncing…" : "Sync Now"}</button>
+            <button type="button" onClick={() => setShowConnectForm(true)} className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/15">+ Connect Another League</button>
+          </div>
+        </div>
+      ) : activeLeague && !showConnectForm ? (
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -101,19 +109,19 @@ export function LeagueSyncCard() {
         <>
           {activeLeague && <button type="button" onClick={() => setShowConnectForm(false)} className="mt-4 text-xs font-medium text-zinc-400 underline underline-offset-4 hover:text-white">Back to connected league</button>}
           <div className={`${activeLeague ? "mt-3" : "mt-4"} inline-flex rounded-lg border border-white/[0.08] bg-[#080E0C] p-0.5`} role="tablist" aria-label="Fantasy platform">
-            {(["sleeper", "espn"] as const).map((item) => <button key={item} role="tab" aria-selected={platform === item} type="button" onClick={() => { setPlatform(item); setLocalError(null); }} className={`rounded-md px-3 py-1.5 text-xs font-semibold capitalize ${platform === item ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{item}</button>)}
+            {(["sleeper", "espn"] as const).map((item) => <button key={item} role="tab" aria-selected={platform === item} type="button" onClick={() => { setPlatform(item); setLocalError(null); }} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${platform === item ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>{item === "espn" ? "ESPN" : "Sleeper"}</button>)}
           </div>
           <form onSubmit={connect} className="mt-3 space-y-3">
             {platform === "sleeper" ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" placeholder="Enter Sleeper username…" aria-label="Sleeper username" className="min-w-0 flex-1 rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none" />
-                <button type="submit" disabled={loading || !supabaseEnabled || !username.trim()} className="rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">{loading ? "Connecting…" : "Connect Sleeper"}</button>
+                <button type="submit" disabled={loading || !supabaseEnabled || !username.trim()} className={`rounded-lg border px-4 py-2.5 text-sm font-semibold transition ${loading || !supabaseEnabled || !username.trim() ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300/60" : "border-emerald-500 bg-emerald-500 text-zinc-950 hover:bg-emerald-400"} disabled:cursor-not-allowed`}>{loading ? "Connecting…" : "Connect Sleeper"}</button>
               </div>
             ) : (
               <>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input value={leagueId} onChange={(event) => setLeagueId(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="ESPN League ID" aria-label="ESPN league ID" className="min-w-0 flex-1 rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none" />
-                  <button type="submit" disabled={loading || !supabaseEnabled || !leagueId.trim() || (!!pendingTeams && !teamId)} className="rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">{loading ? "Connecting…" : "Connect ESPN"}</button>
+                  <button type="submit" disabled={loading || !supabaseEnabled || !leagueId.trim() || (!!pendingTeams && !teamId)} className={`rounded-lg border px-4 py-2.5 text-sm font-semibold transition ${loading || !supabaseEnabled || !leagueId.trim() || (!!pendingTeams && !teamId) ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300/60" : "border-emerald-500 bg-emerald-500 text-zinc-950 hover:bg-emerald-400"} disabled:cursor-not-allowed`}>{loading ? "Connecting…" : "Connect ESPN"}</button>
                 </div>
                 {pendingTeams && <label className="block text-xs text-zinc-400">Which team is yours?
                   <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className="mt-1.5 block w-full rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2.5 text-sm text-white sm:max-w-sm">{pendingTeams.map((team) => <option key={team.teamId} value={team.teamId}>{team.label}</option>)}</select>

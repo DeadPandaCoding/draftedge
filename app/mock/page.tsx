@@ -23,6 +23,8 @@ interface MockPick {
 }
 
 type Strategy = "balanced" | "zero_rb" | "hero_rb" | "robust_rb" | "elite_qb" | "elite_te";
+type BotProfile = "consensus" | "vorp" | "zero_rb" | "hero_rb";
+type PlayerListTab = "available" | "queue";
 
 /* ───────── Constants ───────── */
 
@@ -43,6 +45,13 @@ const STRATEGIES: { value: Strategy; label: string; tip: string }[] = [
   { value: "elite_qb", label: "Elite QB", tip: "Grab an elite dual-threat QB in rounds 1-3." },
   { value: "elite_te", label: "Elite TE", tip: "Target a top-3 TE early, then build RB/WR around them." },
 ];
+
+const BOT_PROFILE_LABEL: Record<BotProfile, string> = {
+  consensus: "ADP",
+  vorp: "VORP",
+  zero_rb: "ZERO-RB",
+  hero_rb: "HERO-RB",
+};
 
 /* ───────── Helpers ───────── */
 
@@ -76,10 +85,20 @@ function countPositions(picks: MockPick[], slot: number, playersById: Map<string
   return counts;
 }
 
-function bestAt(players: Player[], draftedIds: Set<string>, positions: Position[]): Player | null {
-  const pool = players.filter((p) => !draftedIds.has(p.id) && positions.includes(p.position));
-  const source = pool.length > 0 ? pool : players.filter((p) => !draftedIds.has(p.id));
-  return source.sort((a, b) => b.projection - a.projection)[0] ?? null;
+function seededJitter(seed: number, pickNumber: number, playerId: string): number {
+  let hash = (seed ^ Math.imul(pickNumber, 0x45d9f3b)) >>> 0;
+  for (let i = 0; i < playerId.length; i++) hash = Math.imul(hash ^ playerId.charCodeAt(i), 0x45d9f3b) >>> 0;
+  return (hash % 7) - 3;
+}
+
+function assignBotProfiles(teams: number, userSlot: number): Record<number, BotProfile> {
+  const profiles: BotProfile[] = ["consensus", "vorp", "zero_rb", "hero_rb"];
+  const assigned: Record<number, BotProfile> = {};
+  for (let slot = 1; slot <= teams; slot++) {
+    if (slot === userSlot) continue;
+    assigned[slot] = profiles[Math.floor(Math.random() * profiles.length)];
+  }
+  return assigned;
 }
 
 /** Position-aware auto-draft respecting the user's roster template and strategy. */
@@ -94,34 +113,88 @@ function pickForSlot(
   totalPicks: number,
   roster: RosterTemplate,
   strategy: Strategy,
+  userSlot: number,
+  botProfiles: Record<number, BotProfile>,
+  tradeValues: ReadonlyMap<string, number>,
+  seed: number,
 ): Player | null {
   const counts = countPositions(picks, slot, playersById);
   const roundsLeft = Math.ceil((totalPicks - pickNumber + 1) / teams);
   const late = roundsLeft <= 2;
-  const isUser = slot === -1; // -1 = user slot (for strategy-aware pick)
+  const round = roundForPick(pickNumber, teams);
+  const isUser = slot === userSlot;
+  const botProfile = botProfiles[slot] ?? "consensus";
+  const pickBest = (positions: Position[]): Player | null => {
+    let pool = players.filter((player) => !draftedIds.has(player.id) && positions.includes(player.position));
+    if (pool.length === 0) pool = players.filter((player) => !draftedIds.has(player.id));
+
+    if (!isUser) {
+      const guarded = pool.filter((player) => {
+        if (round < 9 && roster.superflex === 0 && player.position === "QB" && counts.QB >= Math.max(1, roster.qb)) return false;
+        if (round < 7 && player.position === "TE" && counts.TE >= Math.max(1, roster.te)) return false;
+        return true;
+      });
+      if (guarded.length > 0) {
+        const guardedBest = Math.max(...guarded.map((player) => tradeValues.get(player.id) ?? 0));
+        const availableBest = Math.max(...pool.map((player) => tradeValues.get(player.id) ?? 0));
+        if (availableBest < guardedBest * 1.4) pool = guarded;
+      }
+    }
+
+    const score = (player: Player): number => {
+      const value = tradeValues.get(player.id) ?? 0;
+      if (isUser) return player.projection;
+      const jitter = seededJitter(seed, pickNumber, player.id);
+      if (botProfile === "consensus") {
+        const adp = player.adp > 0 ? player.adp : player.rank;
+        return -Math.abs(adp - (pickNumber + jitter));
+      }
+      if (botProfile === "zero_rb" && round <= 5 && (player.position === "WR" || player.position === "TE")) return value + 100;
+      if (botProfile === "hero_rb") {
+        if (round <= 2 && counts.RB === 0 && player.position === "RB") return value + 100;
+        if (round <= 6 && counts.RB > 0 && (player.position === "WR" || player.position === "TE")) return value + 100;
+      }
+      return value + jitter * 0.2;
+    };
+    return [...pool].sort((a, b) => score(b) - score(a))[0] ?? null;
+  };
 
   // Strategy-aware early rounds for the user.
   if (isUser && strategy !== "balanced") {
     const totalSkill = counts.RB + counts.WR + counts.TE;
     if (strategy === "zero_rb" && totalSkill < 6) {
-      const wrte = bestAt(players, draftedIds, ["WR", "TE"]);
+      const wrte = pickBest(["WR", "TE"]);
       if (wrte) return wrte;
     }
     if (strategy === "hero_rb" && counts.RB === 0 && totalSkill < 2) {
-      const rb = bestAt(players, draftedIds, ["RB"]);
+      const rb = pickBest(["RB"]);
       if (rb) return rb;
     }
     if (strategy === "robust_rb" && counts.RB < 3 && totalSkill < 4) {
-      const rb = bestAt(players, draftedIds, ["RB"]);
+      const rb = pickBest(["RB"]);
       if (rb) return rb;
     }
     if (strategy === "elite_qb" && counts.QB === 0) {
-      const qb = bestAt(players, draftedIds, ["QB"]);
+      const qb = pickBest(["QB"]);
       if (qb) return qb;
     }
     if (strategy === "elite_te" && counts.TE === 0) {
-      const te = bestAt(players, draftedIds, ["TE"]);
+      const te = pickBest(["TE"]);
       if (te) return te;
+    }
+  }
+
+  if (!isUser && botProfile === "zero_rb" && round <= 5) {
+    const wrte = pickBest(["WR", "TE"]);
+    if (wrte) return wrte;
+  }
+  if (!isUser && botProfile === "hero_rb") {
+    if (round <= 2 && counts.RB === 0) {
+      const rb = pickBest(["RB"]);
+      if (rb) return rb;
+    } else if (round <= 6 && counts.RB > 0) {
+      const wrte = pickBest(["WR", "TE"]);
+      if (wrte) return wrte;
     }
   }
 
@@ -131,76 +204,88 @@ function pickForSlot(
   if (counts.RB < roster.rb) core.push("RB");
   if (counts.WR < roster.wr) core.push("WR");
   if (counts.TE < roster.te) core.push("TE");
-  if (core.length > 0) return bestAt(players, draftedIds, core);
+  if (core.length > 0) return pickBest(core);
 
   // 2) Flex.
   const flexCapacity = roster.rb + roster.wr + roster.te + roster.flex;
   if (counts.RB + counts.WR + counts.TE < flexCapacity) {
-    return bestAt(players, draftedIds, ["RB", "WR", "TE"]);
+    return pickBest(["RB", "WR", "TE"]);
   }
   const superflexEligible = counts.QB + counts.RB + counts.WR + counts.TE;
   const superflexNeed = (roster.superflex ?? 0) + roster.qb;
   if (superflexEligible < superflexNeed) {
-    return bestAt(players, draftedIds, ["QB", "RB", "WR", "TE"]);
+    return pickBest(["QB", "RB", "WR", "TE"]);
   }
 
   // 3) K / DEF in closing rounds.
   const specialists: Position[] = [];
   if (late && counts.K < roster.k) specialists.push("K");
   if (late && counts.DEF < roster.def) specialists.push("DEF");
-  if (specialists.length > 0) return bestAt(players, draftedIds, specialists);
+  if (specialists.length > 0) return pickBest(specialists);
 
   // 4) Bench — skill players.
-  return bestAt(players, draftedIds, ["QB", "RB", "WR", "TE"]);
+  return pickBest(["QB", "RB", "WR", "TE"]);
 }
 
-/** Letter grade for a completed mock draft. */
+interface TeamDraftGrade {
+  slot: number;
+  letter: string;
+  label: string;
+  color: string;
+  starterVorp: number;
+  benchVorp: number;
+}
+
+/** Compare each team's starting-lineup VORP and bench depth to the room average. */
+/** Compare each team's starting-lineup VORP and bench depth to the room average. */
 function gradeDraft(
-  myPicks: MockPick[],
+  allPicks: MockPick[],
+  teams: number,
+  tradeValues: ReadonlyMap<string, number>,
   playersById: Map<string, Player>,
   roster: RosterTemplate,
-  teams: number,
-): { letter: string; label: string; color: string } {
-  const counts: Record<Position, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
-  let totalProj = 0;
-  for (const pick of myPicks) {
-    const p = playersById.get(pick.playerId);
-    if (!p) continue;
-    counts[p.position]++;
-    totalProj += p.projection;
-  }
+): TeamDraftGrade[] {
+  const summaries = Array.from({ length: teams }, (_, index) => {
+    const slot = index + 1;
+    const teamPicks = allPicks.filter((pick) => pick.slot === slot && playersById.has(pick.playerId));
+    const starters: MockPick[] = [];
+    const take = (positions: Position[], count: number) => {
+      const selected = teamPicks
+        .filter((pick) => !starters.includes(pick) && positions.includes(playersById.get(pick.playerId)!.position))
+        .sort((a, b) => (tradeValues.get(b.playerId) ?? 0) - (tradeValues.get(a.playerId) ?? 0))
+        .slice(0, count);
+      starters.push(...selected);
+    };
+    take(["QB"], roster.qb);
+    take(["RB"], roster.rb);
+    take(["WR"], roster.wr);
+    take(["TE"], roster.te);
+    take(["RB", "WR", "TE"], roster.flex);
+    take(["QB", "RB", "WR", "TE"], roster.superflex ?? 0);
+    take(["K"], roster.k);
+    take(["DEF"], roster.def);
+    const starterIds = new Set(starters.map((pick) => pick.playerId));
+    const starterVorp = starters.reduce((sum, pick) => sum + (tradeValues.get(pick.playerId) ?? 0), 0);
+    const benchVorp = teamPicks
+      .filter((pick) => !starterIds.has(pick.playerId))
+      .reduce((sum, pick) => sum + (tradeValues.get(pick.playerId) ?? 0), 0);
+    return { slot, starterVorp, benchVorp };
+  });
+  const averageStarter = summaries.reduce((sum, team) => sum + team.starterVorp, 0) / Math.max(1, teams);
+  const averageBench = summaries.reduce((sum, team) => sum + team.benchVorp, 0) / Math.max(1, teams);
 
-  const ideal = roster.qb + roster.rb + roster.wr + roster.te + roster.flex + (roster.superflex ?? 0) + roster.k + roster.def;
-  const starterCoverage =
-    (Math.min(counts.QB, roster.qb) +
-      Math.min(counts.RB, roster.rb) +
-      Math.min(counts.WR, roster.wr) +
-      Math.min(counts.TE, roster.te) +
-      Math.min(counts.RB + counts.WR + counts.TE - roster.rb - roster.wr - roster.te, roster.flex) +
-      Math.min(Math.max(0, counts.QB + counts.RB + counts.WR + counts.TE - roster.qb - roster.rb - roster.wr - roster.te - roster.flex), roster.superflex ?? 0)) /
-    ideal;
-
-  // Avg projection rank of picks vs expected.
-  const picksSorted = myPicks
-    .map((pk) => playersById.get(pk.playerId))
-    .filter(Boolean) as Player[];
-  const avgPickRound = myPicks.reduce((s, p) => s + p.round, 0) / myPicks.length;
-  const avgProjRank = picksSorted.reduce((s, p) => s + p.rank, 0) / (picksSorted.length || 1);
-  const expectedRank = avgPickRound * teams;
-  const rankRatio = expectedRank / (avgProjRank || 1); // >1 = drafted better than expected
-
-  const score = starterCoverage * 40 + Math.min(totalProj / (ideal * 25), 1) * 35 + Math.min(rankRatio, 1.5) * 25;
-
-  if (score >= 85) return { letter: "A+", label: "Elite draft — crushed it", color: "text-emerald-300" };
-  if (score >= 75) return { letter: "A", label: "Strong draft", color: "text-emerald-300" };
-  if (score >= 65) return { letter: "B+", label: "Solid draft", color: "text-emerald-400" };
-  if (score >= 55) return { letter: "B", label: "Good draft with room to improve", color: "text-zinc-200" };
-  if (score >= 45) return { letter: "C", label: "Average draft — review your strategy", color: "text-amber-300" };
-  return { letter: "D", label: "Rough draft — reconsider your approach", color: "text-rose-300" };
+  return summaries.map((team) => {
+    const score = (averageStarter > 0 ? team.starterVorp / averageStarter : 1) * 80 +
+      (averageBench > 0 ? team.benchVorp / averageBench : 1) * 20;
+    if (score >= 115) return { ...team, letter: "A+", label: "Well above room average", color: "text-emerald-300" };
+    if (score >= 107) return { ...team, letter: "A", label: "Strong value across the roster", color: "text-emerald-300" };
+    if (score >= 105) return { ...team, letter: "B+", label: "Above room average", color: "text-emerald-400" };
+    if (score >= 95) return { ...team, letter: "B", label: "Near room average", color: "text-zinc-200" };
+    return { ...team, letter: "C", label: "Below room average", color: "text-amber-300" };
+  });
 }
 
-/* ───────── Component ───────── */
-
+/* ---------------- Component ---------------- */
 export default function MockDraftPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -224,6 +309,12 @@ export default function MockDraftPage() {
   const [started, setStarted] = useState(false);
   const [picks, setPicks] = useState<MockPick[]>([]);
   const [mockPos, setMockPos] = useState<Position | "ALL">("ALL");
+  const [botProfiles, setBotProfiles] = useState<Record<number, BotProfile>>({});
+  const [botSeed, setBotSeed] = useState(0);
+  const [queueIds, setQueueIds] = useState<string[]>([]);
+  const [queueHydrated, setQueueHydrated] = useState(false);
+  const [playerListTab, setPlayerListTab] = useState<PlayerListTab>("available");
+  const [copyStatus, setCopyStatus] = useState("");
   const [timerExpired, setTimerExpired] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(pickTimer);
@@ -244,6 +335,7 @@ export default function MockDraftPage() {
       : 0),
   })), [players, tePremium]);
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const tradeValues = useMemo(() => buildTradeValues(draftPlayers, teams), [draftPlayers, teams]);
 
   const totalRounds = rosterSize(roster);
   const totalPicks = teams * totalRounds;
@@ -251,17 +343,46 @@ export default function MockDraftPage() {
   const done = started && currentPick > totalPicks;
   const drafted = useMemo(() => new Set(picks.map((p) => p.playerId)), [picks]);
 
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("draftedge.mock.queue.v1") ?? "[]") as unknown;
+      if (Array.isArray(stored)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setQueueIds([...new Set(stored.filter((id): id is string => typeof id === "string"))]);
+      }
+    } catch {
+      setQueueIds([]);
+    }
+    setQueueHydrated(true);
+  }, []);
+
+  const activeQueueIds = useMemo(() => queueIds.filter((id) => !drafted.has(id)), [queueIds, drafted]);
+  useEffect(() => {
+    if (activeQueueIds.length !== queueIds.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setQueueIds(activeQueueIds);
+    }
+  }, [activeQueueIds, queueIds.length]);
+  useEffect(() => {
+    if (!queueHydrated) return;
+    try {
+      localStorage.setItem("draftedge.mock.queue.v1", JSON.stringify(activeQueueIds));
+    } catch {
+      // Storage may be unavailable; the queue remains active for this session.
+    }
+  }, [activeQueueIds, queueHydrated]);
+
   const isMyTurn = started && !done && slotForPick(currentPick, teams, draftType) === mySlot;
 
   /* ── Draft logic ── */
 
   const advance = useCallback(
-    (list: MockPick[], draftedIds: Set<string>): MockPick[] => {
+    (list: MockPick[], draftedIds: Set<string>, profiles = botProfiles, seed = botSeed): MockPick[] => {
       const result = [...list];
       let n = result.length;
       while (n < totalPicks && slotForPick(n + 1, teams, draftType) !== mySlot) {
         const slot = slotForPick(n + 1, teams, draftType);
-        const best = pickForSlot(result, slot, playersById, draftPlayers, draftedIds, n + 1, teams, totalPicks, roster, strategy);
+        const best = pickForSlot(result, slot, playersById, draftPlayers, draftedIds, n + 1, teams, totalPicks, roster, strategy, mySlot, profiles, tradeValues, seed);
         if (!best) break;
         draftedIds.add(best.id);
         n += 1;
@@ -269,7 +390,7 @@ export default function MockDraftPage() {
       }
       return result;
     },
-    [totalPicks, teams, mySlot, playersById, draftPlayers, roster, strategy, draftType],
+    [totalPicks, teams, mySlot, playersById, draftPlayers, roster, strategy, draftType, botProfiles, botSeed, tradeValues],
   );
 
   const makeMyPick = useCallback(
@@ -292,9 +413,9 @@ export default function MockDraftPage() {
   );
 
   const autoPick = useCallback(() => {
-    const best = pickForSlot(picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy);
+    const best = pickForSlot(picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy, mySlot, botProfiles, tradeValues, botSeed);
     if (best) makeMyPick(best.id);
-  }, [picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy, makeMyPick]);
+  }, [picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy, botProfiles, tradeValues, botSeed, makeMyPick]);
 
   /* ── Pick clock ── */
 
@@ -332,9 +453,14 @@ export default function MockDraftPage() {
   const startDraft = () => {
     setSecondsLeft(pickTimer);
     setTimerExpired(false);
+    setCopyStatus("");
     setStarted(true);
+    const seed = Math.floor(Math.random() * 0xffffffff);
+    const profiles = assignBotProfiles(teams, mySlot);
+    setBotSeed(seed);
+    setBotProfiles(profiles);
     const ids = new Set<string>();
-    setPicks(advance([], ids));
+    setPicks(advance([], ids, profiles, seed));
   };
 
   const simulateRest = () => {
@@ -344,7 +470,7 @@ export default function MockDraftPage() {
       let n = result.length;
       while (n < totalPicks) {
         const slot = slotForPick(n + 1, teams, draftType);
-        const best = pickForSlot(result, slot, playersById, draftPlayers, ids, n + 1, teams, totalPicks, roster, strategy);
+        const best = pickForSlot(result, slot, playersById, draftPlayers, ids, n + 1, teams, totalPicks, roster, strategy, mySlot, botProfiles, tradeValues, botSeed);
         if (!best) break;
         ids.add(best.id);
         n += 1;
@@ -354,7 +480,29 @@ export default function MockDraftPage() {
     });
   };
 
-  const reset = () => { setPicks([]); setStarted(false); };
+  const reset = () => {
+    setQueueIds((previous) => previous.filter((id) => !drafted.has(id)));
+    setPicks([]);
+    setStarted(false);
+    setCopyStatus("");
+  };
+
+  const toggleQueue = (playerId: string) => {
+    setQueueIds((previous) => previous.includes(playerId)
+      ? previous.filter((id) => id !== playerId)
+      : [...previous, playerId]);
+  };
+
+  const moveQueueItem = (playerId: string, offset: number) => {
+    setQueueIds((previous) => {
+      const index = previous.indexOf(playerId);
+      const nextIndex = Math.max(0, Math.min(previous.length - 1, index + offset));
+      if (index < 0 || nextIndex === index) return previous;
+      const next = [...previous];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+  };
 
   const randomizeSlot = () => setMySlot(Math.floor(Math.random() * teams) + 1);
 
@@ -411,12 +559,60 @@ export default function MockDraftPage() {
         (late || (p.position !== "K" && p.position !== "DEF")),
     );
     const source = pool.length > 0 ? pool : players.filter((p) => !drafted.has(p.id));
-    const vor = buildTradeValues(draftPlayers, teams);
-    return source.sort((a, b) => (vor.get(b.id) ?? 0) - (vor.get(a.id) ?? 0)).slice(0, 24);
-  }, [players, draftPlayers, drafted, currentPick, totalPicks, teams, hideOutIr, roster.k, roster.def]);
+    return source.sort((a, b) => (tradeValues.get(b.id) ?? 0) - (tradeValues.get(a.id) ?? 0)).slice(0, 24);
+  }, [players, drafted, currentPick, totalPicks, teams, hideOutIr, roster.k, roster.def, tradeValues]);
+  const queuedPlayers = useMemo(
+    () => activeQueueIds.map((id) => playersById.get(id)).filter((player): player is Player => Boolean(player)),
+    [activeQueueIds, playersById],
+  );
+  const visiblePlayers = playerListTab === "queue"
+    ? queuedPlayers.filter((player) => mockPos === "ALL" || player.position === mockPos)
+    : options.filter((player) => mockPos === "ALL" || player.position === mockPos);
 
   // Post-draft audit
-  const draftGrade = useMemo(() => (done ? gradeDraft(myPicks, playersById, roster, teams) : null), [done, myPicks, playersById, roster, teams]);
+  const draftGrades = useMemo(() => (done ? gradeDraft(picks, teams, tradeValues, playersById, roster) : []), [done, picks, teams, tradeValues, playersById, roster]);
+  const draftGrade = draftGrades.find((grade) => grade.slot === mySlot);
+
+  const myPositionCounts = useMemo(() => countPositions(picks, mySlot, playersById), [picks, mySlot, playersById]);
+  const filledCoreSkillSlots = Math.min(myPositionCounts.RB, roster.rb) + Math.min(myPositionCounts.WR, roster.wr) + Math.min(myPositionCounts.TE, roster.te);
+  const totalSkillPicks = myPositionCounts.RB + myPositionCounts.WR + myPositionCounts.TE;
+  const flexSlotsFilled = Math.min(roster.flex, Math.max(0, totalSkillPicks - filledCoreSkillSlots));
+  const eligibleCoreSlots = Math.min(myPositionCounts.QB, roster.qb) + filledCoreSkillSlots;
+  const superflexSlotsFilled = Math.min(roster.superflex ?? 0, Math.max(0, myPositionCounts.QB + totalSkillPicks - eligibleCoreSlots - flexSlotsFilled));
+  const openStarterSlots = [
+    ...Array.from({ length: Math.max(0, roster.qb - myPositionCounts.QB) }, () => "QB"),
+    ...Array.from({ length: Math.max(0, roster.rb - myPositionCounts.RB) }, (_, index) => `RB${myPositionCounts.RB + index + 1}`),
+    ...Array.from({ length: Math.max(0, roster.wr - myPositionCounts.WR) }, (_, index) => `WR${myPositionCounts.WR + index + 1}`),
+    ...Array.from({ length: Math.max(0, roster.te - myPositionCounts.TE) }, () => "TE"),
+    ...Array.from({ length: Math.max(0, roster.flex - flexSlotsFilled) }, () => "FLEX"),
+    ...Array.from({ length: Math.max(0, (roster.superflex ?? 0) - superflexSlotsFilled) }, () => "SUPERFLEX"),
+    ...Array.from({ length: Math.max(0, roster.k - myPositionCounts.K) }, () => "K"),
+    ...Array.from({ length: Math.max(0, roster.def - myPositionCounts.DEF) }, () => "DEF"),
+  ];
+  const recentPicks = picks.slice(-6).reverse();
+  const positionalRun = (["RB", "WR"] as const).map((position) => ({
+    position,
+    count: picks.slice(-6).filter((pick) => playersById.get(pick.playerId)?.position === position).length,
+  })).find((run) => run.count >= 4);
+  const biggestSteal = myPicks
+    .map((pick) => ({ pick, player: playersById.get(pick.playerId) }))
+    .filter((entry): entry is { pick: MockPick; player: Player } => Boolean(entry.player && entry.player.adp > 0))
+    .map((entry) => ({ ...entry, savedPicks: entry.player.adp - entry.pick.pickNumber }))
+    .sort((a, b) => b.savedPicks - a.savedPicks)[0];
+
+  const copyDraftSummary = async () => {
+    const rosterSummary = myPicks.map((pick) => {
+      const player = playersById.get(pick.playerId);
+      return player ? `R${pick.round} Pick ${pick.pickNumber}: ${player.name} (${player.position}, ADP ${player.adp > 0 ? player.adp.toFixed(1) : "n/a"})` : null;
+    }).filter(Boolean).join("\n");
+    const summary = `DraftEdge Mock Draft\n${teams}-team ${SCORING_LABELS[scoring]} · ${draftGrade?.letter ?? "—"} grade\n${rosterSummary}`;
+    try {
+      await navigator.clipboard.writeText(summary);
+      setCopyStatus("Copied");
+    } catch {
+      setCopyStatus("Clipboard unavailable");
+    }
+  };
 
   const byeWeekConflicts = useMemo(() => {
     if (!done) return [];
@@ -684,8 +880,20 @@ export default function MockDraftPage() {
                   <div className="mt-4 rounded-xl border border-zinc-700/50 bg-zinc-800/40 px-4 py-3 text-center">
                     <span className={`font-display text-4xl font-bold ${draftGrade.color}`}>{draftGrade.letter}</span>
                     <p className="mt-1 text-xs text-zinc-400">{draftGrade.label}</p>
+                    <p className="mt-1 font-mono text-[10px] tabular-nums text-zinc-500">Starter value {draftGrade.starterVorp.toFixed(1)} · Bench {draftGrade.benchVorp.toFixed(1)} vs room average</p>
                   </div>
                 )}
+
+                <button type="button" onClick={copyDraftSummary} className="mt-3 w-full rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-emerald-400">Copy Draft Summary</button>
+                {copyStatus && <p role="status" className="mt-1 text-center text-[10px] text-zinc-500">{copyStatus}</p>}
+                {biggestSteal && biggestSteal.savedPicks > 0 && <div className="mt-3 rounded-lg border border-[#FF3E9D]/25 bg-[#FF3E9D]/[0.06] px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-wider text-[#FF3E9D]">Best value steal</p><p className="mt-1 truncate text-xs font-semibold text-zinc-100">{biggestSteal.player.name} <span className="font-mono text-zinc-400">ADP {biggestSteal.player.adp.toFixed(0)} · Pick {biggestSteal.pick.pickNumber}</span></p><p className="font-mono text-[10px] text-emerald-300">{biggestSteal.savedPicks.toFixed(0)} picks past ADP</p></div>}
+
+                <div className="mt-4 border-t border-white/[0.08] pt-3">
+                  <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Room grades · VORP</h3>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {draftGrades.map((grade) => <div key={grade.slot} className="flex items-center justify-between text-xs"><span className={grade.slot === mySlot ? "font-semibold text-white" : "text-zinc-500"}>{grade.slot === mySlot ? "You" : `Team ${grade.slot}`}</span><span className={`font-mono font-bold ${grade.color}`}>{grade.letter}</span></div>)}
+                  </div>
+                </div>
 
                 {/* Projected total */}
                 {positionBalance && (
@@ -798,6 +1006,29 @@ export default function MockDraftPage() {
 
                 <p className="mb-3 text-xs text-zinc-500">Choose a player or auto-pick the best available.</p>
 
+                <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                  <section className="rounded-lg border border-white/[0.08] bg-[#080E0C] p-2.5">
+                    <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Recent picks</h3>
+                    <div className="space-y-1">
+                      {recentPicks.slice(0, 4).map((pick) => {
+                        const player = playersById.get(pick.playerId);
+                        const drafter = pick.slot === mySlot ? "YOU" : BOT_PROFILE_LABEL[botProfiles[pick.slot] ?? "consensus"];
+                        return <p key={pick.pickNumber} className="truncate text-[10px] text-zinc-300"><span className="font-mono text-zinc-500">{pick.round}.{String(pick.slot).padStart(2, "0")}</span> <span className="font-mono text-emerald-500">{drafter}</span> · {player?.name ?? "Unknown"}</p>;
+                      })}
+                      {recentPicks.length === 0 && <p className="text-[10px] text-zinc-600">No picks yet.</p>}
+                    </div>
+                  </section>
+                  <section className="rounded-lg border border-white/[0.08] bg-[#080E0C] p-2.5">
+                    <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Open starters</h3>
+                    <div className="flex flex-wrap gap-1">
+                      {openStarterSlots.map((slot, index) => <span key={`${slot}-${index}`} className="rounded border border-amber-500/20 bg-amber-500/5 px-1.5 py-0.5 font-mono text-[9px] text-amber-200">{slot}</span>)}
+                      {openStarterSlots.length === 0 && <span className="text-[10px] text-emerald-300">Starters filled</span>}
+                    </div>
+                  </section>
+                </div>
+
+                {positionalRun && <div role="status" className="mb-3 rounded-lg border border-[#FF3E9D]/30 bg-[#FF3E9D]/[0.08] px-3 py-2 text-xs text-zinc-200"><span className="font-mono font-bold text-[#FF3E9D]">{positionalRun.position} RUN</span><span className="ml-2">{positionalRun.count} {positionalRun.position}s taken in the last 6 picks.</span></div>}
+
                 {/* Roster needs */}
                 {(() => {
                   const myCounts: Record<Position, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
@@ -824,6 +1055,15 @@ export default function MockDraftPage() {
                   Auto-pick Best
                 </button>
 
+                <div className="mb-3 grid grid-cols-2 border-b border-white/[0.08]">
+                  {(["available", "queue"] as const).map((tab) => (
+                    <button key={tab} type="button" onClick={() => setPlayerListTab(tab)} aria-pressed={playerListTab === tab}
+                      className={`border-b-2 px-3 py-2 text-xs font-semibold transition ${playerListTab === tab ? "border-emerald-400 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}>
+                      {tab === "available" ? "Available Players" : `My Queue${activeQueueIds.length ? ` (${activeQueueIds.length})` : ""}`}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Position filters */}
                 <div className="mb-3 flex flex-wrap gap-1">
                   {(["ALL", "QB", "RB", "WR", "TE", ...(roster.k > 0 ? ["K" as const] : []), ...(roster.def > 0 ? ["DEF" as const] : [])] as const).map((pos) => (
@@ -839,46 +1079,49 @@ export default function MockDraftPage() {
 
                 {/* Player list */}
                 <div className="max-h-[50vh] space-y-1.5 overflow-y-auto pr-1">
-                  {options
-                    .filter((p) => mockPos === "ALL" || p.position === mockPos)
-                    .map((p) => {
-                      const isDnd = dndIds.has(p.id);
-                      const isTarget = targetIds.has(p.id);
-                      return (
-                        <div key={p.id} className="group relative">
-                          <button type="button" onClick={() => makeMyPick(p.id)}
-                            disabled={isDnd}
-                            className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${isDnd ? "opacity-40 line-through bg-zinc-900/30" : "bg-zinc-900/60 hover:bg-zinc-800"}`}>
-                            <span className="flex min-w-0 items-center gap-2">
-                              {isTarget && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />}
-                              <span className="truncate font-semibold text-zinc-200">{p.name}</span>
-                              <InjuryBadge status={p.injuryStatus} />
-                              <span className="rounded bg-zinc-800 px-1 py-px text-[10px] font-bold text-zinc-400">{p.team}</span>
-                              {p.bye > 0 && <span className="text-[9px] text-zinc-600">BYE {p.bye}</span>}
-                            </span>
-                            <span className="flex shrink-0 items-center gap-1.5">
-                              {p.adp > 0 && (
-                                <span className="rounded bg-zinc-800 px-1 py-px text-[9px] font-bold text-zinc-500">ADP {p.adp.toFixed(0)}</span>
-                              )}
-                              <span className="font-tech text-xs text-zinc-400">{p.position} · {p.projection.toFixed(1)}</span>
-                            </span>
-                          </button>
-                          {/* DND / Target toggle */}
-                          <div className="absolute right-1 top-1 hidden gap-0.5 group-hover:flex group-focus-within:flex">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleTarget(p.id); }}
-                              title="Target" aria-label={isTarget ? `Remove ${p.name} from targets` : `Mark ${p.name} as a target`} className={`flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold transition ${isTarget ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/80 text-zinc-600 hover:text-emerald-400"}`}>
-                              ★
-                            </button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleDnd(p.id); }}
-                              title="Do Not Draft" aria-label={isDnd ? `Allow ${p.name} in the draft` : `Do not draft ${p.name}`} className={`flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold transition ${isDnd ? "bg-rose-500/20 text-rose-300" : "bg-zinc-800/80 text-zinc-600 hover:text-rose-400"}`}>
-                              ✕
-                            </button>
-                          </div>
+                  {visiblePlayers.map((p) => {
+                    const isDnd = dndIds.has(p.id);
+                    const isTarget = targetIds.has(p.id);
+                    const isQueued = activeQueueIds.includes(p.id);
+                    return (
+                      <div key={p.id} className="group relative">
+                        <button type="button" onClick={() => makeMyPick(p.id)} disabled={isDnd}
+                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 pr-24 text-left text-sm transition ${isDnd ? "opacity-40 line-through bg-zinc-900/30" : "bg-zinc-900/60 hover:bg-zinc-800"}`}>
+                          <span className="flex min-w-0 items-center gap-2">
+                            {isTarget && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />}
+                            <span className="truncate font-semibold text-zinc-200">{p.name}</span>
+                            <InjuryBadge status={p.injuryStatus} />
+                            <span className="rounded bg-zinc-800 px-1 py-px text-[10px] font-bold text-zinc-400">{p.team}</span>
+                            {p.bye > 0 && <span className="text-[9px] text-zinc-600">BYE {p.bye}</span>}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1.5">
+                            {p.adp > 0 && <span className="rounded bg-zinc-800 px-1 py-px text-[9px] font-bold text-zinc-500">ADP {p.adp.toFixed(0)}</span>}
+                            <span className="font-tech text-xs text-zinc-400">{p.position} · {p.projection.toFixed(1)}</span>
+                          </span>
+                        </button>
+                        <div className="absolute right-1 top-1 flex gap-0.5">
+                          {playerListTab === "available" ? (
+                            <>
+                              <button type="button" onClick={() => toggleQueue(p.id)} title="Queue player" aria-label={isQueued ? `Remove ${p.name} from queue` : `Add ${p.name} to queue`}
+                                className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition ${isQueued ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/90 text-zinc-500 hover:text-emerald-300"}`}>{isQueued ? "✓" : "+"}</button>
+                              <button type="button" onClick={() => toggleTarget(p.id)} title="Target" aria-label={isTarget ? `Remove ${p.name} from targets` : `Mark ${p.name} as a target`}
+                                className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition ${isTarget ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/90 text-zinc-500 hover:text-emerald-300"}`}>★</button>
+                              <button type="button" onClick={() => toggleDnd(p.id)} title="Do Not Draft" aria-label={isDnd ? `Allow ${p.name} in the draft` : `Do not draft ${p.name}`}
+                                className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition ${isDnd ? "bg-rose-500/20 text-rose-300" : "bg-zinc-800/90 text-zinc-500 hover:text-rose-300"}`}>×</button>
+                            </>
+                          ) : (
+                            <>
+                              <button type="button" onClick={() => moveQueueItem(p.id, -1)} aria-label={`Move ${p.name} up in queue`} className="flex h-7 w-7 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-300 hover:text-white">↑</button>
+                              <button type="button" onClick={() => moveQueueItem(p.id, 1)} aria-label={`Move ${p.name} down in queue`} className="flex h-7 w-7 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-300 hover:text-white">↓</button>
+                              <button type="button" onClick={() => toggleQueue(p.id)} aria-label={`Remove ${p.name} from queue`} className="flex h-7 w-7 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-300 hover:text-rose-300">×</button>
+                            </>
+                          )}
                         </div>
-                      );
-                    })}
-                </div>
-              </>
+                      </div>
+                    );
+                  })}
+                  {playerListTab === "queue" && visiblePlayers.length === 0 && <p className="rounded-lg border border-dashed border-white/[0.1] px-3 py-6 text-center text-xs text-zinc-500">Queue players from the Available Players tab.</p>}
+                </div></>
             )}
           </div>
         </div>
