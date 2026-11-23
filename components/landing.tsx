@@ -2,7 +2,6 @@ import Link from "next/link";
 import { BoltIcon } from "@/components/icons";
 import { SiteHeader } from "@/components/ui/header";
 import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
-import { NewsletterForm } from "@/components/landing/NewsletterForm";
 import { SmoothScroll } from "@/components/landing/SmoothScroll";
 import { Reveal } from "@/components/ui/reveal";
 import { TextReveal } from "@/components/ui/text-reveal";
@@ -138,19 +137,7 @@ export function LandingPage() {
       {/* ── Footer ──────────────────────────────────────────── */}
       <footer className="relative z-10 mt-auto overflow-hidden border-t border-emerald-400/10 bg-zinc-950/60">
         <div className="relative mx-auto w-full max-w-6xl px-6 py-14">
-          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
-            {/* Stay Connected */}
-            <div>
-              <h3 className="font-display text-2xl leading-tight tracking-wide text-white">
-                Stay
-                <span className="block">Connected</span>
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-500">
-                Join our newsletter for product updates and draft-day tips.
-              </p>
-              <NewsletterForm />
-            </div>
-
+          <div className="grid gap-10 md:grid-cols-2">
             {/* Quick Links */}
             <div>
               <h4 className="text-sm font-semibold text-white">Quick Links</h4>
@@ -193,8 +180,8 @@ export function LandingPage() {
               <h4 className="text-sm font-semibold text-white">Contact Us</h4>
               <ul className="mt-4 space-y-2.5 text-sm text-zinc-500">
                 <li>
-                  <a href="mailto:support@draftedge.app" className="transition hover:text-white">
-                    support@draftedge.app
+                  <a href="mailto:anshtolat@gmail.com" className="transition hover:text-white">
+                    anshtolat@gmail.com
                   </a>
                 </li>
                 <li>

@@ -235,10 +235,10 @@ export default function CookiesPage() {
       <P>
         Questions about this policy? Email{" "}
         <a
-          href="mailto:support@draftedge.app"
+          href="mailto:anshtolat@gmail.com"
           className="font-semibold text-emerald-300 hover:underline"
         >
-          support@draftedge.app
+          anshtolat@gmail.com
         </a>
         .
       </P>

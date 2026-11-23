@@ -198,10 +198,10 @@ export default function TermsPage() {
       </P>
       <P>To file a takedown notice, send the following to{" "}
         <a
-          href="mailto:support@draftedge.app"
+          href="mailto:anshtolat@gmail.com"
           className="font-semibold text-emerald-300 hover:underline"
         >
-          support@draftedge.app
+          anshtolat@gmail.com
         </a>
         :</P>
       <Ul>
@@ -466,10 +466,10 @@ export default function TermsPage() {
       <P>
         Questions about these Terms? Email{" "}
         <a
-          href="mailto:support@draftedge.app"
+          href="mailto:anshtolat@gmail.com"
           className="font-semibold text-emerald-300 hover:underline"
         >
-          support@draftedge.app
+          anshtolat@gmail.com
         </a>
         .
       </P>

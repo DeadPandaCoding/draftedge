@@ -138,10 +138,10 @@ export default function AccessibilityPage() {
         We welcome your feedback on the accessibility of DraftEdge. If you
         encounter a barrier or have a suggestion, please contact us at{" "}
         <a
-          href="mailto:support@draftedge.app"
+          href="mailto:anshtolat@gmail.com"
           className="font-semibold text-emerald-300 hover:underline"
         >
-          support@draftedge.app
+          anshtolat@gmail.com
         </a>
         . We aim to respond within 5 business days.
       </P>

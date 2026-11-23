@@ -365,10 +365,10 @@ export default function PrivacyPage() {
       <P>
         To exercise any of these rights, email{" "}
         <a
-          href="mailto:support@draftedge.app"
+          href="mailto:anshtolat@gmail.com"
           className="font-semibold text-emerald-300 hover:underline"
         >
-          support@draftedge.app
+          anshtolat@gmail.com
         </a>
         . We will verify your identity before processing your request and
         respond within 45 days (extendable by an additional 45 days with
@@ -492,10 +492,10 @@ export default function PrivacyPage() {
       <P>
         Questions about this policy, or to exercise any of your rights, email{" "}
         <a
-          href="mailto:support@draftedge.app"
+          href="mailto:anshtolat@gmail.com"
           className="font-semibold text-emerald-300 hover:underline"
         >
-          support@draftedge.app
+          anshtolat@gmail.com
         </a>
         .
       </P>
