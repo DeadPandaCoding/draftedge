@@ -9,7 +9,6 @@ import { SiteHeader } from "@/components/ui/header";
 import { LeagueSyncCard } from "@/components/dashboard/LeagueSyncCard";
 import {
   ArrowUpIcon,
-  BoltIcon,
   ChevronRightIcon,
   ClockIcon,
   ListCheckIcon,
@@ -63,9 +62,7 @@ export default function HomePage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4" aria-busy="true" aria-label="Loading">
-          <span className="flex h-12 w-12 animate-pulse items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-            <BoltIcon size={24} />
-          </span>
+          <span aria-hidden="true" className="size-8 animate-spin rounded-full border-2 border-white/[0.12] border-t-emerald-400" />
           <Skeleton className="h-2.5 w-28 rounded-full" />
         </div>
       </div>

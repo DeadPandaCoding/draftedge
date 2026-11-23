@@ -82,6 +82,7 @@ export default function TradePage() {
 
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
+  const [selectedMyTeamId, setSelectedMyTeamId] = useState("");
   const [selectedPartnerId, setSelectedPartnerId] = useState("");
   const [fcEntries, setFcEntries] = useState<FantasyCalcEntry[]>([]);
   const fcRequested = useRef<string | null>(null);
@@ -179,19 +180,33 @@ export default function TradePage() {
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const contexts = useMemo(() => buildMatchupContext(players, league?.format ?? "redraft"), [players, league?.format]);
-  const values = useMemo(() => buildTradeValues(players.map((p) => ({ ...p, projection: contexts.get(p.id)?.adjustedRosPoints ?? p.projection })), teamCount), [players, teamCount, contexts]);
+  const values = useMemo(() => buildTradeValues(
+    players.map((p) => ({ ...p, projection: contexts.get(p.id)?.adjustedRosPoints ?? p.projection })),
+    teamCount,
+    fcValueMap,
+  ), [players, teamCount, contexts, fcValueMap]);
   const excluded = useMemo(() => new Set([...sideA, ...sideB]), [sideA, sideB]);
 
   const aPlayers = sideA.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
   const bPlayers = sideB.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
   const importedRosters = activeLeague?.rosters ?? [];
   const mySyncedRoster = importedRosters.find((roster) => roster.is_user);
-  const partnerRoster = importedRosters.find((roster) => roster.owner_id === selectedPartnerId);
+  const myTeamRoster = importedRosters.find((roster) => roster.owner_id === selectedMyTeamId) ?? mySyncedRoster;
+  const partnerOptions = importedRosters.filter((roster) => !roster.is_user && roster.owner_id && roster.owner_id !== myTeamRoster?.owner_id);
+  const partnerRoster = partnerOptions.find((roster) => roster.owner_id === selectedPartnerId) ?? partnerOptions[0];
   const resolveSleeperIds = (ids: string[]) => resolveSleeperPlayerIds(players, ids).map((id) => playersById.get(id)).filter((player): player is Player => Boolean(player));
-  const importRoster = (target: Side, rosterIds: string[]) => {
-    const setter = target === "A" ? setSideA : setSideB;
-    const importedIds = resolveSleeperIds(rosterIds).map((player) => player.id);
-    setter((previous) => [...new Set([...previous, ...importedIds])]);
+  const myTeamPlayers = resolveSleeperIds(myTeamRoster?.players ?? []);
+  const partnerPlayers = resolveSleeperIds(partnerRoster?.players ?? []);
+
+  const toggleSyncedPlayer = (tradeSide: Side, player: Player) => {
+    const current = tradeSide === "A" ? sideA : sideB;
+    const setter = tradeSide === "A" ? setSideA : setSideB;
+    const otherSetter = tradeSide === "A" ? setSideB : setSideA;
+    if (current.includes(player.id)) setter((previous) => previous.filter((id) => id !== player.id));
+    else {
+      otherSetter((previous) => previous.filter((id) => id !== player.id));
+      setter((previous) => previous.includes(player.id) ? previous : [...previous, player.id]);
+    }
   };
 
   const myPicks = useMemo(
@@ -332,8 +347,8 @@ export default function TradePage() {
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-300">{title}</h2>
         <div className="text-right">
-          <span className="font-tech text-lg font-bold text-emerald-300">
-            {totalValue.toFixed(1)} <span className="text-[10px] font-semibold text-zinc-500">VOR</span>
+          <span className="font-mono text-lg font-bold tabular-nums text-emerald-300">
+            {totalValue.toFixed(1)} <span className="text-[10px] font-semibold text-zinc-500">VALUE</span>
           </span>
           {fcTotal > 0 && (
             <span className="ml-2 font-tech text-sm font-semibold text-cyan-300/80">
@@ -429,17 +444,49 @@ export default function TradePage() {
       </div>
 
       {activeLeague && (
-        <section className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-[#0D1412] p-3">
-          <div className="mr-auto">
-            <p className="text-xs font-semibold text-zinc-200">Import from {activeLeague.league_name}</p>
-            <p className="mt-0.5 text-[10px] text-zinc-500">Adds actual Sleeper roster players to the trade sides.</p>
+        <section className="mb-5 rounded-2xl border border-white/[0.08] bg-[#0D1412] p-4 sm:p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div><h2 className="text-sm font-semibold text-white">League Trade Builder</h2><p className="mt-1 text-xs text-zinc-500">Choose individual roster players to add to each trade package.</p></div>
+            <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1.5 font-mono text-[10px] font-semibold text-emerald-300">Auto-set league scoring · {SCORING_LABELS[scoring]}</span>
           </div>
-          <button type="button" disabled={!mySyncedRoster} onClick={() => mySyncedRoster && importRoster("B", mySyncedRoster.players)} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/[0.04] disabled:opacity-40">Load my roster → You Give Up</button>
-          <select aria-label="Trading partner roster" value={selectedPartnerId} onChange={(event) => setSelectedPartnerId(event.target.value)} className="rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs text-zinc-200">
-            <option value="">Trading partner…</option>
-            {importedRosters.filter((roster) => !roster.is_user && roster.owner_id).map((roster) => <option key={roster.owner_id} value={roster.owner_id!}>{roster.team_name}</option>)}
-          </select>
-          <button type="button" disabled={!partnerRoster} onClick={() => partnerRoster && importRoster("A", partnerRoster.players)} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/[0.04] disabled:opacity-40">Load partner → You Receive</button>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="min-w-0">
+              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Side A · Your Team · Adds to You Give Up</label>
+              <select aria-label="Side A your team" value={myTeamRoster?.owner_id ?? ""} onChange={(event) => setSelectedMyTeamId(event.target.value)} className="mb-2 w-full rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs text-zinc-200">
+                {importedRosters.map((roster) => <option key={roster.owner_id} value={roster.owner_id ?? ""}>{roster.is_user ? `${roster.team_name} (You)` : roster.team_name}</option>)}
+              </select>
+              <div className="max-h-72 divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/[0.08] bg-[#080E0C]">
+                {myTeamPlayers.map((player) => {
+                  const added = sideB.includes(player.id);
+                  const otherSide = sideA.includes(player.id);
+                  return <div key={player.id} className="flex items-center gap-2.5 px-3 py-2">
+                    <PosBadge position={player.position} size="xs" />
+                    <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5"><span className="truncate text-xs font-semibold text-zinc-100">{player.name}</span><InjuryBadge status={player.injuryStatus} /></div><p className="font-mono text-[10px] tabular-nums text-zinc-500">{player.team} · {valueOf(player.id).toFixed(1)} value</p></div>
+                    <button type="button" onClick={() => toggleSyncedPlayer("B", player)} className={`rounded-md px-2 py-1 text-[10px] font-semibold ${added ? "bg-white/[0.08] text-zinc-300" : "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"}`}>{added ? "Added" : otherSide ? "Move →" : "+ Add"}</button>
+                  </div>;
+                })}
+                {myTeamPlayers.length === 0 && <p className="px-3 py-4 text-xs text-zinc-500">No matched players in this roster.</p>}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="trade-partner-roster" className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Side B · Trading Partner · Adds to You Receive</label>
+              <select id="trade-partner-roster" aria-label="Side B trading partner" value={partnerRoster?.owner_id ?? ""} onChange={(event) => setSelectedPartnerId(event.target.value)} className="mb-2 w-full rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs text-zinc-200">
+                {partnerOptions.map((roster) => <option key={roster.owner_id} value={roster.owner_id ?? ""}>{roster.team_name}</option>)}
+              </select>
+              <div className="max-h-72 divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/[0.08] bg-[#080E0C]">
+                {partnerPlayers.map((player) => {
+                  const added = sideA.includes(player.id);
+                  const otherSide = sideB.includes(player.id);
+                  return <div key={player.id} className="flex items-center gap-2.5 px-3 py-2">
+                    <PosBadge position={player.position} size="xs" />
+                    <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5"><span className="truncate text-xs font-semibold text-zinc-100">{player.name}</span><InjuryBadge status={player.injuryStatus} /></div><p className="font-mono text-[10px] tabular-nums text-zinc-500">{player.team} · {valueOf(player.id).toFixed(1)} value</p></div>
+                    <button type="button" onClick={() => toggleSyncedPlayer("A", player)} className={`rounded-md px-2 py-1 text-[10px] font-semibold ${added ? "bg-white/[0.08] text-zinc-300" : "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"}`}>{added ? "Added" : otherSide ? "Move →" : "+ Add"}</button>
+                  </div>;
+                })}
+                {partnerPlayers.length === 0 && <p className="px-3 py-4 text-xs text-zinc-500">Choose a partner with matched roster players.</p>}
+              </div>
+            </div>
+          </div>
         </section>
       )}
 
@@ -536,13 +583,13 @@ export default function TradePage() {
                     <div className="bg-cyan-700" style={{ width: `${aFcTotal + bFcTotal > 0 ? (bFcTotal / (aFcTotal + bFcTotal)) * 100 : 50}%` }} />
                   </div>
                   <p className="mt-2 text-[10px] text-zinc-500">
-                    Community trade values from FantasyCalc.com — independent of projection-based VOR.
+                    FantasyCalc consensus is shown as an independent cross-check of DraftEdge VALUE.
                   </p>
                 </div>
               )}
 
               <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
-                <span className="text-zinc-300">VOR</span> = projected points above replacement ({league ? `${league.teamCount}-team` : "12-team"} baseline).
+                <span className="text-zinc-300">VALUE</span> = market trade value when available, blended with a projection and positional-depth estimate otherwise.
                 <span className="ml-2 text-cyan-300/80">FC</span> = community consensus from FantasyCalc.com.
               </p>
             </div>

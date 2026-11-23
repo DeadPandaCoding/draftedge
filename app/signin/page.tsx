@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import {
   AtSignIcon,
-  BoltIcon,
   EyeIcon,
   EyeOffIcon,
   GoogleIcon,
@@ -28,6 +27,7 @@ function AuthCard() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Already authenticated → land on the home dashboard (setup card or league
   // overview is decided there based on whether a league exists).
@@ -62,63 +62,54 @@ function AuthCard() {
 
   const handleGoogle = async () => {
     setError(null);
-    await signInWithGoogle();
-    // Supabase OAuth navigates away; demo mode signs in and the effect redirects.
+    setGoogleLoading(true);
+    try {
+      const result = await signInWithGoogle();
+      if (!result.ok) setError(result.error ?? "Google sign-in failed. Check that Google OAuth is enabled in Supabase.");
+    } catch (googleError) {
+      setError(googleError instanceof Error ? googleError.message : "Google sign-in failed. Check the Supabase Google provider configuration.");
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   const inputClass =
-    "glass-input w-full rounded-lg px-3.5 py-2.5 pl-9 pr-10 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition";
-
-  const socialCircle =
-    "glass glass-hover flex h-11 w-11 items-center justify-center rounded-full text-zinc-300 hover:-translate-y-0.5 hover:text-white";
+    "w-full rounded-lg border border-white/[0.1] bg-[#080E0C] px-3.5 py-2.5 pl-9 pr-10 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-emerald-500/50";
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="relative z-10 w-full max-w-[880px]">
-        <Link href="/" className="mb-8 flex items-center justify-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-            <BoltIcon size={18} />
-          </span>
-          <span className="font-display text-xl tracking-wide text-white">
-            Draft<span className="text-emerald-400">Edge</span>
+    <div className="flex min-h-dvh items-center justify-center bg-[#080E0C] px-4 py-10 text-zinc-100">
+      <div className="w-full max-w-[880px]">
+        <Link href="/" className="mb-8 flex items-center justify-center">
+          <span className="font-display text-2xl font-extrabold tracking-tight text-white">
+            Draft<span className="text-emerald-400">Edge</span><span className="text-[#FF3E9D]">.</span>
           </span>
         </Link>
 
-        <div className="glass-strong overflow-hidden rounded-3xl">
+        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0D1412]">
           <div className="flex flex-col md:flex-row">
             {/* ── Left CTA panel ─────────────────────────────────── */}
-            <div className="relative flex flex-col items-center justify-center gap-3 overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-800 px-8 py-10 text-center md:w-[42%] md:py-16">
-              <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
-              <div className="pointer-events-none absolute -bottom-20 -right-10 h-56 w-56 rounded-full bg-emerald-950/30 blur-2xl" />
-              <h2 className="font-display text-3xl tracking-wide text-white">
+            <div className="flex flex-col items-center justify-center gap-3 border-b border-white/[0.08] bg-[#101C18] px-8 py-10 text-center md:w-[42%] md:border-b-0 md:border-r md:py-16">
+              <h2 className="font-display text-3xl tracking-tight text-white">
                 {mode === "signin" ? "New here?" : "Already have an account?"}
               </h2>
-              <p className="max-w-[28ch] text-sm leading-relaxed text-emerald-50/85">
+              <p className="max-w-[28ch] text-sm leading-relaxed text-zinc-400">
                 {mode === "signin"
-                  ? "Join us today and discover a world of possibilities. Create your account in seconds!"
-                  : "Welcome back! Sign in to pick up your draft right where you left off."}
+                  ? "Set up your account and put your draft tools in one place."
+                  : "Sign in to get back to your league tools and draft boards."}
               </p>
               <button
+                type="button"
                 onClick={flipMode}
-                className="mt-3 rounded-full border-2 border-white/85 px-9 py-2.5 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-white hover:text-emerald-700"
+                className="mt-3 rounded-lg border border-white/[0.12] px-6 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.05] hover:text-white"
               >
                 {mode === "signin" ? "Sign Up" : "Sign In"}
               </button>
 
-              {/* Curved wave edge bleeding into the form panel */}
-              <svg
-                aria-hidden
-                className="absolute right-0 top-0 hidden h-full w-10 md:block"
-                viewBox="0 0 40 100"
-                preserveAspectRatio="none"
-              >
-                <path d="M0 0 H40 V100 H0 C 20 25, 20 75, 0 100 Z" fill="rgba(255,255,255,0.05)" />
-              </svg>
             </div>
 
             {/* ── Right form panel ───────────────────────────────── */}
             <div className="flex flex-1 flex-col justify-center px-8 py-10 md:px-12 md:py-16">
-              <h1 className="font-display text-3xl tracking-wide text-white">
+              <h1 className="font-display text-3xl tracking-tight text-white">
                 {mode === "signin" ? "Sign in" : "Create account"}
               </h1>
               <p className="mt-1.5 text-sm text-zinc-400">
@@ -185,7 +176,7 @@ function AuthCard() {
                 </div>
 
                 {error && (
-                  <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300">
+                  <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300">
                     {error}
                   </p>
                 )}
@@ -193,28 +184,30 @@ function AuthCard() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn-glass-primary font-display w-full rounded-full py-3 text-sm uppercase tracking-wider transition"
+                  className="w-full rounded-lg bg-emerald-500 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting ? "One sec…" : mode === "signin" ? "Sign In" : "Create Account"}
                 </button>
               </form>
 
               <div className="my-6 flex items-center gap-3 text-xs text-zinc-500">
-                <span className="h-px flex-1 bg-zinc-800" />
+                <span className="h-px flex-1 bg-white/[0.08]" />
                 Or continue with
-                <span className="h-px flex-1 bg-zinc-800" />
+                <span className="h-px flex-1 bg-white/[0.08]" />
               </div>
 
-              <div className="flex justify-center">
+              <div>
                 <button
                   type="button"
                   onClick={handleGoogle}
-                  aria-label="Sign in with Google"
-                  title={supabaseEnabled ? "Continue with Google" : "Continue with Google (demo)"}
-                  className={socialCircle}
+                  disabled={googleLoading || submitting}
+                  aria-label="Continue with Google"
+                  className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/[0.1] bg-[#080E0C] px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.04] hover:text-white disabled:cursor-wait disabled:opacity-60"
                 >
-                  <GoogleIcon size={20} />
+                  {googleLoading ? <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-zinc-500 border-t-white" /> : <GoogleIcon size={18} />}
+                  {googleLoading ? "Connecting…" : "Continue with Google"}
                 </button>
+                {!supabaseEnabled && <p className="mt-2 text-center text-[10px] text-zinc-500">Google sign-in uses demo mode while Supabase is not configured.</p>}
               </div>
             </div>
           </div>

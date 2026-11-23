@@ -1,23 +1,18 @@
 import type { Player, Position } from "./types";
 
-/**
- * Trade value = projected points above a replacement-level starter at the
- * player's position (value over replacement). Replacement players are worth 0,
- * so the number is directly comparable across positions — the closest proxy we
- * have for RosterAudit-style market value using bundled projections.
- */
-
-/** Core starters per team (flex depth is folded into the RB/WR/TE baseline). */
-const STARTERS_PER_TEAM: Record<Position, number> = {
-  QB: 1,
-  RB: 2,
-  WR: 2,
-  TE: 1,
-  K: 1,
-  DEF: 1,
+const DEEP_BASELINE_RANK: Record<Position, number> = {
+  QB: 24, RB: 48, WR: 60, TE: 24, K: 20, DEF: 20,
 };
 
-export function buildTradeValues(players: Player[], teamCount = 12): Map<string, number> {
+type PlayerWithMarketValue = Player & { redraftValue?: number; redraft_value?: number };
+
+/** Build a 0–100 estimate from market value when available, then positional depth,
+ * ROS points, and ADP. This is an estimate, not a claim that points equal trade value. */
+export function buildTradeValues(
+  players: Player[],
+  teamCount = 12,
+  marketValues?: ReadonlyMap<string, number>,
+): Map<string, number> {
   const grouped = new Map<Position, Player[]>();
   for (const p of players) {
     const list = grouped.get(p.position) ?? [];
@@ -25,18 +20,40 @@ export function buildTradeValues(players: Player[], teamCount = 12): Map<string,
     grouped.set(p.position, list);
   }
 
-  const baseline = new Map<Position, number>();
-  for (const [pos, list] of grouped) {
-    const sorted = [...list].sort((a, b) => b.projection - a.projection);
-    const starters = STARTERS_PER_TEAM[pos] * teamCount;
-    const idx = Math.min(starters, sorted.length) - 1;
-    baseline.set(pos, idx >= 0 ? sorted[idx].projection : 0);
-  }
-
   const values = new Map<string, number>();
-  for (const p of players) {
-    const b = baseline.get(p.position) ?? 0;
-    values.set(p.id, Math.max(0, p.projection - b));
+  for (const [position, positionPlayers] of grouped) {
+    const sorted = [...positionPlayers].sort((a, b) => {
+      const projectionDiff = b.projection - a.projection;
+      if (projectionDiff !== 0) return projectionDiff;
+      if (a.adp > 0 && b.adp > 0) return a.adp - b.adp;
+      return a.adp > 0 ? -1 : b.adp > 0 ? 1 : a.name.localeCompare(b.name);
+    });
+    const rankById = new Map(sorted.map((player, index) => [player.id, index + 1]));
+    const depthRank = Math.max(1, Math.round(DEEP_BASELINE_RANK[position] * teamCount / 12));
+    const baseRank = Math.min(depthRank, sorted.length);
+    const baselineProjection = sorted[baseRank - 1]?.projection ?? 0;
+    const topAboveBaseline = Math.max(1, (sorted[0]?.projection ?? 0) - baselineProjection);
+
+    for (const player of positionPlayers) {
+      const isUnavailable = ["O", "IR", "PUP"].includes(player.injuryStatus ?? "");
+      if (isUnavailable) {
+        values.set(player.id, 0);
+        continue;
+      }
+
+      const projection = Math.max(0, Number(player.projection) || 0);
+      const adp = Number(player.adp) || 0;
+      const rank = rankById.get(player.id) ?? sorted.length;
+      const rankCurve = 66 * Math.exp(-((rank - 1) / depthRank) * 2.2);
+      const vorCurve = Math.max(0, projection - baselineProjection) / topAboveBaseline * 72;
+      const adpCurve = adp > 0 ? Math.max(0, 30 - Math.log2(adp + 1) * 3.8) : 0;
+      const projectionFloor = projection > 0 ? Math.min(18, Math.max(4, projection * 0.12)) : 0;
+      const fallback = Math.min(100, Math.max(rankCurve, vorCurve, adpCurve, projectionFloor));
+      const suppliedMarket = (marketValues?.get(player.id) ?? (player as PlayerWithMarketValue).redraftValue ?? (player as PlayerWithMarketValue).redraft_value) ?? 0;
+      const market = Math.max(0, Math.min(100, Number(suppliedMarket) || 0));
+      const combined = market > 0 ? market * 0.7 + fallback * 0.3 : fallback;
+      values.set(player.id, Math.round(combined * 10) / 10);
+    }
   }
   return values;
 }

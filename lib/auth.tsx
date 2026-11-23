@@ -40,7 +40,7 @@ interface AuthContextValue {
   supabaseEnabled: boolean;
   signUp: (name: string, email: string, password: string) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
@@ -205,6 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             provider: "google",
             createdAt: Date.now(),
           });
+          return { ok: true };
         },
         async signOut() {
           persistDemoSession(null);
@@ -246,10 +247,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { ok: true };
       },
       async signInWithGoogle() {
-        await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
+          options: { redirectTo: `${window.location.origin}/auth/callback?next=/home` },
         });
+        return error ? { ok: false, error: error.message } : { ok: true };
       },
       async signOut() {
         await supabase.auth.signOut();

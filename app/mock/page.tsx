@@ -10,7 +10,7 @@ import { buildTradeValues } from "@/lib/trade-value";
 import { toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
 import { InjuryBadge, Select } from "@/components/ui";
-import { BoltIcon, ResetIcon, ShuffleIcon } from "@/components/icons";
+import { ResetIcon, ShuffleIcon } from "@/components/icons";
 
 /* ───────── Types ───────── */
 
@@ -54,6 +54,15 @@ function draftPhase(round: number, totalRounds: number): { label: string; tip: s
   if (pct <= 0.85)
     return { label: "Late", tip: "Fliers on high-ceiling backups and breakout candidates." };
   return { label: "Final", tip: "Kicker and D/ST only — never earlier than the last two rounds." };
+}
+
+function rosterPositionEntries(rawPositions: unknown): string[] {
+  if (Array.isArray(rawPositions)) return rawPositions.filter((value): value is string => typeof value === "string");
+  if (!rawPositions || typeof rawPositions !== "object") return [];
+  return Object.entries(rawPositions as Record<string, unknown>).flatMap(([slot, value]) => {
+    const count = typeof value === "number" ? Math.max(0, Math.min(30, Math.floor(value))) : 0;
+    return Array.from({ length: count }, () => slot);
+  });
 }
 
 function countPositions(picks: MockPick[], slot: number, playersById: Map<string, Player>): Record<Position, number> {
@@ -206,6 +215,7 @@ export default function MockDraftPage() {
   const [draftType, setDraftType] = useState<DraftType>("snake");
   const [tePremium, setTePremium] = useState(false);
   const [roster, setRoster] = useState<RosterTemplate>({ ...DEFAULT_ROSTER });
+  const [appliedLeagueId, setAppliedLeagueId] = useState<string | null>(null);
   const [irSlots, setIrSlots] = useState(0);
   const [hideOutIr, setHideOutIr] = useState(false);
 
@@ -350,8 +360,8 @@ export default function MockDraftPage() {
   const applySyncedSettings = () => {
     if (!activeLeague) return;
     const counts: RosterTemplate = { qb: 0, rb: 0, wr: 0, te: 0, flex: 0, superflex: 0, k: 0, def: 0, bench: 0 };
-    for (const rawPosition of activeLeague.roster_positions) {
-      const position = rawPosition.toUpperCase();
+    for (const rawPosition of rosterPositionEntries(activeLeague.roster_positions)) {
+      const position = rawPosition.trim().toUpperCase().replace(/[\s-]+/g, "_");
       if (position === "QB") counts.qb++;
       else if (position === "RB") counts.rb++;
       else if (position === "WR") counts.wr++;
@@ -359,14 +369,15 @@ export default function MockDraftPage() {
       else if (position === "K") counts.k++;
       else if (position === "DEF" || position === "DST") counts.def++;
       else if (position === "SUPER_FLEX" || position === "SUPERFLEX") counts.superflex++;
-      else if (position === "FLEX" || position === "REC_FLEX" || position === "WRRB_FLEX") counts.flex++;
+      else if (["FLEX", "REC_FLEX", "WRRB_FLEX", "WR_RB_FLEX", "WR_TE_FLEX"].includes(position)) counts.flex++;
       else if (position === "BN" || position === "BENCH") counts.bench++;
     }
-    setTeams(activeLeague.total_teams);
-    setMySlot((slot) => Math.min(slot, activeLeague.total_teams));
+    setTeams(Math.max(2, Math.min(32, activeLeague.total_teams)));
+    setMySlot((slot) => Math.max(1, Math.min(slot, activeLeague.total_teams)));
     setScoring(toScoringFormat(activeLeague.scoring_format));
     setTePremium(activeLeague.te_premium);
-    setRoster(counts);
+    if (Object.values(counts).some((count) => count > 0)) setRoster(counts);
+    setAppliedLeagueId(activeLeague.id ?? activeLeague.platform_league_id);
   };
 
   const toggleDnd = (id: string) => {
@@ -484,7 +495,7 @@ export default function MockDraftPage() {
 
             {activeLeague && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0D1412] px-3 py-2.5">
               <div><p className="text-xs font-semibold text-zinc-200">{activeLeague.league_name}</p><p className="mt-0.5 text-[10px] text-zinc-500">{activeLeague.platform.toUpperCase()} settings available for this mock.</p></div>
-              <button type="button" onClick={applySyncedSettings} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-emerald-400">Use League Settings</button>
+              <button type="button" onClick={applySyncedSettings} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-emerald-400">{appliedLeagueId === (activeLeague.id ?? activeLeague.platform_league_id) ? "League Settings Applied ✓" : "Use League Settings"}</button>
             </div>}
 
             {/* Scoring */}
@@ -607,8 +618,7 @@ export default function MockDraftPage() {
             </div>
 
             <button type="button" onClick={startDraft} disabled={!canStart}
-              className="btn-glass-primary flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition disabled:opacity-50">
-              <BoltIcon size={15} />
+              className="flex w-full items-center justify-center rounded-lg bg-emerald-500 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">
               {playersLoading ? "Loading players…" : "Start Mock Draft"}
             </button>
           </div>
@@ -621,9 +631,12 @@ export default function MockDraftPage() {
           <div className="glass-strong rounded-2xl p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Draft Board</h2>
-              <span className="font-tech text-xs text-zinc-500">
-                {done ? "Complete" : `Round ${roundForPick(currentPick, teams)} · Pick ${currentPick}`}
-              </span>
+              <div className="flex items-center gap-2">
+                {activeLeague && appliedLeagueId === (activeLeague.id ?? activeLeague.platform_league_id) && <span className="max-w-40 truncate rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-300">{activeLeague.league_name}</span>}
+                <span className="font-tech text-xs text-zinc-500">
+                  {done ? "Complete" : `Round ${roundForPick(currentPick, teams)} · Pick ${currentPick}`}
+                </span>
+              </div>
             </div>
             <div className="space-y-2">
               {Array.from({ length: totalRounds }).map((_, ri) => {
@@ -806,7 +819,7 @@ export default function MockDraftPage() {
                 })()}
 
                 <button type="button" onClick={autoPick}
-                  className="btn-glass-primary mb-4 w-full rounded-xl py-2.5 text-sm font-bold transition">
+                  className="mb-4 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400">
                   Auto-pick Best
                 </button>
 

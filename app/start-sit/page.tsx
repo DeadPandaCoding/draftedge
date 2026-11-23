@@ -14,7 +14,7 @@ import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/li
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { InjuryBadge, PosBadge, Skeleton } from "@/components/ui";
-import { ListCheckIcon, XIcon } from "@/components/icons";
+import { XIcon } from "@/components/icons";
 
 /** Confidence band from the projection gap between two players. */
 function confidence(diff: number) {
@@ -177,9 +177,6 @@ export default function StartSitPage() {
   return (
     <AppShell maxWidth="max-w-5xl" className="pt-12">
       <div className="mb-8 flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-          <ListCheckIcon size={20} />
-        </span>
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-display text-3xl tracking-wide text-white">Start/Sit Optimizer</h1>

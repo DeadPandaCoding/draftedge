@@ -85,7 +85,7 @@ export function PlayerPicker({
                 <span className="row-span-2"><PosBadge position={p.position} size="xs" /></span>
                 <span className="row-span-2 text-right font-mono text-[11px] tabular-nums text-zinc-300">
                   <span className="block">ROS {((p.rosProjection ?? p.projection) || 0).toFixed(1)}</span>
-                  <span className="text-zinc-500">VOR {tradeValues?.get(p.id)?.toFixed(1) ?? "—"}</span>
+                  <span className="text-zinc-500">VALUE {tradeValues?.get(p.id)?.toFixed(1) ?? "—"}</span>
                 </span>
                 <span className="min-w-0 truncate text-[10px] text-zinc-500">
                   {p.team} · BYE {p.bye || "—"} · PPG {p.usage?.games && p.actualPoints != null ? (p.actualPoints / p.usage.games).toFixed(1) : "—"}
