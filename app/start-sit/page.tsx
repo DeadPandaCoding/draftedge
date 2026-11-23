@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { fetchDraftState, fetchLeague } from "@/lib/data";
@@ -16,6 +16,7 @@ import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { InjuryBadge, PosBadge, Skeleton } from "@/components/ui";
 import { XIcon } from "@/components/icons";
 import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
+import { playerSlug } from "@/lib/seed-data";
 
 /** Confidence band from the projection gap between two players. */
 function confidence(diff: number) {
@@ -51,6 +52,7 @@ export default function StartSitPage() {
 
   const [sideA, setSideA] = useState<string | null>(null);
   const [sideB, setSideB] = useState<string | null>(null);
+  const commandPlayerHandled = useRef(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -76,6 +78,19 @@ export default function StartSitPage() {
       cancelled = true;
     };
   }, [user]);
+
+  useEffect(() => {
+    if (commandPlayerHandled.current || playersLoading || players.length === 0) return;
+    const requestedPlayer = new URLSearchParams(window.location.search).get("player");
+    if (!requestedPlayer) {
+      commandPlayerHandled.current = true;
+      return;
+    }
+    const player = players.find((candidate) => playerSlug(candidate.name) === requestedPlayer);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (player) setSideA(player.id);
+    commandPlayerHandled.current = true;
+  }, [players, playersLoading]);
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const contexts = useMemo(() => buildMatchupContext(players, league?.format ?? "redraft"), [players, league?.format]);
