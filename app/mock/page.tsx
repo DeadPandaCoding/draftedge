@@ -11,6 +11,7 @@ import { toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
 import { InjuryBadge, Select } from "@/components/ui";
 import { ResetIcon, ShuffleIcon } from "@/components/icons";
+import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
 /* ───────── Types ───────── */
 
@@ -460,7 +461,7 @@ export default function MockDraftPage() {
   }, [done, myPicks, playersById, roster]);
 
   if (loading || !user) {
-    return <div className="min-h-screen" aria-busy="true" aria-label="Loading" />;
+    return <ToolLoadingState title="Fantasy Football Mock Draft Simulator" description="Practice fantasy football drafts with configurable league settings, roster slots, draft strategy, and position-aware picks." />;
   }
 
   const canStart = players.length > 0 && !playersLoading;

@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui";
 import { DownloadIcon, SearchIcon } from "@/components/icons";
 import { exportPlayersCsv } from "@/lib/csv";
 import { RANKINGS_SOURCE } from "@/lib/rankings-data";
+import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
 const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
 const POSITION_FILTERS = ["ALL", ...POSITIONS] as (Position | "ALL")[];
@@ -46,7 +47,7 @@ export default function RankingsPage() {
   }, [players, position, search, hideOutIr, showKDef]);
 
   if (loading || !user) {
-    return <div className="min-h-screen" aria-busy="true" aria-label="Loading" />;
+    return <ToolLoadingState title="Fantasy Football Player Rankings" description="Compare fantasy football player rankings, projections, position tiers, and ADP across PPR, Half-PPR, and Standard scoring." />;
   }
 
   return (

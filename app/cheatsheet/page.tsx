@@ -15,6 +15,7 @@ import { PlayersTable } from "@/components/dashboard/PlayersTable";
 import { Skeleton } from "@/components/ui";
 import { DownloadIcon, SearchIcon } from "@/components/icons";
 import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
+import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
 const POSITION_FILTERS = ["ALL", ...POSITIONS] as (Position | "ALL")[];
 
@@ -65,7 +66,7 @@ export default function CheatSheetPage() {
   const draftedPlayerIds = useMemo(() => syncLiveDraft ? new Set(resolveSleeperPlayerIds(players, activeLeague?.drafted_player_ids ?? [])) : undefined, [syncLiveDraft, activeLeague?.drafted_player_ids, players]);
 
   if (loading || !user) {
-    return <div className="min-h-screen" aria-busy="true" aria-label="Loading" />;
+    return <ToolLoadingState title="Fantasy Football Cheat Sheets" description="Build a fantasy football draft cheat sheet with player rankings, tiers, projections, ADP, and synced league settings." />;
   }
 
   return (

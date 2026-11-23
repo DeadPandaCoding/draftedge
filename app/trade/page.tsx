@@ -28,6 +28,7 @@ import {
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { ShareButtons } from "@/components/dashboard/ShareButtons";
+import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 import { InjuryBadge, PosBadge, Skeleton } from "@/components/ui";
 import { XIcon } from "@/components/icons";
 
@@ -413,7 +414,7 @@ export default function TradePage() {
   );
 
   if (loading || !user) {
-    return <div className="min-h-screen" aria-busy="true" aria-label="Loading" />;
+    return <ToolLoadingState title="Fantasy Football Trade Analyzer" description="Compare fantasy football trade packages by player value, rest-of-season projections, roster fit, and matchup context." />;
   }
 
   return (

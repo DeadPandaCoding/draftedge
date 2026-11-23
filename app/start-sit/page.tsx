@@ -15,6 +15,7 @@ import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { InjuryBadge, PosBadge, Skeleton } from "@/components/ui";
 import { XIcon } from "@/components/icons";
+import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
 /** Confidence band from the projection gap between two players. */
 function confidence(diff: number) {
@@ -171,7 +172,7 @@ export default function StartSitPage() {
   );
 
   if (loading || !user) {
-    return <div className="min-h-screen" aria-busy="true" aria-label="Loading" />;
+    return <ToolLoadingState title="Fantasy Football Start/Sit Optimizer" description="Compare fantasy football players for your weekly lineup using projections, health, matchups, and roster context." />;
   }
 
   return (
