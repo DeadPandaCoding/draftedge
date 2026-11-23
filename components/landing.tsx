@@ -51,14 +51,14 @@ export function LandingPage() {
             <h1 className="font-display text-4xl leading-[1.08] tracking-wide text-white sm:text-5xl lg:text-[3.75rem]">
               {/* Oversized headline — words slide up, fade in and de-blur. */}
               <TextReveal
-                text="Know your best pick before the clock runs out."
+                text="Make a more informed pick before the clock runs out."
                 className="block"
                 delay={0.05}
                 stagger={0.08}
               />
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-zinc-300 sm:text-xl">
-              Live rankings, scoring-aware projections, and a draft board that keeps every pick in context.
+              Player rankings, scoring-aware projections, and a draft board that keeps every pick in context.
             </p>
             <Reveal delay={250}>
               <div className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">

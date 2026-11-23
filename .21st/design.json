@@ -1,8 +1,8 @@
 {
   "version": 1,
   "project": {
-    "name": "draftedge",
-    "productType": null,
+    "name": "DraftEdge",
+    "productType": "fantasy football analytics app",
     "stack": [
       "nextjs",
       "react",
@@ -26,20 +26,20 @@
   "design": {
     "colorMode": "dark",
     "colors": {
-      "background": "#04120d",
-      "aurora": ["#34d399", "#22d3ee", "#6366f1", "#2dd4bf", "#a7f3d0"],
-      "surface": "teal #163527",
-      "surfaceElevated": "teal-800/60",
-      "border": "teal #2c5545",
-      "accent": "emerald #34d399",
+      "background": "#080E0C",
+      "surface": "#0D1412",
+      "surfaceElevated": "#131D1A",
+      "border": "rgba(255,255,255,0.08)",
+      "accent": "emerald #10B981",
+      "signalAccent": "pink #FF3E9D (small high-signal callouts only)",
       "accentOn": "#022c22",
       "text": "mint #e2f3ea",
-      "textMuted": "sage #82bea5",
+      "textMuted": "sage #9DD5BD",
       "destructive": "rose-500",
       "tier1": "gold/amber",
       "tier2": "blue",
       "tier3": "emerald",
-      "palette": ["#04120D", "#0C221A", "#34D399", "#22D3EE", "#E2F3EA"]
+      "palette": ["#080E0C", "#0D1412", "#131D1A", "#10B981", "#FF3E9D", "#E2F3EA"]
     },
     "typography": {
       "--font-sans": {
@@ -74,40 +74,28 @@
     "patterns": []
   },
   "constraints": {
-    "must": [
-      "dark navy + periwinkle accent identity",
-      "Liquid Glass material: translucent layered panels, 1px white inner border @40%, specular top highlight, drop shadow",
-      "vibrant multi-color aurora backdrop behind the glass (refraction via blur + saturate)",
-      "text contrast >= 4.5:1",
-      "dense data-dashboard density",
-      "accessible names stable (e2e smoke tests depend on them)"
+      "must": [
+      "high-contrast broadcast-inspired sports analytics UI",
+      "solid stepped dark surfaces: #080E0C, #0D1412, #131D1A",
+      "crisp 1px borders and dense tabular data with tabular numerals",
+      "emerald #10B981 for primary actions; pink #FF3E9D only for small high-signal callouts",
+      "text contrast >= 4.5:1 and accessible names for controls",
+      "respect prefers-reduced-motion"
     ],
     "avoid": [
+      "full-screen grids, aurora blobs, and film-grain overlays",
+      "translucent glass cards, outer neon button glows, and generic SaaS navigation",
       "hover-only interactions",
       "motion that ignores prefers-reduced-motion"
     ]
   },
   "decisions": [
     {
-      "date": "2026-08-19",
-      "direction": "Emerald Terminal",
-      "scope": "whole app (landing, sign-in, onboarding, home, draft room)",
+      "date": "2026-11-22",
+      "direction": "Broadcast Sports Analytics",
+      "scope": "whole app",
       "chosenBy": "user",
-      "summary": "Dark + colorful repaint of the Liquid Glass system: deepest ink-teal base (#04120d), emerald primary accent (#34d399) with cyan (#22d3ee) secondary, dim emerald/teal/cyan/indigo aurora (screen blend at lower opacity so the UI reads dark and colorful), emerald-tinted glass borders instead of white glare, emerald glossy primary buttons, mint text neutrals. Data-viz accents (amber/sky/violet/rose) unchanged."
-    },
-    {
-      "date": "2026-08-18",
-      "direction": "Command Deck",
-      "scope": "whole app (landing, sign-in, draft room)",
-      "chosenBy": "user",
-      "summary": "Elevated pro-dashboard: sticky glass header, slim vertical nav rail in the draft room, sticky column headers + denser table rows, dot-grid + radial-glow ambience on the landing page, richer split-card auth. Keeps zinc + emerald identity."
-    },
-    {
-      "date": "2026-08-18",
-      "direction": "Liquid Glass",
-      "scope": "whole app (landing, sign-in, onboarding, home, draft room)",
-      "chosenBy": "user",
-      "summary": "Apple Liquid Glass material system: translucent layered panels with backdrop blur + saturate refraction over a vibrant animated multi-color aurora, 1px white inner borders at 40%, glossy specular top highlights, soft drop shadows, and tactile hover/active states. Repainted to the 4-color user palette (#05204A navy / #02020A ink / #BFACAA taupe / #E1E2EF periwinkle): emerald-* remapped to a periwinkle ramp (primary accent) and zinc-* to navy surfaces + periwinkle/taupe text, keeping dense dashboard density."
+      "summary": "High-contrast dark canvas with stepped solid surfaces, hairline borders, dense tabular data, emerald primary actions, and restrained pink signal accents. Avoid generic SaaS gradients, aurora, full-screen grids, grain, and glass-heavy cards."
     }
   ],
   "evidence": [
@@ -148,5 +136,5 @@
       "source": "package.json"
     }
   ],
-  "generatedAt": "2026-08-18T05:58:54.812Z"
+  "generatedAt": "2026-11-22T12:00:00.000Z"
 }

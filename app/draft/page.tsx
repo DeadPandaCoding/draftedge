@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import type { LeagueConfig, PickOwner, Position } from "@/lib/types";
@@ -30,6 +30,7 @@ export default function DraftPage() {
   const [view, setView] = useState<ViewMode>("table");
   const [hideDrafted, setHideDrafted] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
+  const rosterDialogRef = useRef<HTMLDivElement>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
   // Guards: must be signed in and have a league configured.
@@ -146,14 +147,47 @@ export default function DraftPage() {
     router.replace("/");
   };
 
-  // Escape closes the mobile roster drawer.
+  // Trap keyboard focus in the mobile roster drawer until it closes.
   useEffect(() => {
     if (!rosterOpen) return;
+    const dialog = rosterDialogRef.current;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    dialog?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setRosterOpen(false);
+      if (e.key === "Escape") {
+        setRosterOpen(false);
+        return;
+      }
+      if (e.key !== "Tab" || !dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.getAttribute("aria-hidden") !== "true");
+      if (focusable.length === 0) {
+        e.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!dialog.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && (active === first || active === dialog)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || active === dialog)) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus();
+    };
   }, [rosterOpen]);
 
   if (!ready || !league) {
@@ -170,7 +204,7 @@ export default function DraftPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#04120d]/45 text-zinc-200">
+    <div className="flex h-dvh flex-col bg-[#04120d]/45 text-zinc-200">
       <DraftHeader
         league={league}
         currentPick={draft.state.currentPick}
@@ -248,13 +282,16 @@ export default function DraftPage() {
           <button
             type="button"
             aria-label="Close roster"
+            tabIndex={-1}
             className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
             onClick={() => setRosterOpen(false)}
           />
           <div
+            ref={rosterDialogRef}
             role="dialog"
             aria-modal="true"
             aria-label="My roster"
+            tabIndex={-1}
             className="glass-strong absolute right-0 top-0 flex h-full w-[320px] max-w-[88vw] flex-col border-l"
           >
             <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">

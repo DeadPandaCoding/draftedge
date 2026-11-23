@@ -155,7 +155,7 @@ export default function CheatSheetPage() {
       {activeLeague && <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-[#0D1412] px-3 py-2.5">
         <label className="inline-flex items-center gap-2 text-xs font-medium text-zinc-300">
           <input type="checkbox" checked={syncLiveDraft} onChange={(event) => setSyncLiveDraft(event.target.checked)} className="accent-emerald-500" />
-          Sync Live Sleeper Draft
+          Sync Sleeper Draft Picks
         </label>
         <span className="text-[10px] text-zinc-500">{activeLeague.league_name} · {activeLeague.drafted_player_ids.length} picks synced</span>
         <button type="button" disabled={syncLoading} onClick={() => void syncNow(activeLeague.platform_league_id).catch(() => {})} className="ml-auto rounded-lg border border-white/[0.1] px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-white/[0.04] disabled:opacity-50">{syncLoading ? "Refreshing…" : "Refresh Picks"}</button>

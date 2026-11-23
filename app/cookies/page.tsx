@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LegalPage, H2, H3, P, Ul, Li, Strong } from "@/components/legal";
+import { LegalPage, H2, H3, P } from "@/components/legal";
 import { CookiePreferences } from "@/components/consent";
 
 export const metadata: Metadata = {
@@ -22,7 +22,7 @@ export default function CookiesPage() {
       <H2>2. What DraftEdge stores</H2>
       <H3>Necessary authentication</H3>
       <P>
-        Supabase Auth uses session cookies to keep you signed in and support authenticated features. These are necessary for account access. If you use the local demo mode, demo account and session information is stored in your browser&apos;s local storage instead.
+        Supabase Auth uses session cookies to keep you signed in and support authenticated features. These are necessary for account access. If you use the local demo mode, demo account, league, and draft information is stored in your browser&apos;s local storage instead.
       </P>
       <H3>Consent and preferences</H3>
       <P>

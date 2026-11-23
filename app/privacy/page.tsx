@@ -31,6 +31,9 @@ export default function PrivacyPage() {
       <P>
         Vercel and Supabase may process technical request information, such as browser and network details, to operate, secure, and troubleshoot the service. Optional Vercel Web Analytics is loaded only if you allow analytics in the consent manager.
       </P>
+      <P>
+        When Supabase is not configured and the app runs in local demo mode, demo account, league, and draft information is stored in your browser&apos;s local storage instead of your Supabase account.
+      </P>
 
       <H2>2. How we use information</H2>
       <Ul>

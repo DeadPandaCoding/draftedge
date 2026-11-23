@@ -135,7 +135,7 @@ export function DraftHeader({
           )}
         </Dropdown>
 
-        {/* Live pick countdown clock (matches the hero mockup) */}
+        {/* Live pick countdown clock for an active draft. */}
         {status !== "completed" && (
           <PickClock
             status={status}
@@ -150,7 +150,7 @@ export function DraftHeader({
           align="right"
           width="w-60"
           trigger={
-            <button className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-gradient-to-br from-zinc-700 to-zinc-800 text-sm font-bold text-white transition hover:border-zinc-500">
+            <button type="button" aria-label={`Account menu for ${user?.name ?? "user"}`} className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-gradient-to-br from-zinc-700 to-zinc-800 text-sm font-bold text-white transition hover:border-zinc-500">
               {(user?.name ?? "?").charAt(0).toUpperCase()}
             </button>
           }

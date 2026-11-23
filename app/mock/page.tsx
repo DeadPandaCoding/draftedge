@@ -549,7 +549,7 @@ export default function MockDraftPage() {
                     <Select label="Draft slot" value={String(mySlot)} onChange={(v) => setMySlot(Number(v))}
                       options={Array.from({ length: teams }, (_, i) => ({ value: String(i + 1), label: `#${i + 1}` }))} />
                   </div>
-                  <button type="button" onClick={randomizeSlot} title="Randomize slot"
+                  <button type="button" onClick={randomizeSlot} title="Randomize slot" aria-label="Randomize draft slot"
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800/50 text-zinc-400 transition hover:border-emerald-500/50 hover:text-emerald-300">
                     <ShuffleIcon size={14} />
                   </button>
@@ -863,13 +863,13 @@ export default function MockDraftPage() {
                             </span>
                           </button>
                           {/* DND / Target toggle */}
-                          <div className="absolute right-1 top-1 hidden gap-0.5 group-hover:flex">
+                          <div className="absolute right-1 top-1 hidden gap-0.5 group-hover:flex group-focus-within:flex">
                             <button type="button" onClick={(e) => { e.stopPropagation(); toggleTarget(p.id); }}
-                              title="Target" className={`flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold transition ${isTarget ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/80 text-zinc-600 hover:text-emerald-400"}`}>
+                              title="Target" aria-label={isTarget ? `Remove ${p.name} from targets` : `Mark ${p.name} as a target`} className={`flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold transition ${isTarget ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/80 text-zinc-600 hover:text-emerald-400"}`}>
                               ★
                             </button>
                             <button type="button" onClick={(e) => { e.stopPropagation(); toggleDnd(p.id); }}
-                              title="Do Not Draft" className={`flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold transition ${isDnd ? "bg-rose-500/20 text-rose-300" : "bg-zinc-800/80 text-zinc-600 hover:text-rose-400"}`}>
+                              title="Do Not Draft" aria-label={isDnd ? `Allow ${p.name} in the draft` : `Do not draft ${p.name}`} className={`flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold transition ${isDnd ? "bg-rose-500/20 text-rose-300" : "bg-zinc-800/80 text-zinc-600 hover:text-rose-400"}`}>
                               ✕
                             </button>
                           </div>

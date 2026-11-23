@@ -29,7 +29,10 @@ export function DraftAction({
     if (!open) return;
     const close = () => setOpen(false);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        close();
+        btnRef.current?.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     window.addEventListener("resize", close);
@@ -57,6 +60,7 @@ export function DraftAction({
         <button
           onClick={() => onUndraft(player.id)}
           title="Undo draft"
+          aria-label={`Undo draft for ${player.name}`}
           className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
         >
           <UndoIcon size={13} />

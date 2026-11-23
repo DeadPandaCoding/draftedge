@@ -10,7 +10,7 @@ const SHOWCASE_ITEMS = [
     body: "Spot position runs and compare scoring-aware rankings before your next pick.",
     ctaLabel: "Open Cheat Sheets",
     href: "/cheatsheet",
-    badge: "LIVE BOARD",
+    badge: "RANKINGS PREVIEW",
   },
   {
     id: "trades",
@@ -18,7 +18,7 @@ const SHOWCASE_ITEMS = [
     body: "Put both sides of a deal in context with player values and projection data.",
     ctaLabel: "Launch Trade Analyzer",
     href: "/trade",
-    badge: "TRADE TOOL",
+    badge: "TRADE PREVIEW",
   },
   {
     id: "mock",
@@ -26,7 +26,7 @@ const SHOWCASE_ITEMS = [
     body: "Run a mock draft, test different picks, and see how your roster takes shape.",
     ctaLabel: "Start a Mock Draft",
     href: "/mock",
-    badge: "MOCK DRAFT",
+    badge: "MOCK PREVIEW",
   },
 ] as const;
 
@@ -140,9 +140,9 @@ function ToolPreview({ id }: { id: (typeof SHOWCASE_ITEMS)[number]["id"] }) {
         <div className="min-w-0 bg-[#FF3E9D]/10 px-2 py-2 sm:px-3">
           <div className="flex items-center justify-between gap-1">
             <span className="truncate font-mono text-[8px] font-bold text-[#FF3E9D] sm:text-[9px]">2.04 · YOU</span>
-            <span className="font-mono text-[9px] font-bold tabular-nums text-[#FF3E9D] sm:text-[10px]">0:14</span>
+            <span className="font-mono text-[9px] font-bold text-[#FF3E9D] sm:text-[10px]">YOUR PICK</span>
           </div>
-          <p className="mt-0.5 truncate text-[9px] font-semibold text-white sm:text-[10px]">On the clock</p>
+          <p className="mt-0.5 truncate text-[9px] font-semibold text-white sm:text-[10px]">Pick 2.04</p>
         </div>
       </div>
 

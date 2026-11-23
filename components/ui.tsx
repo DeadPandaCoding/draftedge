@@ -57,16 +57,43 @@ export function Modal({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Dialog semantics: Escape to close, focus moves into the dialog on open and
-  // returns to the trigger on close. (A full focus trap is intentionally not
-  // implemented — the dialog only contains action buttons, so Tab order stays
-  // short and visible.)
+  // Keep keyboard focus inside the modal until it closes.
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    dialogRef.current?.focus();
+    const dialog = dialogRef.current;
+    dialog?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !dialog) return;
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.getAttribute("aria-hidden") !== "true");
+      if (focusable.length === 0) {
+        e.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!dialog.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && (active === first || active === dialog)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || active === dialog)) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => {
@@ -81,6 +108,7 @@ export function Modal({
       <button
         type="button"
         aria-label="Close dialog"
+        tabIndex={-1}
         className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -117,14 +145,28 @@ export function Dropdown({
   width?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [restoreTriggerFocus, setRestoreTriggerFocus] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const closeAndFocusTrigger = () => {
+    setRestoreTriggerFocus(true);
+    setOpen(false);
+  };
+
+  useEffect(() => {
+    if (open || !restoreTriggerFocus) return;
+    ref.current?.querySelector<HTMLElement>("button, [role='button']")?.focus();
+  }, [open, restoreTriggerFocus]);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setRestoreTriggerFocus(true);
+      setOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     document.addEventListener("keydown", esc);
     return () => {
@@ -143,7 +185,10 @@ export function Dropdown({
           "aria-haspopup"?: string;
         }>,
         {
-          onClick: () => setOpen((o) => !o),
+          onClick: () => {
+            setRestoreTriggerFocus(false);
+            setOpen((o) => !o);
+          },
           "aria-expanded": open,
           "aria-haspopup": "menu",
         },
@@ -151,7 +196,13 @@ export function Dropdown({
     : trigger;
 
   return (
-    <div className="relative" ref={ref}>
+    <div
+      className="relative"
+      ref={ref}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
       {triggerEl}
       {open && (
         <BorderGlow
@@ -160,7 +211,7 @@ export function Dropdown({
           borderRadius={12}
           glowRadius={28}
         >
-          <div className="overflow-hidden rounded-xl">{children(() => setOpen(false))}</div>
+          <div className="overflow-hidden rounded-xl">{children(closeAndFocusTrigger)}</div>
         </BorderGlow>
       )}
     </div>

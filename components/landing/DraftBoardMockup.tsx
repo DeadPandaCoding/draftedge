@@ -99,7 +99,7 @@ export function DraftBoardMockup() {
               PICK 1.{String(draftedCount + 1).padStart(2, "0")}
             </span>
             <span className="truncate font-mono text-xs text-zinc-400">
-              {source === "live" ? "Live snapshot" : "Baseline snapshot"} · <span className="text-zinc-200">{scoring === "half_ppr" ? "Half-PPR" : scoring.toUpperCase()}</span>
+              {source === "live" ? "Current snapshot" : "Baseline snapshot"} · <span className="text-zinc-200">{scoring === "half_ppr" ? "Half-PPR" : scoring.toUpperCase()}</span>
             </span>
           </div>
           <div className="inline-flex rounded-lg border border-white/[0.08] bg-[#0D1613] p-0.5" role="group" aria-label="Scoring format">
@@ -124,8 +124,8 @@ export function DraftBoardMockup() {
         </div>
 
         <div className="divide-y divide-white/[0.06]" aria-live="polite">
-          {loading && <div className="px-4 py-8 text-center text-sm text-zinc-400">Loading live player rankings…</div>}
-          {!loading && loadError && <div className="px-4 py-8 text-center text-sm text-zinc-400">Live rankings are temporarily unavailable.</div>}
+          {loading && <div className="px-4 py-8 text-center text-sm text-zinc-400">Loading player rankings…</div>}
+          {!loading && loadError && <div className="px-4 py-8 text-center text-sm text-zinc-400">Player rankings are temporarily unavailable.</div>}
           {!loading && !loadError && rows.map((player) => {
             const drafted = draftedIds.has(player.id);
             const tier = Math.min(player.tier || 3, 3);

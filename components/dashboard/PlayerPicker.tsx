@@ -58,6 +58,12 @@ export function PlayerPicker({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && open) {
+              event.preventDefault();
+              setOpen(false);
+            }
+          }}
           placeholder={placeholder}
           aria-label={placeholder}
           className="glass-input w-full rounded-lg py-2.5 pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition"

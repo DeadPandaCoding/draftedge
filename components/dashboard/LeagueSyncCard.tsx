@@ -63,7 +63,7 @@ export function LeagueSyncCard() {
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-400">League Sync</p>
           <h2 className="mt-1 text-base font-semibold text-white">Bring your fantasy league into DraftEdge</h2>
         </div>
-        {activeLeague && <span className="rounded border border-pop-border bg-pop-soft px-2 py-1 font-mono text-[10px] font-bold text-pop">LIVE SYNC</span>}
+        {activeLeague && <span className="rounded border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 font-mono text-[10px] font-bold text-emerald-300">LEAGUE CONNECTED</span>}
       </div>
 
       {activeLeague && !showConnectForm ? (
