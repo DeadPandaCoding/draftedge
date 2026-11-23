@@ -9,7 +9,8 @@ import { DEFAULT_ROSTER, SCORING_LABELS, roundForPick, rosterSize, slotForPick }
 import { buildTradeValues } from "@/lib/trade-value";
 import { toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
-import { InjuryBadge, PosBadge, Select } from "@/components/ui";
+import styles from "./room.module.css";
+import { InjuryBadge, Select } from "@/components/ui";
 import { ShuffleIcon } from "@/components/icons";
 import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
@@ -24,7 +25,16 @@ interface MockPick {
 
 type Strategy = "balanced" | "zero_rb" | "hero_rb" | "robust_rb" | "elite_qb" | "elite_te";
 type BotProfile = "consensus" | "vorp" | "zero_rb" | "hero_rb";
-type PlayerListTab = "available" | "queue";
+const slotTypes = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "K", "DEF", "BENCH"] as const;
+type Slot = typeof slotTypes[number];
+
+function eligible(slot: Slot | "ALL", position: Position) {
+  if (slot === "ALL" || slot === "BENCH") return true;
+  if (slot === "FLEX" || slot === "SUPERFLEX") {
+    return ["RB", "WR", "TE"].includes(position) || (slot === "SUPERFLEX" && position === "QB");
+  }
+  return position === slot;
+}
 
 /* ───────── Constants ───────── */
 
@@ -45,26 +55,6 @@ const STRATEGIES: { value: Strategy; label: string; tip: string }[] = [
   { value: "elite_qb", label: "Elite QB", tip: "Grab an elite dual-threat QB in rounds 1-3." },
   { value: "elite_te", label: "Elite TE", tip: "Target a top-3 TE early, then build RB/WR around them." },
 ];
-
-const BOT_PROFILE_LABEL: Record<BotProfile, string> = {
-  consensus: "ADP",
-  vorp: "VORP",
-  zero_rb: "ZERO-RB",
-  hero_rb: "HERO-RB",
-};
-
-/* ───────── Helpers ───────── */
-
-function draftPhase(round: number, totalRounds: number): { label: string; tip: string } {
-  const pct = round / totalRounds;
-  if (pct <= 0.25)
-    return { label: "Early", tip: "Secure elite RB/WR anchors — don't reach for QB/TE yet." };
-  if (pct <= 0.6)
-    return { label: "Mid", tip: "Build depth at RB/WR, consider Hero QB or elite TE builds." };
-  if (pct <= 0.85)
-    return { label: "Late", tip: "Fliers on high-ceiling backups and breakout candidates." };
-  return { label: "Final", tip: "Kicker and D/ST only — never earlier than the last two rounds." };
-}
 
 function rosterPositionEntries(rawPositions: unknown): string[] {
   if (Array.isArray(rawPositions)) return rawPositions.filter((value): value is string => typeof value === "string");
@@ -309,12 +299,12 @@ export default function MockDraftPage() {
   const [started, setStarted] = useState(false);
   const [picks, setPicks] = useState<MockPick[]>([]);
   const [playerQuery, setPlayerQuery] = useState("");
-  const [mockPos, setMockPos] = useState<Position | "ALL">("ALL");
+  const [mockPos, setMockPos] = useState<Slot | "ALL">("ALL");
   const [botProfiles, setBotProfiles] = useState<Record<number, BotProfile>>({});
   const [botSeed, setBotSeed] = useState(0);
   const [queueIds, setQueueIds] = useState<string[]>([]);
   const [queueHydrated, setQueueHydrated] = useState(false);
-  const [playerListTab, setPlayerListTab] = useState<PlayerListTab>("available");
+  const [playerListTab, setPlayerListTab] = useState<"roster" | "queue">("roster");
   const [copyStatus, setCopyStatus] = useState("");
   const [timerExpired, setTimerExpired] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -484,7 +474,7 @@ export default function MockDraftPage() {
     setStarted(false);
     setPlayerQuery("");
     setMockPos("ALL");
-    setPlayerListTab("available");
+    setPlayerListTab("roster");
     setCopyStatus("");
   };
 
@@ -529,43 +519,45 @@ export default function MockDraftPage() {
   );
   const visiblePlayers = useMemo(() => {
     const query = playerQuery.trim().toLowerCase();
-    const source = playerListTab === "queue" ? queuedPlayers : players;
-    const filtered = source.filter((p) =>
+
+    const filtered = draftPlayers.filter((p) =>
       !drafted.has(p.id) &&
-      (mockPos === "ALL" || mockPos === p.position) &&
+      eligible(mockPos, p.position) &&
       (!hideOutIr || !["O", "IR", "PUP"].includes(p.injuryStatus ?? "")) &&
-      (playerListTab === "queue" || ((p.position !== "K" || roster.k > 0) && (p.position !== "DEF" || roster.def > 0))) &&
+      (p.position !== "K" || roster.k > 0) && (p.position !== "DEF" || roster.def > 0) &&
       p.name.toLowerCase().includes(query)
     );
-    if (playerListTab === "queue") return filtered;
     return filtered.sort((a, b) => (tradeValues.get(b.id) ?? 0) - (tradeValues.get(a.id) ?? 0));
-  }, [playerQuery, playerListTab, queuedPlayers, players, drafted, mockPos, hideOutIr, roster.k, roster.def, tradeValues]);
+  }, [playerQuery, draftPlayers, drafted, mockPos, hideOutIr, roster.k, roster.def, tradeValues]);
 
   // Post-draft audit
   const draftGrades = useMemo(() => (done ? gradeDraft(picks, teams, tradeValues, playersById, roster) : []), [done, picks, teams, tradeValues, playersById, roster]);
   const draftGrade = draftGrades.find((grade) => grade.slot === mySlot);
 
-  const myPositionCounts = useMemo(() => countPositions(picks, mySlot, playersById), [picks, mySlot, playersById]);
-  const filledCoreSkillSlots = Math.min(myPositionCounts.RB, roster.rb) + Math.min(myPositionCounts.WR, roster.wr) + Math.min(myPositionCounts.TE, roster.te);
-  const totalSkillPicks = myPositionCounts.RB + myPositionCounts.WR + myPositionCounts.TE;
-  const flexSlotsFilled = Math.min(roster.flex, Math.max(0, totalSkillPicks - filledCoreSkillSlots));
-  const eligibleCoreSlots = Math.min(myPositionCounts.QB, roster.qb) + filledCoreSkillSlots;
-  const superflexSlotsFilled = Math.min(roster.superflex ?? 0, Math.max(0, myPositionCounts.QB + totalSkillPicks - eligibleCoreSlots - flexSlotsFilled));
-  const openStarterSlots = [
-    ...Array.from({ length: Math.max(0, roster.qb - myPositionCounts.QB) }, () => "QB"),
-    ...Array.from({ length: Math.max(0, roster.rb - myPositionCounts.RB) }, (_, index) => `RB${myPositionCounts.RB + index + 1}`),
-    ...Array.from({ length: Math.max(0, roster.wr - myPositionCounts.WR) }, (_, index) => `WR${myPositionCounts.WR + index + 1}`),
-    ...Array.from({ length: Math.max(0, roster.te - myPositionCounts.TE) }, () => "TE"),
-    ...Array.from({ length: Math.max(0, roster.flex - flexSlotsFilled) }, () => "FLEX"),
-    ...Array.from({ length: Math.max(0, (roster.superflex ?? 0) - superflexSlotsFilled) }, () => "SUPERFLEX"),
-    ...Array.from({ length: Math.max(0, roster.k - myPositionCounts.K) }, () => "K"),
-    ...Array.from({ length: Math.max(0, roster.def - myPositionCounts.DEF) }, () => "DEF"),
-  ];
-  const recentPicks = picks.slice(-6).reverse();
-  const positionalRun = (["RB", "WR"] as const).map((position) => ({
-    position,
-    count: picks.slice(-6).filter((pick) => playersById.get(pick.playerId)?.position === position).length,
-  })).find((run) => run.count >= 4);
+  const slots = useMemo(() => {
+    const remaining = myPicks.flatMap(pick => playersById.get(pick.playerId) ?? []);
+    const rows = slotTypes.flatMap(slot => {
+      const count = roster[slot.toLowerCase() as keyof RosterTemplate];
+      return Array.from({ length: count }, () => {
+        const index = remaining.findIndex(player => eligible(slot, player.position));
+        return { slot, player: index < 0 ? undefined : remaining.splice(index, 1)[0] };
+      });
+    });
+    // Manual picks may exceed bench capacity while starter slots remain open.
+    return [...rows, ...remaining.map(player => ({ slot: "BENCH" as const, player }))];
+  }, [myPicks, playersById, roster]);
+  const boardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const board = boardRef.current;
+    const cell = board?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!board || !cell) return;
+    const bounds = board.getBoundingClientRect();
+    const tile = cell.getBoundingClientRect();
+    if (tile.left < bounds.left + 48 || tile.right > bounds.right)
+      board.scrollLeft += tile.left - bounds.left - board.clientWidth / 2 + tile.width / 2;
+    if (tile.top < bounds.top + 36 || tile.bottom > bounds.bottom)
+      board.scrollTop += tile.top - bounds.top - 40;
+  }, [currentPick, started]);
   const biggestSteal = myPicks
     .map((pick) => ({ pick, player: playersById.get(pick.playerId) }))
     .filter((entry): entry is { pick: MockPick; player: Player } => Boolean(entry.player && entry.player.adp > 0))
@@ -635,8 +627,8 @@ export default function MockDraftPage() {
   const canStart = players.length > 0 && !playersLoading;
 
   return (
-    <AppShell maxWidth="max-w-[1440px]" className={started ? "pt-4" : "pt-10"}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <AppShell draftRoom={started && !done} maxWidth={started && !done ? "max-w-none" : "max-w-[1440px]"} className={started ? "" : "pt-10"}>
+      {(!started || done) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl tracking-wide text-white">Mock Draft</h1>
           {!started && <p className="mt-2 text-sm text-zinc-400">
@@ -644,7 +636,7 @@ export default function MockDraftPage() {
           </p>}
         </div>
         {done && <button type="button" onClick={reset} className="rounded-lg px-3 py-2 text-sm hover:bg-white/5">Reset</button>}
-      </div>
+      </div>}
 
       {/* ════════════════════════════════════════════ PHASE 1: SETUP ════════════════════════════════════════════ */}
       {!started ? (
@@ -783,28 +775,24 @@ export default function MockDraftPage() {
         </div>
       ) : (
         /* ════════════════════════════════════════════ PHASE 3: DRAFT / RESULTS ════════════════════════════════════════════ */
-        <div className="space-y-3">
-          {!done && (
-            <section aria-label="Current pick" className="glass-strong flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-2">
-              <h2 className="text-sm font-bold text-white">{isMyTurn ? "Your Pick" : "On the clock"} <span className="font-mono text-xs text-emerald-300">Round {roundForPick(currentPick, teams)} / Pick {currentPick}</span></h2>
-              {pickTimer > 0 && <span aria-label="Pick clock" className={`font-mono text-sm font-bold tabular-nums ${secondsLeft <= 15 ? "text-pop" : secondsLeft <= 30 ? "text-amber-300" : "text-emerald-300"}`}>
-                {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
-              </span>}
-              <p className="order-last w-full text-xs text-zinc-400 sm:order-none sm:w-auto sm:flex-1">{draftPhase(roundForPick(currentPick, teams), totalRounds).tip}</p>
-              <button type="button" onClick={autoPick} disabled={!isMyTurn} className="disabled:opacity-40 ml-auto rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400">Auto-Pick</button>
-              <button type="button" onClick={simulateRest} className="rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-white/5">Simulate Rest</button>
-              <button type="button" onClick={reset} className="rounded-lg px-3 py-1.5 text-xs text-zinc-400 hover:text-white">Reset</button>
-            </section>
-          )}
-          <details className="min-w-0 rounded-xl border border-white/10 bg-[#0D1412] px-4 open:pb-4">
-            <summary className="cursor-pointer py-3 text-sm font-semibold text-white">Draft Board <span className="ml-2 text-xs font-normal text-zinc-400">{teams} teams &middot; {totalRounds} rounds</span></summary>
-            <div role="region" aria-label="Draft board by round and team" tabIndex={0} className="max-h-[48dvh] overflow-x-auto rounded-lg border border-white/10">
+        <div className={done ? "space-y-4" : styles.room}>
+          <section className={styles.board}>
+            <header className={styles.toolbar}>
+              <h1>Draft Board</h1>
+              <span>{done ? "Complete" : `Round ${roundForPick(currentPick, teams)} / Pick ${currentPick}`}</span>
+              {!done && <div className={styles.controls}>
+                <button onClick={autoPick} disabled={!isMyTurn}>Auto-Pick</button>
+                <button onClick={simulateRest}>Simulate Rest</button>
+                <button onClick={reset}>Reset</button>
+              </div>}
+            </header>
+            <div ref={boardRef} role="region" aria-label="Draft board by round and team" tabIndex={0} className={styles.boardScroll}>
               <table className="w-full border-separate border-spacing-0 text-left text-xs">
                 <thead className="sticky top-0 z-20 bg-[#131D1A]">
                   <tr>
                     <th scope="col" className="sticky left-0 bg-[#131D1A] px-2 py-2">Rd</th>
                     {Array.from({ length: teams }, (_, i) => (
-                      <th key={i} scope="col" className="min-w-[116px] whitespace-nowrap px-2 py-2">
+                      <th key={i} scope="col" className={`min-w-[122px] whitespace-nowrap px-2 py-2 ${i + 1 === mySlot ? "bg-emerald-950 text-emerald-300" : ""}`}>
                         {i + 1 === mySlot ? `Team ${i + 1} (You)` : `Team ${i + 1}`}
                       </th>
                     ))}
@@ -815,23 +803,20 @@ export default function MockDraftPage() {
                     const round = i + 1;
                     return (
                       <tr key={round}>
-                        <th scope="row" className="sticky left-0 z-10 border-t border-white/10 bg-[#131D1A] px-2">R{round}</th>
+                        <th scope="row" className="sticky left-0 z-10 border-t border-white/10 bg-[#131D1A] px-2">R{round}<small className="block text-zinc-400">{slotForPick(i * teams + 1, teams, draftType) === 1 ? "→" : "←"}</small></th>
                         {Array.from({ length: teams }, (_, j) => {
                           const slot = j + 1;
                           const firstPick = i * teams + 1;
                           const pickNumber = firstPick + (slotForPick(firstPick, teams, draftType) === 1 ? j : teams - slot);
                           const pick = picks[pickNumber - 1];
                           const player = pick && playersById.get(pick.playerId);
+                          const active = !done && pickNumber === currentPick;
+                          const [first, ...last] = player?.name.split(" ") ?? [];
                           return (
-                            <td key={slot} className={`min-w-[116px] border-l border-t border-white/10 px-2 py-1.5 ${slot === mySlot ? "bg-emerald-500/5" : ""}`}>
-                              {player ? (
-                                <div title={player.name}>
-                                  <span className="block whitespace-nowrap font-semibold">{player.position === "DEF" ? player.name : player.name.replace(/^(\S)\S*\s+/, "$1. ")}</span>
-                                  <span className="mt-1 flex items-center gap-1 whitespace-nowrap text-[10px] text-zinc-400">
-                                    <PosBadge position={player.position} size="xs" /> {player.projection.toFixed(0)} pts{player.adp > 0 && ` / ADP ${player.adp.toFixed(0)}`}
-                                  </span>
-                                </div>
-                              ) : <span className="text-zinc-500">P{pickNumber}</span>}
+                            <td key={slot} aria-current={active ? "step" : undefined} data-pos={player?.position} data-mine={slot === mySlot} className={styles.tile}>
+                              <small>{round}.{pickNumber - i * teams}{pickNumber % teams === 0 && round < totalRounds && " ↓"}</small>
+                              {active ? <><strong className="text-pop">ON THE CLOCK</strong><b className="font-mono text-white">{pickTimer ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Untimed"}</b></>
+                                : player && <><span>{last.length ? first : ""}</span><strong>{last.join(" ") || first}</strong><small>{player.position} &middot; {player.team} (Bye {player.bye || "—"})</small></>}
                             </td>
                           );
                         })}
@@ -841,11 +826,9 @@ export default function MockDraftPage() {
                 </tbody>
               </table>
             </div>
-          </details>
-          <div className={done ? "" : "grid items-start gap-5 lg:grid-cols-[minmax(550px,1fr)_minmax(240px,300px)]"}>
-            <section className="glass-strong min-w-0 rounded-2xl p-3 sm:p-4">
-              {done ? (
-                <>
+          </section>
+          {done ? (
+            <section className="glass-strong rounded-xl p-5">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Draft Results</h2>
                 <p className="mt-1 text-xs text-zinc-500">
                   {totalRounds} rounds · pick {mySlot} · {SCORING_LABELS[scoring]} · {STRATEGIES.find((s) => s.value === strategy)?.label}
@@ -943,119 +926,50 @@ export default function MockDraftPage() {
                     );
                   })}
                 </div>
-                </>
-              ) : (
-                <>
-                <div className="mb-3 grid grid-cols-2 border-b border-white/[0.08]">
-                  {(["available", "queue"] as const).map((tab) => (
-                    <button key={tab} type="button" onClick={() => setPlayerListTab(tab)} aria-pressed={playerListTab === tab}
-                      className={`border-b-2 px-3 py-2 text-xs font-semibold transition ${playerListTab === tab ? "border-emerald-400 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}>
-                      {tab === "available" ? "Available Players" : `My Queue${activeQueueIds.length ? ` (${activeQueueIds.length})` : ""}`}
-                    </button>
-                  ))}
-                </div>
-
-                <input type="search" aria-label="Search draft players" placeholder="Search players by name" value={playerQuery} onChange={(event) => setPlayerQuery(event.target.value)} className="mb-3 h-10 w-full rounded-lg border border-white/10 bg-[#080E0C] px-3 text-sm outline-none focus:border-emerald-400" />
-                {/* Position filters */}
-                <div className="mb-3 flex flex-wrap gap-1">
-                  {(["ALL", "QB", "RB", "WR", "TE", "K", "DEF"] as const).map((pos) => (
-                    <button key={pos} type="button" onClick={() => setMockPos(pos)} aria-pressed={mockPos === pos}
-                      className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${mockPos === pos ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40" : "bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"}`}>
-                      {pos}
-                    </button>
-                  ))}
-                  <label className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-zinc-500">
-                    <input type="checkbox" checked={hideOutIr} onChange={(e) => setHideOutIr(e.target.checked)} className="accent-emerald-500" /> Hide Out/IR
-                  </label>
-                </div>
-
-                {/* Player list */}
-                <div className="max-h-[60dvh] space-y-1.5 overflow-y-auto pr-1">
-                  {visiblePlayers.map((p) => {
-                    const queued = activeQueueIds.includes(p.id);
-                    const queueAction = queued ? "Remove from Queue" : "Add to Queue";
-                    return (
-                      <div key={p.id} className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-white/[0.06] px-1 py-3 sm:px-3">
-                        <div className="min-w-0 flex-auto">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-semibold text-zinc-100">{p.name}</span>
-                            <InjuryBadge status={p.injuryStatus} />
-                          </div>
-                          <p className="mt-1 flex flex-wrap gap-x-4 text-xs tabular-nums text-zinc-400">
-                            <span>{p.position} &middot; {p.team} &middot; Bye {p.bye || "—"}</span>
-                            <span>ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"} &middot; {p.projection.toFixed(1)} pts</span>
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => makeMyPick(p.id)} disabled={!isMyTurn} aria-label={`Draft ${p.name}`} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40">Draft</button>
-                          <button type="button" onClick={() => toggleQueue(p.id)} aria-pressed={queued} aria-label={`${queueAction}: ${p.name}`} title={queueAction} className="rounded-lg px-2 py-1.5 text-xs text-zinc-400 hover:bg-white/5 aria-pressed:text-emerald-300"><span aria-hidden="true">&#9733;</span> {queued ? "Queued" : "Queue"}</button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {visiblePlayers.length === 0 && <p className="rounded-lg border border-dashed border-white/[0.1] px-3 py-6 text-center text-xs text-zinc-500">{playerListTab === "queue" ? "No queued players match this filter." : "No available players match this filter and roster configuration."}</p>}
-                </div>
-                </>
-              )}
             </section>
-            <aside className="min-w-0 space-y-3">
-              {!done && (
-                <section className="glass-strong rounded-2xl p-3">
-                  <h2 className="mb-2 text-sm font-semibold text-white">My Roster ({myPicks.length})</h2>
-                  <ul className="mb-2 flex max-h-24 flex-wrap gap-1 overflow-y-auto">
-                    {myPicks.map((pick) => {
-                      const player = playersById.get(pick.playerId);
-                      return player && <li key={pick.pickNumber} className="flex items-center gap-1 rounded bg-zinc-900 px-2 py-1 text-xs"><PosBadge position={player.position} size="xs" />{player.name}</li>;
-                    })}
-                  </ul>
-                <div className="mb-3 grid gap-2">
-                  <section className="rounded-lg border border-white/[0.08] bg-[#080E0C] p-2.5">
-                    <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Recent picks</h3>
-                    <div className="space-y-1">
-                      {recentPicks.slice(0, 4).map((pick) => {
-                        const player = playersById.get(pick.playerId);
-                        const drafter = pick.slot === mySlot ? "YOU" : BOT_PROFILE_LABEL[botProfiles[pick.slot] ?? "consensus"];
-                        return <p key={pick.pickNumber} className="text-xs text-zinc-300"><span className="font-mono text-zinc-500">{pick.round}.{String(pick.slot).padStart(2, "0")}</span> <span className="font-mono text-emerald-500">{drafter}</span> · {player?.name ?? "Unknown"}</p>;
-                      })}
-                      {recentPicks.length === 0 && <p className="text-[10px] text-zinc-600">No picks yet.</p>}
-                    </div>
-                  </section>
-                  <section className="rounded-lg border border-white/[0.08] bg-[#080E0C] p-2.5">
-                    <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Open starters</h3>
-                    <div className="flex flex-wrap gap-1">
-                      {openStarterSlots.map((slot, index) => <span key={`${slot}-${index}`} className="rounded border border-amber-500/20 bg-amber-500/5 px-1.5 py-0.5 font-mono text-[9px] text-amber-200">{slot}</span>)}
-                      {openStarterSlots.length === 0 && <span className="text-[10px] text-emerald-300">Starters filled</span>}
-                    </div>
-                  </section>
+          ) : (
+            <div className={styles.lower}>
+              <section className={styles.panel} aria-label="Available players">
+                <div className={styles.filters}>
+                  <h2>Available Players</h2>
+                  <input type="search" placeholder="Search players" aria-label="Search draft players" value={playerQuery} onChange={e => setPlayerQuery(e.target.value)} />
+                  <label><input type="checkbox" checked={hideOutIr} onChange={e => setHideOutIr(e.target.checked)} /> Hide Out/IR</label>
+                  <div className={styles.tabs}>
+                    {(["ALL", ...slotTypes] as const).filter(pos => pos !== "BENCH" && (pos !== "SUPERFLEX" || roster.superflex)).map(pos => (
+                      <button key={pos} aria-pressed={mockPos === pos} onClick={() => setMockPos(pos)}>{pos}{pos !== "ALL" && ` ${slots.filter(row => row.slot === pos && row.player).length}/${roster[pos.toLowerCase() as keyof RosterTemplate]}`}</button>
+                    ))}
+                  </div>
                 </div>
-
-                {positionalRun && <div role="status" className="mb-3 rounded-lg border border-[#FF3E9D]/30 bg-[#FF3E9D]/[0.08] px-3 py-2 text-xs text-zinc-200"><span className="font-mono font-bold text-[#FF3E9D]">{positionalRun.position} RUN</span><span className="ml-2">{positionalRun.count} {positionalRun.position}s taken in the last 6 picks.</span></div>}
-
-                {/* Roster needs */}
-                {(() => {
-                  const myCounts: Record<Position, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
-                  for (const pick of myPicks) { const p = playersById.get(pick.playerId); if (p) myCounts[p.position]++; }
-                  const needs: { pos: Position; have: number; need: number }[] = [
-                    { pos: "QB", have: myCounts.QB, need: roster.qb },
-                    { pos: "RB", have: myCounts.RB, need: roster.rb },
-                    { pos: "WR", have: myCounts.WR, need: roster.wr },
-                    { pos: "TE", have: myCounts.TE, need: roster.te },
-                  ];
-                  return (
-                    <div className="mb-3 flex flex-wrap gap-1.5">
-                      {needs.map(({ pos, have, need }) => (
-                        <span key={pos} className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${have >= need ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30" : "bg-zinc-800/60 text-zinc-500"}`}>
-                          {pos} {have}/{need}
-                        </span>
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                </section>
-              )}
-            </aside>
-          </div>
+                <div className={styles.scroll}>
+                  <table className={styles.players}>
+                    <thead><tr>{["Draft", "Rank", "Player", "Queue", "ADP", "Proj pts", "PPG"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+                    <tbody>{visiblePlayers.map(p => {
+                      const queued = activeQueueIds.includes(p.id);
+                      return <tr key={p.id}>
+                        <td><button className={styles.draft} disabled={!isMyTurn} onClick={() => makeMyPick(p.id)} aria-label={`Draft ${p.name}`}>Draft</button></td>
+                        <td>{p.rank}</td>
+                        <td><strong>{p.name}</strong> <InjuryBadge status={p.injuryStatus} /><small>{p.position} &middot; {p.team} (Bye {p.bye || "—"})</small></td>
+                        <td><button aria-pressed={queued} title={queued ? "Remove from Queue" : "Add to Queue"} aria-label={`${queued ? "Remove from" : "Add to"} queue: ${p.name}`} onClick={() => toggleQueue(p.id)}>&#9733; {queued ? "Queued" : "Queue"}</button></td>
+                        <td>{p.adp > 0 ? p.adp.toFixed(1) : "—"}</td><td>{p.projection.toFixed(1)}</td>
+                        <td>{p.usage?.games && p.actualPoints != null ? (p.actualPoints / p.usage.games).toFixed(1) : "—"}</td>
+                      </tr>;
+                    })}</tbody>
+                  </table>
+                  {!visiblePlayers.length && <p className="p-4 text-sm text-zinc-400">No players match these filters.</p>}
+                </div>
+              </section>
+              <aside className={styles.panel}>
+                <div className={styles.sideTabs}>{(["roster", "queue"] as const).map(tab => <button key={tab} aria-pressed={playerListTab === tab} onClick={() => setPlayerListTab(tab)}>{tab}{tab === "queue" && ` (${queuedPlayers.length})`}</button>)}</div>
+                <div className={styles.scroll}>
+                  {playerListTab === "roster" ? slots.map(({ slot, player }, index) => (
+                    <div className={styles.slot} key={index}><span data-pos={player?.position ?? slot}>{slot}</span>{player?.name ?? <small>Empty</small>}</div>
+                  )) : queuedPlayers.length ? queuedPlayers.map(p => (
+                    <div className={styles.slot} key={p.id}><span data-pos={p.position}>{p.position}</span><b>{p.name}</b><button disabled={!isMyTurn} onClick={() => makeMyPick(p.id)}>Draft</button><button onClick={() => toggleQueue(p.id)} aria-label={`Remove ${p.name} from queue`}>Remove</button></div>
+                  )) : <p className="p-4 text-sm text-zinc-400">Use the star in the player pool to queue a player.</p>}
+                </div>
+              </aside>
+            </div>
+          )}
         </div>
       )}
     </AppShell>

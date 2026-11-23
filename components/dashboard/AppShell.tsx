@@ -10,16 +10,18 @@ export default function AppShell({
   children,
   maxWidth = "max-w-6xl",
   className = "",
+  draftRoom = false,
 }: {
   children: ReactNode;
   maxWidth?: string;
   className?: string;
+  draftRoom?: boolean;
 }) {
   const router = useRouter();
   const { signOut } = useAuth();
 
   return (
-    <div className="relative flex min-h-screen flex-col text-zinc-200">
+    <div className={`relative flex min-h-screen flex-col text-zinc-200 ${draftRoom ? "lg:h-dvh lg:min-h-0" : ""}`}>
       {/* ── Nav ──────────────────────────────────────────────── */}
       <SiteHeader
         variant="app"
@@ -40,14 +42,14 @@ export default function AppShell({
       />
 
       {/* ── Main ─────────────────────────────────────────────── */}
-      <main className={`relative z-10 mx-auto w-full flex-1 px-6 pb-20 ${maxWidth} ${className}`}>
+      <main className={`relative z-10 mx-auto w-full flex-1 ${draftRoom ? "min-h-0" : "px-6 pb-20"} ${maxWidth} ${className}`}>
         {children}
       </main>
 
       {/* ── Footer ───────────────────────────────────────────── */}
-      <footer className="relative z-10 mt-auto border-t border-emerald-400/10 py-5 text-center text-xs text-zinc-500">
+      {!draftRoom && <footer className="relative z-10 mt-auto border-t border-emerald-400/10 py-5 text-center text-xs text-zinc-500">
         © {new Date().getFullYear()} DraftEdge · Not affiliated with the NFL or Sleeper
-      </footer>
+      </footer>}
     </div>
   );
 }
