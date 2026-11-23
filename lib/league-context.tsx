@@ -16,6 +16,7 @@ interface LeagueContextValue {
   error: string | null;
   setActiveLeagueId: (id: string) => void;
   connectSleeper: (username: string) => Promise<void>;
+  connectEspn: (input: { leagueId: string; espnS2?: string; swid?: string; teamId?: string }) => Promise<{ teams?: Array<{ teamId: string; label: string }>; needsTeamSelection?: boolean }>;
   syncNow: (leagueId?: string) => Promise<void>;
   disconnectLeague: (id: string) => Promise<void>;
   reload: () => Promise<void>;
@@ -29,6 +30,7 @@ export function LeagueContextProvider({ children }: { children: React.ReactNode 
   const [activeLeagueId, setActiveLeagueIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [espnCredentials, setEspnCredentials] = useState<Record<string, { espnS2: string; swid: string }>>({});
 
   const setActiveLeagueId = useCallback((id: string) => {
     setActiveLeagueIdState(id);
@@ -38,6 +40,7 @@ export function LeagueContextProvider({ children }: { children: React.ReactNode 
   const reload = useCallback(async () => {
     if (!user || !supabaseEnabled) {
       setLeagues([]);
+      setEspnCredentials({});
       setLoading(false);
       return;
     }
@@ -86,7 +89,51 @@ export function LeagueContextProvider({ children }: { children: React.ReactNode 
   }, [reload]);
 
   const connectSleeper = useCallback((username: string) => sync({ username }), [sync]);
-  const syncNow = useCallback((leagueId?: string) => sync(leagueId ? { leagueId } : {}), [sync]);
+  const connectEspn = useCallback(async (input: { leagueId: string; espnS2?: string; swid?: string; teamId?: string }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/leagues/sync/espn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const result = await response.json() as { error?: string; teams?: Array<{ teamId: string; label: string }>; needsTeamSelection?: boolean; league?: { platform_league_id: string } };
+      if (!response.ok) throw new Error(result.error ?? "ESPN sync failed.");
+      if (result.needsTeamSelection) return { teams: result.teams, needsTeamSelection: true };
+      if (input.espnS2 && input.swid && result.league?.platform_league_id) {
+        setEspnCredentials((current) => ({ ...current, [result.league!.platform_league_id]: { espnS2: input.espnS2!, swid: input.swid! } }));
+      }
+      await reload();
+      return { teams: result.teams, needsTeamSelection: false };
+    } catch (connectError) {
+      const message = connectError instanceof Error ? connectError.message : "ESPN sync failed.";
+      setError(message);
+      throw connectError;
+    } finally { setLoading(false); }
+  }, [reload]);
+  const syncNow = useCallback(async (leagueId?: string) => {
+    const selectedLeague = leagues.find((item) => item.id === activeLeagueId) ?? leagues[0] ?? null;
+    const league = selectedLeague?.platform_league_id === leagueId
+      ? selectedLeague
+      : leagues.find((item) => item.platform_league_id === leagueId) ?? selectedLeague;
+    if (!league || league.platform === "sleeper") return sync(leagueId ? { leagueId } : {});
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/leagues/sync/espn", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leagueId: league.platform_league_id, teamId: league.platform_user_id, ...espnCredentials[league.platform_league_id] }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "ESPN sync failed.");
+      await reload();
+    } catch (syncError) {
+      const message = syncError instanceof Error ? syncError.message : "ESPN sync failed.";
+      setError(message);
+      throw syncError;
+    } finally { setLoading(false); }
+  }, [activeLeagueId, espnCredentials, leagues, reload, sync]);
 
   const disconnectLeague = useCallback(async (id: string) => {
     setLoading(true);
@@ -104,8 +151,8 @@ export function LeagueContextProvider({ children }: { children: React.ReactNode 
   }, [reload]);
 
   const activeLeague = leagues.find((league) => league.id === activeLeagueId) ?? leagues[0] ?? null;
-  const value = useMemo(() => ({ leagues, activeLeague, activeLeagueId, loading, error, setActiveLeagueId, connectSleeper, syncNow, disconnectLeague, reload }),
-    [leagues, activeLeague, activeLeagueId, loading, error, setActiveLeagueId, connectSleeper, syncNow, disconnectLeague, reload]);
+  const value = useMemo(() => ({ leagues, activeLeague, activeLeagueId, loading, error, setActiveLeagueId, connectSleeper, connectEspn, syncNow, disconnectLeague, reload }),
+    [leagues, activeLeague, activeLeagueId, loading, error, setActiveLeagueId, connectSleeper, connectEspn, syncNow, disconnectLeague, reload]);
   return <LeagueContext.Provider value={value}>{children}</LeagueContext.Provider>;
 }
 

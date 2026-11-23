@@ -12,10 +12,10 @@ export interface SyncedSleeperRoster {
 export interface SyncedSleeperLeague {
   id?: string;
   user_id?: string;
-  platform: "sleeper";
+  platform: "sleeper" | "espn";
   platform_league_id: string;
   platform_user_id: string;
-  sleeper_username: string;
+  sleeper_username: string | null;
   league_name: string;
   season: string;
   scoring_format: SleeperScoringFormat;

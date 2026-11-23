@@ -483,7 +483,7 @@ export default function MockDraftPage() {
           <div className="space-y-5">
 
             {activeLeague && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0D1412] px-3 py-2.5">
-              <div><p className="text-xs font-semibold text-zinc-200">{activeLeague.league_name}</p><p className="mt-0.5 text-[10px] text-zinc-500">Sleeper settings available for this mock.</p></div>
+              <div><p className="text-xs font-semibold text-zinc-200">{activeLeague.league_name}</p><p className="mt-0.5 text-[10px] text-zinc-500">{activeLeague.platform.toUpperCase()} settings available for this mock.</p></div>
               <button type="button" onClick={applySyncedSettings} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-emerald-400">Use League Settings</button>
             </div>}
 

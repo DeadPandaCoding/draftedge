@@ -241,8 +241,8 @@ export function SiteHeader({
 
           <div className="hidden items-center gap-2 md:flex">
             {variant === "app" && activeLeague && (leagues.length > 1 ? (
-              <select aria-label="Switch active Sleeper league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="max-w-48 rounded-lg border border-white/[0.08] bg-[#0D1412] px-2.5 py-2 text-xs text-zinc-300">
-                {leagues.map((league) => <option key={league.id} value={league.id}>{league.league_name}</option>)}
+              <select aria-label="Switch active fantasy league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="max-w-48 rounded-lg border border-white/[0.08] bg-[#0D1412] px-2.5 py-2 text-xs text-zinc-300">
+                {leagues.map((league) => <option key={league.id} value={league.id}>{league.platform.toUpperCase()} · {league.league_name}</option>)}
               </select>
             ) : (
               <span className="max-w-48 truncate rounded-lg border border-white/[0.08] bg-[#0D1412] px-2.5 py-2 text-xs text-zinc-400" title={activeLeague.league_name}>{activeLeague.league_name}</span>
@@ -272,9 +272,9 @@ export function SiteHeader({
         >
           <div className="flex h-full flex-col overflow-y-auto px-4 pb-10 pt-24 sm:px-6">
             {variant === "app" && activeLeague && (
-              <label className="mb-4 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Active Sleeper league
-                <select aria-label="Switch active Sleeper league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#0D1412] px-3 py-2.5 text-sm font-medium text-zinc-200">
-                  {leagues.map((league) => <option key={league.id} value={league.id}>{league.league_name}</option>)}
+              <label className="mb-4 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Active fantasy league
+                <select aria-label="Switch active fantasy league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#0D1412] px-3 py-2.5 text-sm font-medium text-zinc-200">
+                  {leagues.map((league) => <option key={league.id} value={league.id}>{league.platform.toUpperCase()} · {league.league_name}</option>)}
                 </select>
               </label>
             )}
