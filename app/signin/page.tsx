@@ -209,7 +209,7 @@ function AuthCard() {
                 </button>
                 {!supabaseEnabled && <p className="mt-2 text-center text-[10px] text-zinc-500">Google sign-in uses demo mode while Supabase is not configured.</p>}
                 <p className="mt-3 text-center text-xs leading-relaxed text-zinc-400">
-                  By continuing, you confirm you are 13 or older and agree to our{" "}
+                  By continuing, you confirm you are 13 years of age or older and agree to our{" "}
                   <Link href="/terms" className="font-semibold text-emerald-300 underline underline-offset-2 hover:text-emerald-200">
                     Terms of Service
                   </Link>{" "}
