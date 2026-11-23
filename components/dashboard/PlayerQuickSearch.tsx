@@ -82,8 +82,8 @@ export function PlayerQuickSearch() {
 
   return (
     <div ref={rootRef} className="relative w-full">
-      <div className="relative">
-        <SearchIcon size={19} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" />
+      <div className="group relative">
+        <SearchIcon size={19} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 transition-colors group-focus-within:text-pop" />
         <input
           ref={inputRef}
           value={query}
@@ -111,9 +111,8 @@ export function PlayerQuickSearch() {
           aria-controls={isOpen && matches.length && !selectedPlayer ? resultsId : undefined}
           aria-expanded={isOpen && !selectedPlayer}
           aria-activedescendant={isOpen && !selectedPlayer && matches[activeIndex] ? `player-option-${matches[activeIndex].id}` : undefined}
-          className="h-10 w-full rounded-lg border border-white/[0.1] bg-[#0D1412] pl-10 pr-3 xl:pr-14 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-emerald-500/50"
+          className="h-10 w-full rounded-lg border border-white/[0.1] bg-[#0D1412] pl-10 pr-4 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors hover:border-emerald-500/50 focus:border-pop"
         />
-        <kbd className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-white/[0.1] bg-[#080E0C] px-1.5 py-1 font-mono text-[9px] text-zinc-500 xl:block">⌘K / /</kbd>
       </div>
 
       {isOpen && (

@@ -9,8 +9,8 @@ import { DEFAULT_ROSTER, SCORING_LABELS, roundForPick, rosterSize, slotForPick }
 import { buildTradeValues } from "@/lib/trade-value";
 import { toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
-import { InjuryBadge, Select } from "@/components/ui";
-import { ResetIcon, ShuffleIcon } from "@/components/icons";
+import { InjuryBadge, PosBadge, Select } from "@/components/ui";
+import { ShuffleIcon } from "@/components/icons";
 import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
 /* ───────── Types ───────── */
@@ -308,6 +308,7 @@ export default function MockDraftPage() {
   // Draft state
   const [started, setStarted] = useState(false);
   const [picks, setPicks] = useState<MockPick[]>([]);
+  const [playerQuery, setPlayerQuery] = useState("");
   const [mockPos, setMockPos] = useState<Position | "ALL">("ALL");
   const [botProfiles, setBotProfiles] = useState<Record<number, BotProfile>>({});
   const [botSeed, setBotSeed] = useState(0);
@@ -318,10 +319,6 @@ export default function MockDraftPage() {
   const [timerExpired, setTimerExpired] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(pickTimer);
-
-  // Do Not Draft / Target lists
-  const [dndIds, setDndIds] = useState<Set<string>>(new Set());
-  const [targetIds, setTargetIds] = useState<Set<string>>(new Set());
 
   // Computed roster
   const { players, loading: playersLoading } = usePlayers(scoring);
@@ -455,6 +452,7 @@ export default function MockDraftPage() {
     setTimerExpired(false);
     setCopyStatus("");
     setStarted(true);
+    window.scrollTo({ top: 0, behavior: "instant" });
     const seed = Math.floor(Math.random() * 0xffffffff);
     const profiles = assignBotProfiles(teams, mySlot);
     setBotSeed(seed);
@@ -484,6 +482,9 @@ export default function MockDraftPage() {
     setQueueIds((previous) => previous.filter((id) => !drafted.has(id)));
     setPicks([]);
     setStarted(false);
+    setPlayerQuery("");
+    setMockPos("ALL");
+    setPlayerListTab("available");
     setCopyStatus("");
   };
 
@@ -491,17 +492,6 @@ export default function MockDraftPage() {
     setQueueIds((previous) => previous.includes(playerId)
       ? previous.filter((id) => id !== playerId)
       : [...previous, playerId]);
-  };
-
-  const moveQueueItem = (playerId: string, offset: number) => {
-    setQueueIds((previous) => {
-      const index = previous.indexOf(playerId);
-      const nextIndex = Math.max(0, Math.min(previous.length - 1, index + offset));
-      if (index < 0 || nextIndex === index) return previous;
-      const next = [...previous];
-      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
-      return next;
-    });
   };
 
   const randomizeSlot = () => setMySlot(Math.floor(Math.random() * teams) + 1);
@@ -529,45 +519,27 @@ export default function MockDraftPage() {
     setAppliedLeagueId(activeLeague.id ?? activeLeague.platform_league_id);
   };
 
-  const toggleDnd = (id: string) => {
-    setDndIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-    setTargetIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-  };
-
-  const toggleTarget = (id: string) => {
-    setTargetIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-    setDndIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-  };
-
   /* ── Derived data ── */
 
   const myPicks = useMemo(() => picks.filter((p) => p.slot === mySlot), [picks, mySlot]);
 
-  const options = useMemo(() => {
-    const late = Math.ceil((totalPicks - currentPick + 1) / teams) <= 2;
-    const pool = players.filter(
-      (p) => !drafted.has(p.id) && (!hideOutIr || !["O", "IR", "PUP"].includes(p.injuryStatus ?? "")) &&
-        (p.position !== "K" || roster.k > 0) && (p.position !== "DEF" || roster.def > 0) &&
-        (late || (p.position !== "K" && p.position !== "DEF")),
-    );
-    const source = pool.length > 0 ? pool : players.filter((p) => !drafted.has(p.id));
-    return source.sort((a, b) => (tradeValues.get(b.id) ?? 0) - (tradeValues.get(a.id) ?? 0)).slice(0, 24);
-  }, [players, drafted, currentPick, totalPicks, teams, hideOutIr, roster.k, roster.def, tradeValues]);
   const queuedPlayers = useMemo(
     () => activeQueueIds.map((id) => playersById.get(id)).filter((player): player is Player => Boolean(player)),
     [activeQueueIds, playersById],
   );
-  const visiblePlayers = playerListTab === "queue"
-    ? queuedPlayers.filter((player) => mockPos === "ALL" || player.position === mockPos)
-    : options.filter((player) => mockPos === "ALL" || player.position === mockPos);
+  const visiblePlayers = useMemo(() => {
+    const query = playerQuery.trim().toLowerCase();
+    const source = playerListTab === "queue" ? queuedPlayers : players;
+    const filtered = source.filter((p) =>
+      !drafted.has(p.id) &&
+      (mockPos === "ALL" || mockPos === p.position) &&
+      (!hideOutIr || !["O", "IR", "PUP"].includes(p.injuryStatus ?? "")) &&
+      (playerListTab === "queue" || ((p.position !== "K" || roster.k > 0) && (p.position !== "DEF" || roster.def > 0))) &&
+      p.name.toLowerCase().includes(query)
+    );
+    if (playerListTab === "queue") return filtered;
+    return filtered.sort((a, b) => (tradeValues.get(b.id) ?? 0) - (tradeValues.get(a.id) ?? 0));
+  }, [playerQuery, playerListTab, queuedPlayers, players, drafted, mockPos, hideOutIr, roster.k, roster.def, tradeValues]);
 
   // Post-draft audit
   const draftGrades = useMemo(() => (done ? gradeDraft(picks, teams, tradeValues, playersById, roster) : []), [done, picks, teams, tradeValues, playersById, roster]);
@@ -663,26 +635,15 @@ export default function MockDraftPage() {
   const canStart = players.length > 0 && !playersLoading;
 
   return (
-    <AppShell maxWidth="max-w-6xl" className="pt-10">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <AppShell maxWidth="max-w-[1440px]" className={started ? "pt-4" : "pt-10"}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl tracking-wide text-white">Mock Draft</h1>
-          <p className="mt-2 text-sm text-zinc-400">
+          {!started && <p className="mt-2 text-sm text-zinc-400">
             Practice a snake draft with configurable settings and strategy-aware auto-drafters.
-          </p>
+          </p>}
         </div>
-        {started && (
-          <div className="flex gap-3">
-            <button type="button" onClick={simulateRest} disabled={done}
-              className="glass glass-hover rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-200 transition disabled:opacity-40">
-              Simulate rest
-            </button>
-            <button type="button" onClick={reset}
-              className="glass glass-hover inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-200 transition">
-              <ResetIcon size={14} /> Reset
-            </button>
-          </div>
-        )}
+        {done && <button type="button" onClick={reset} className="rounded-lg px-3 py-2 text-sm hover:bg-white/5">Reset</button>}
       </div>
 
       {/* ════════════════════════════════════════════ PHASE 1: SETUP ════════════════════════════════════════════ */}
@@ -822,54 +783,69 @@ export default function MockDraftPage() {
         </div>
       ) : (
         /* ════════════════════════════════════════════ PHASE 3: DRAFT / RESULTS ════════════════════════════════════════════ */
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-
-          {/* Draft board */}
-          <div className="glass-strong rounded-2xl p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Draft Board</h2>
-              <div className="flex items-center gap-2">
-                {activeLeague && appliedLeagueId === (activeLeague.id ?? activeLeague.platform_league_id) && <span className="max-w-40 truncate rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-300">{activeLeague.league_name}</span>}
-                <span className="font-tech text-xs text-zinc-500">
-                  {done ? "Complete" : `Round ${roundForPick(currentPick, teams)} · Pick ${currentPick}`}
-                </span>
-              </div>
+        <div className="space-y-3">
+          {!done && (
+            <section aria-label="Current pick" className="glass-strong flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-2">
+              <h2 className="text-sm font-bold text-white">{isMyTurn ? "Your Pick" : "On the clock"} <span className="font-mono text-xs text-emerald-300">Round {roundForPick(currentPick, teams)} / Pick {currentPick}</span></h2>
+              {pickTimer > 0 && <span aria-label="Pick clock" className={`font-mono text-sm font-bold tabular-nums ${secondsLeft <= 15 ? "text-pop" : secondsLeft <= 30 ? "text-amber-300" : "text-emerald-300"}`}>
+                {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
+              </span>}
+              <p className="order-last w-full text-xs text-zinc-400 sm:order-none sm:w-auto sm:flex-1">{draftPhase(roundForPick(currentPick, teams), totalRounds).tip}</p>
+              <button type="button" onClick={autoPick} disabled={!isMyTurn} className="disabled:opacity-40 ml-auto rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400">Auto-Pick</button>
+              <button type="button" onClick={simulateRest} className="rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-white/5">Simulate Rest</button>
+              <button type="button" onClick={reset} className="rounded-lg px-3 py-1.5 text-xs text-zinc-400 hover:text-white">Reset</button>
+            </section>
+          )}
+          <details className="min-w-0 rounded-xl border border-white/10 bg-[#0D1412] px-4 open:pb-4">
+            <summary className="cursor-pointer py-3 text-sm font-semibold text-white">Draft Board <span className="ml-2 text-xs font-normal text-zinc-400">{teams} teams &middot; {totalRounds} rounds</span></summary>
+            <div role="region" aria-label="Draft board by round and team" tabIndex={0} className="max-h-[48dvh] overflow-x-auto rounded-lg border border-white/10">
+              <table className="w-full border-separate border-spacing-0 text-left text-xs">
+                <thead className="sticky top-0 z-20 bg-[#131D1A]">
+                  <tr>
+                    <th scope="col" className="sticky left-0 bg-[#131D1A] px-2 py-2">Rd</th>
+                    {Array.from({ length: teams }, (_, i) => (
+                      <th key={i} scope="col" className="min-w-[116px] whitespace-nowrap px-2 py-2">
+                        {i + 1 === mySlot ? `Team ${i + 1} (You)` : `Team ${i + 1}`}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: totalRounds }, (_, i) => {
+                    const round = i + 1;
+                    return (
+                      <tr key={round}>
+                        <th scope="row" className="sticky left-0 z-10 border-t border-white/10 bg-[#131D1A] px-2">R{round}</th>
+                        {Array.from({ length: teams }, (_, j) => {
+                          const slot = j + 1;
+                          const firstPick = i * teams + 1;
+                          const pickNumber = firstPick + (slotForPick(firstPick, teams, draftType) === 1 ? j : teams - slot);
+                          const pick = picks[pickNumber - 1];
+                          const player = pick && playersById.get(pick.playerId);
+                          return (
+                            <td key={slot} className={`min-w-[116px] border-l border-t border-white/10 px-2 py-1.5 ${slot === mySlot ? "bg-emerald-500/5" : ""}`}>
+                              {player ? (
+                                <div title={player.name}>
+                                  <span className="block whitespace-nowrap font-semibold">{player.position === "DEF" ? player.name : player.name.replace(/^(\S)\S*\s+/, "$1. ")}</span>
+                                  <span className="mt-1 flex items-center gap-1 whitespace-nowrap text-[10px] text-zinc-400">
+                                    <PosBadge position={player.position} size="xs" /> {player.projection.toFixed(0)} pts{player.adp > 0 && ` / ADP ${player.adp.toFixed(0)}`}
+                                  </span>
+                                </div>
+                              ) : <span className="text-zinc-500">P{pickNumber}</span>}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div className="space-y-2">
-              {Array.from({ length: totalRounds }).map((_, ri) => {
-                const r = ri + 1;
-                const roundPicks = picks.filter((p) => p.round === r);
-                return (
-                  <div key={r} className="flex items-center gap-2">
-                    <span className="font-tech w-9 shrink-0 text-[11px] font-bold text-zinc-500">R{r}</span>
-                    <div className="grid flex-1 gap-1.5" style={{ gridTemplateColumns: `repeat(${teams}, minmax(0, 1fr))` }}>
-                      {Array.from({ length: teams }).map((_, si) => {
-                        const slot = si + 1;
-                        const pick = roundPicks.find((p) => p.slot === slot);
-                        const player = pick ? playersById.get(pick.playerId) : null;
-                        const mine = pick?.slot === mySlot;
-                        return (
-                          <div key={slot}
-                            className={`truncate rounded-lg border px-2 py-1.5 text-xs ${mine ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200" : pick ? "border-zinc-800 bg-zinc-900/60 text-zinc-300" : "border-zinc-800/60 bg-zinc-900/30 text-zinc-600"}`}>
-                            <span className="block truncate font-semibold">{player ? player.name : "—"}</span>
-                            <span className="font-tech block text-[9px] text-zinc-500">
-                              {player ? `${player.position} · ${player.projection.toFixed(0)}${player.adp > 0 ? ` · ADP${player.adp.toFixed(0)}` : ""}` : `P${(r - 1) * teams + slot}`}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="glass-strong rounded-2xl p-5">
-            {done ? (
-              /* ══════ POST-DRAFT AUDIT ══════ */
-              <>
+          </details>
+          <div className={done ? "" : "grid items-start gap-5 lg:grid-cols-[minmax(550px,1fr)_minmax(240px,300px)]"}>
+            <section className="glass-strong min-w-0 rounded-2xl p-3 sm:p-4">
+              {done ? (
+                <>
                 <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Draft Results</h2>
                 <p className="mt-1 text-xs text-zinc-500">
                   {totalRounds} rounds · pick {mySlot} · {SCORING_LABELS[scoring]} · {STRATEGIES.find((s) => s.value === strategy)?.label}
@@ -967,53 +943,79 @@ export default function MockDraftPage() {
                     );
                   })}
                 </div>
-              </>
-            ) : (
-              /* ══════ LIVE DRAFT SIDEBAR ══════ */
-              <>
-                <div className="mb-1 flex items-center justify-between">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Your Pick</h2>
-                  <span className="font-tech text-xs text-emerald-300">
-                    Round {roundForPick(currentPick, teams)}
-                  </span>
+                </>
+              ) : (
+                <>
+                <div className="mb-3 grid grid-cols-2 border-b border-white/[0.08]">
+                  {(["available", "queue"] as const).map((tab) => (
+                    <button key={tab} type="button" onClick={() => setPlayerListTab(tab)} aria-pressed={playerListTab === tab}
+                      className={`border-b-2 px-3 py-2 text-xs font-semibold transition ${playerListTab === tab ? "border-emerald-400 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}>
+                      {tab === "available" ? "Available Players" : `My Queue${activeQueueIds.length ? ` (${activeQueueIds.length})` : ""}`}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Pick clock */}
-                {pickTimer > 0 && (
-                  <div className={`mb-3 flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 ${
-                    secondsLeft <= 15 ? "border-pop-border bg-pop-soft" : secondsLeft <= 30 ? "border-amber-500/40 bg-amber-500/10" : "border-emerald-500/30 bg-emerald-500/10"
-                  }`}>
-                    <span className="font-tech text-[10px] uppercase tracking-wider text-zinc-500">Clock</span>
-                    <span className={`font-tech text-lg font-bold tabular-nums ${secondsLeft <= 15 ? "text-pop" : secondsLeft <= 30 ? "text-amber-300" : "text-emerald-300"}`}>
-                      {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
-                    </span>
-                  </div>
-                )}
+                <input type="search" aria-label="Search draft players" placeholder="Search players by name" value={playerQuery} onChange={(event) => setPlayerQuery(event.target.value)} className="mb-3 h-10 w-full rounded-lg border border-white/10 bg-[#080E0C] px-3 text-sm outline-none focus:border-emerald-400" />
+                {/* Position filters */}
+                <div className="mb-3 flex flex-wrap gap-1">
+                  {(["ALL", "QB", "RB", "WR", "TE", "K", "DEF"] as const).map((pos) => (
+                    <button key={pos} type="button" onClick={() => setMockPos(pos)} aria-pressed={mockPos === pos}
+                      className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${mockPos === pos ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40" : "bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"}`}>
+                      {pos}
+                    </button>
+                  ))}
+                  <label className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-zinc-500">
+                    <input type="checkbox" checked={hideOutIr} onChange={(e) => setHideOutIr(e.target.checked)} className="accent-emerald-500" /> Hide Out/IR
+                  </label>
+                </div>
 
-                {/* Phase */}
-                {(() => {
-                  const phase = draftPhase(roundForPick(currentPick, teams), totalRounds);
-                  return (
-                    <div className="mb-3 rounded-xl border border-zinc-700/50 bg-zinc-800/40 px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded bg-zinc-700/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-300">{phase.label}</span>
-                        <span className="text-[10px] text-zinc-500">Round {roundForPick(currentPick, teams)}/{totalRounds}</span>
+                {/* Player list */}
+                <div className="max-h-[60dvh] space-y-1.5 overflow-y-auto pr-1">
+                  {visiblePlayers.map((p) => {
+                    const queued = activeQueueIds.includes(p.id);
+                    const queueAction = queued ? "Remove from Queue" : "Add to Queue";
+                    return (
+                      <div key={p.id} className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-white/[0.06] px-1 py-3 sm:px-3">
+                        <div className="min-w-0 flex-auto">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-zinc-100">{p.name}</span>
+                            <InjuryBadge status={p.injuryStatus} />
+                          </div>
+                          <p className="mt-1 flex flex-wrap gap-x-4 text-xs tabular-nums text-zinc-400">
+                            <span>{p.position} &middot; {p.team} &middot; Bye {p.bye || "—"}</span>
+                            <span>ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"} &middot; {p.projection.toFixed(1)} pts</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => makeMyPick(p.id)} disabled={!isMyTurn} aria-label={`Draft ${p.name}`} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40">Draft</button>
+                          <button type="button" onClick={() => toggleQueue(p.id)} aria-pressed={queued} aria-label={`${queueAction}: ${p.name}`} title={queueAction} className="rounded-lg px-2 py-1.5 text-xs text-zinc-400 hover:bg-white/5 aria-pressed:text-emerald-300"><span aria-hidden="true">&#9733;</span> {queued ? "Queued" : "Queue"}</button>
+                        </div>
                       </div>
-                      <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">{phase.tip}</p>
-                    </div>
-                  );
-                })()}
-
-                <p className="mb-3 text-xs text-zinc-500">Choose a player or auto-pick the best available.</p>
-
-                <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                    );
+                  })}
+                  {visiblePlayers.length === 0 && <p className="rounded-lg border border-dashed border-white/[0.1] px-3 py-6 text-center text-xs text-zinc-500">{playerListTab === "queue" ? "No queued players match this filter." : "No available players match this filter and roster configuration."}</p>}
+                </div>
+                </>
+              )}
+            </section>
+            <aside className="min-w-0 space-y-3">
+              {!done && (
+                <section className="glass-strong rounded-2xl p-3">
+                  <h2 className="mb-2 text-sm font-semibold text-white">My Roster ({myPicks.length})</h2>
+                  <ul className="mb-2 flex max-h-24 flex-wrap gap-1 overflow-y-auto">
+                    {myPicks.map((pick) => {
+                      const player = playersById.get(pick.playerId);
+                      return player && <li key={pick.pickNumber} className="flex items-center gap-1 rounded bg-zinc-900 px-2 py-1 text-xs"><PosBadge position={player.position} size="xs" />{player.name}</li>;
+                    })}
+                  </ul>
+                <div className="mb-3 grid gap-2">
                   <section className="rounded-lg border border-white/[0.08] bg-[#080E0C] p-2.5">
                     <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Recent picks</h3>
                     <div className="space-y-1">
                       {recentPicks.slice(0, 4).map((pick) => {
                         const player = playersById.get(pick.playerId);
                         const drafter = pick.slot === mySlot ? "YOU" : BOT_PROFILE_LABEL[botProfiles[pick.slot] ?? "consensus"];
-                        return <p key={pick.pickNumber} className="truncate text-[10px] text-zinc-300"><span className="font-mono text-zinc-500">{pick.round}.{String(pick.slot).padStart(2, "0")}</span> <span className="font-mono text-emerald-500">{drafter}</span> · {player?.name ?? "Unknown"}</p>;
+                        return <p key={pick.pickNumber} className="text-xs text-zinc-300"><span className="font-mono text-zinc-500">{pick.round}.{String(pick.slot).padStart(2, "0")}</span> <span className="font-mono text-emerald-500">{drafter}</span> · {player?.name ?? "Unknown"}</p>;
                       })}
                       {recentPicks.length === 0 && <p className="text-[10px] text-zinc-600">No picks yet.</p>}
                     </div>
@@ -1050,79 +1052,9 @@ export default function MockDraftPage() {
                   );
                 })()}
 
-                <button type="button" onClick={autoPick}
-                  className="mb-4 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400">
-                  Auto-pick Best
-                </button>
-
-                <div className="mb-3 grid grid-cols-2 border-b border-white/[0.08]">
-                  {(["available", "queue"] as const).map((tab) => (
-                    <button key={tab} type="button" onClick={() => setPlayerListTab(tab)} aria-pressed={playerListTab === tab}
-                      className={`border-b-2 px-3 py-2 text-xs font-semibold transition ${playerListTab === tab ? "border-emerald-400 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}>
-                      {tab === "available" ? "Available Players" : `My Queue${activeQueueIds.length ? ` (${activeQueueIds.length})` : ""}`}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Position filters */}
-                <div className="mb-3 flex flex-wrap gap-1">
-                  {(["ALL", "QB", "RB", "WR", "TE", ...(roster.k > 0 ? ["K" as const] : []), ...(roster.def > 0 ? ["DEF" as const] : [])] as const).map((pos) => (
-                    <button key={pos} type="button" onClick={() => setMockPos(pos)} aria-pressed={mockPos === pos}
-                      className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${mockPos === pos ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40" : "bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"}`}>
-                      {pos}
-                    </button>
-                  ))}
-                  <label className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-zinc-500">
-                    <input type="checkbox" checked={hideOutIr} onChange={(e) => setHideOutIr(e.target.checked)} className="accent-emerald-500" /> Hide Out/IR
-                  </label>
-                </div>
-
-                {/* Player list */}
-                <div className="max-h-[50vh] space-y-1.5 overflow-y-auto pr-1">
-                  {visiblePlayers.map((p) => {
-                    const isDnd = dndIds.has(p.id);
-                    const isTarget = targetIds.has(p.id);
-                    const isQueued = activeQueueIds.includes(p.id);
-                    return (
-                      <div key={p.id} className="group relative">
-                        <button type="button" onClick={() => makeMyPick(p.id)} disabled={isDnd}
-                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 pr-24 text-left text-sm transition ${isDnd ? "opacity-40 line-through bg-zinc-900/30" : "bg-zinc-900/60 hover:bg-zinc-800"}`}>
-                          <span className="flex min-w-0 items-center gap-2">
-                            {isTarget && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />}
-                            <span className="truncate font-semibold text-zinc-200">{p.name}</span>
-                            <InjuryBadge status={p.injuryStatus} />
-                            <span className="rounded bg-zinc-800 px-1 py-px text-[10px] font-bold text-zinc-400">{p.team}</span>
-                            {p.bye > 0 && <span className="text-[9px] text-zinc-600">BYE {p.bye}</span>}
-                          </span>
-                          <span className="flex shrink-0 items-center gap-1.5">
-                            {p.adp > 0 && <span className="rounded bg-zinc-800 px-1 py-px text-[9px] font-bold text-zinc-500">ADP {p.adp.toFixed(0)}</span>}
-                            <span className="font-tech text-xs text-zinc-400">{p.position} · {p.projection.toFixed(1)}</span>
-                          </span>
-                        </button>
-                        <div className="absolute right-1 top-1 flex gap-0.5">
-                          {playerListTab === "available" ? (
-                            <>
-                              <button type="button" onClick={() => toggleQueue(p.id)} title="Queue player" aria-label={isQueued ? `Remove ${p.name} from queue` : `Add ${p.name} to queue`}
-                                className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition ${isQueued ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/90 text-zinc-500 hover:text-emerald-300"}`}>{isQueued ? "✓" : "+"}</button>
-                              <button type="button" onClick={() => toggleTarget(p.id)} title="Target" aria-label={isTarget ? `Remove ${p.name} from targets` : `Mark ${p.name} as a target`}
-                                className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition ${isTarget ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/90 text-zinc-500 hover:text-emerald-300"}`}>★</button>
-                              <button type="button" onClick={() => toggleDnd(p.id)} title="Do Not Draft" aria-label={isDnd ? `Allow ${p.name} in the draft` : `Do not draft ${p.name}`}
-                                className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition ${isDnd ? "bg-rose-500/20 text-rose-300" : "bg-zinc-800/90 text-zinc-500 hover:text-rose-300"}`}>×</button>
-                            </>
-                          ) : (
-                            <>
-                              <button type="button" onClick={() => moveQueueItem(p.id, -1)} aria-label={`Move ${p.name} up in queue`} className="flex h-7 w-7 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-300 hover:text-white">↑</button>
-                              <button type="button" onClick={() => moveQueueItem(p.id, 1)} aria-label={`Move ${p.name} down in queue`} className="flex h-7 w-7 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-300 hover:text-white">↓</button>
-                              <button type="button" onClick={() => toggleQueue(p.id)} aria-label={`Remove ${p.name} from queue`} className="flex h-7 w-7 items-center justify-center rounded bg-zinc-800 text-xs text-zinc-300 hover:text-rose-300">×</button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {playerListTab === "queue" && visiblePlayers.length === 0 && <p className="rounded-lg border border-dashed border-white/[0.1] px-3 py-6 text-center text-xs text-zinc-500">Queue players from the Available Players tab.</p>}
-                </div></>
-            )}
+                </section>
+              )}
+            </aside>
           </div>
         </div>
       )}
