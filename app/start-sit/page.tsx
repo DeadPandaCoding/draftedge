@@ -55,6 +55,16 @@ export default function StartSitPage() {
   const commandPlayerHandled = useRef(false);
 
   useEffect(() => {
+    const selectPlayer = (event: Event) => {
+      const playerId = (event as CustomEvent<string>).detail;
+      setSideB((id) => id === playerId ? null : id);
+      setSideA(playerId);
+    };
+    window.addEventListener("draftedge:select-player", selectPlayer);
+    return () => window.removeEventListener("draftedge:select-player", selectPlayer);
+  }, []);
+
+  useEffect(() => {
     if (!loading && !user) router.replace("/signin");
   }, [user, loading, router]);
 

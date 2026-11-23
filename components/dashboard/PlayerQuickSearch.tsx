@@ -32,7 +32,7 @@ export function PlayerQuickSearch() {
     ...player,
     projection: player.rosProjection ?? player.projection,
   })), activeLeague?.total_teams ?? 12), [players, activeLeague?.total_teams]);
-  const selectedPlayer = matches.find((player) => player.id === selectedId) ?? matches[activeIndex] ?? null;
+  const selectedPlayer = matches.find((player) => player.id === selectedId) ?? null;
   const isOpen = Boolean(query.trim());
 
   const focusSearch = useCallback(() => {
@@ -54,13 +54,16 @@ export function PlayerQuickSearch() {
   useEffect(() => {
     if (!isOpen) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setSelectedId(null);
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setQuery("");
+        setSelectedId(null);
+      }
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setQuery("");
         setSelectedId(null);
-        inputRef.current?.blur();
+        inputRef.current?.focus();
       }
     };
     document.addEventListener("pointerdown", onPointerDown);
@@ -74,10 +77,11 @@ export function PlayerQuickSearch() {
   const choose = (playerId: string) => {
     setActiveIndex(Math.max(0, matches.findIndex((player) => player.id === playerId)));
     setSelectedId(playerId);
+    inputRef.current?.focus();
   };
 
   return (
-    <div ref={rootRef} className="relative mt-6">
+    <div ref={rootRef} className="relative w-full">
       <div className="relative">
         <SearchIcon size={19} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" />
         <input
@@ -89,53 +93,53 @@ export function PlayerQuickSearch() {
               event.preventDefault();
               const next = Math.min(activeIndex + 1, matches.length - 1);
               setActiveIndex(next);
-              setSelectedId(matches[next]?.id ?? null);
+              setSelectedId(null);
             } else if (event.key === "ArrowUp" && matches.length) {
               event.preventDefault();
               const next = Math.max(0, activeIndex - 1);
               setActiveIndex(next);
-              setSelectedId(matches[next]?.id ?? null);
+              setSelectedId(null);
             } else if (event.key === "Enter" && matches.length) {
               event.preventDefault();
-              choose(selectedPlayer?.id ?? matches[0].id);
+              choose(matches[activeIndex].id);
             }
           }}
-          placeholder="Search any NFL player for stats, ROS projections, trade value, and ADP..."
+          placeholder="Search any player for stats, ROS projections, trade value..."
           aria-label="Search NFL players"
           role="combobox"
           aria-autocomplete="list"
-          aria-controls={resultsId}
-          aria-expanded={isOpen}
-          aria-activedescendant={isOpen && matches[activeIndex] ? `player-option-${matches[activeIndex].id}` : undefined}
-          className="h-14 w-full rounded-xl border border-white/[0.1] bg-[#0D1412] pl-12 pr-24 text-base text-zinc-100 placeholder:text-sm placeholder:text-zinc-500 outline-none transition focus:border-emerald-500/50 sm:placeholder:text-base"
+          aria-controls={isOpen && matches.length && !selectedPlayer ? resultsId : undefined}
+          aria-expanded={isOpen && !selectedPlayer}
+          aria-activedescendant={isOpen && !selectedPlayer && matches[activeIndex] ? `player-option-${matches[activeIndex].id}` : undefined}
+          className="h-10 w-full rounded-lg border border-white/[0.1] bg-[#0D1412] pl-10 pr-3 xl:pr-14 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-emerald-500/50"
         />
-        <kbd className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-white/[0.1] bg-[#080E0C] px-2 py-1 font-mono text-[10px] text-zinc-500 sm:block">⌘K / /</kbd>
+        <kbd className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-white/[0.1] bg-[#080E0C] px-1.5 py-1 font-mono text-[9px] text-zinc-500 xl:block">⌘K / /</kbd>
       </div>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-white/[0.1] bg-[#0B1210] shadow-2xl">
+        <div className="absolute left-0 right-0 top-full z-40 mt-2 max-h-[70dvh] overflow-y-auto rounded-xl border border-white/[0.1] bg-[#0B1210] shadow-2xl">
           {loading && players.length === 0 ? (
             <p className="px-4 py-5 text-sm text-zinc-400">Loading player data…</p>
           ) : matches.length ? (
-            <div className="grid md:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)]">
-              <div id={resultsId} role="listbox" aria-label="Player search results" className="max-h-80 overflow-y-auto border-b border-white/[0.08] divide-y divide-white/[0.06] md:border-b-0 md:border-r">
+            <div>
+              {!selectedPlayer && <div id={resultsId} role="listbox" aria-label="Player search results" className="max-h-80 overflow-y-auto border-b border-white/[0.08] divide-y divide-white/[0.06] md:border-b-0 md:border-r">
                 {matches.map((player, index) => (
                   <button
                     id={`player-option-${player.id}`}
                     key={player.id}
                     type="button"
                     role="option"
-                    aria-selected={selectedPlayer?.id === player.id}
-                    onMouseEnter={() => { setActiveIndex(index); setSelectedId(player.id); }}
-                    onFocus={() => { setActiveIndex(index); setSelectedId(player.id); }}
+                    aria-selected={activeIndex === index}
+                    onMouseEnter={() => { setActiveIndex(index); }}
+                    onFocus={() => { setActiveIndex(index); }}
                     onClick={() => choose(player.id)}
-                    className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition ${selectedPlayer?.id === player.id ? "bg-emerald-500/[0.08]" : "hover:bg-white/[0.03]"}`}
+                    className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition ${activeIndex === index ? "bg-emerald-500/[0.08]" : "hover:bg-white/[0.03]"}`}
                   >
                     <span className="min-w-0 truncate text-sm font-semibold text-zinc-100">{player.name}</span>
                     <span className="shrink-0 font-mono text-[10px] text-zinc-500">{player.position} · {player.team}</span>
                   </button>
                 ))}
-              </div>
+              </div>}
 
               {selectedPlayer && (
                 <section aria-label={`${selectedPlayer.name} quick view`} className="p-4 sm:p-5">
@@ -154,8 +158,8 @@ export function PlayerQuickSearch() {
                   <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.06] sm:grid-cols-3">
                     {[
                       ["Season PPG", selectedPlayer.usage?.games && selectedPlayer.actualPoints != null ? (selectedPlayer.actualPoints / selectedPlayer.usage.games).toFixed(1) : "—"],
-                      ["ROS Projection", (selectedPlayer.rosProjection ?? selectedPlayer.projection).toFixed(1)],
-                      ["Trade Value", (values.get(selectedPlayer.id) ?? 0).toFixed(1)],
+                      ["ROS Projected Points", selectedPlayer.rosProjection?.toFixed(1) ?? "—"],
+                      ["VORP Trade Value", (values.get(selectedPlayer.id) ?? 0).toFixed(1)],
                       ["Position Rank", `#${selectedPlayer.rosPositionRank ?? selectedPlayer.positionRank}`],
                       ["ADP", selectedPlayer.adp > 0 ? selectedPlayer.adp.toFixed(1) : "—"],
                       ["Actual Points", selectedPlayer.actualPoints != null ? selectedPlayer.actualPoints.toFixed(1) : "—"],
@@ -168,8 +172,22 @@ export function PlayerQuickSearch() {
                   </dl>
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Link href={`/trade?get=${encodeURIComponent(playerSlug(selectedPlayer.name))}`} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-emerald-400">Send to Trade Analyzer</Link>
-                    <Link href={`/start-sit?player=${encodeURIComponent(playerSlug(selectedPlayer.name))}`} className="rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-emerald-500/30 hover:text-white">Compare in Start/Sit</Link>
+                    <Link onNavigate={(event) => {
+                      if (window.location.pathname === "/trade") {
+                        event.preventDefault();
+                        window.dispatchEvent(new CustomEvent("draftedge:select-player", { detail: selectedPlayer.id }));
+                        setQuery("");
+                        setSelectedId(null);
+                      }
+                    }} href={`/trade?get=${encodeURIComponent(playerSlug(selectedPlayer.name))}`} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-emerald-400">Add to Trade Analyzer</Link>
+                    <Link onNavigate={(event) => {
+                      if (window.location.pathname === "/start-sit") {
+                        event.preventDefault();
+                        window.dispatchEvent(new CustomEvent("draftedge:select-player", { detail: selectedPlayer.id }));
+                        setQuery("");
+                        setSelectedId(null);
+                      }
+                    }} href={`/start-sit?player=${encodeURIComponent(playerSlug(selectedPlayer.name))}`} className="rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-emerald-500/30 hover:text-white">Compare in Start/Sit</Link>
                   </div>
                 </section>
               )}

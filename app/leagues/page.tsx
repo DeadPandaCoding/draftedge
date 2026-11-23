@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LeagueSyncCard } from "@/components/dashboard/LeagueSyncCard";
@@ -12,6 +12,7 @@ import { LogoutIcon } from "@/components/icons";
 
 export default function LeaguesPage() {
   const router = useRouter();
+  const [guidePlatform, setGuidePlatform] = useState<"sleeper" | "espn">("sleeper");
   const { user, loading, signOut } = useAuth();
   const { leagues, activeLeague, setActiveLeagueId } = useSyncedLeagues();
 
@@ -41,13 +42,40 @@ export default function LeaguesPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-400">League Manager</p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">Your Leagues</h1>
+            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">League Sync</h1>
             <p className="mt-2 max-w-xl text-sm text-zinc-400">Connect Sleeper or ESPN to bring league scoring, rosters, and draft picks into your DraftEdge tools.</p>
           </div>
           <Link href="/home" className="rounded-lg border border-white/[0.1] bg-[#0D1412] px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-emerald-500/30 hover:text-white">Back to dashboard</Link>
         </div>
 
         <LeagueSyncCard />
+
+        <section className="mt-5 rounded-xl border border-white/[0.08] bg-[#0D1412] p-4 sm:p-5" aria-labelledby="connect-guide-heading">
+          <div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">Quick Guide</p>
+            <h2 id="connect-guide-heading" className="mt-1 text-sm font-semibold text-white">How to connect your league</h2>
+          </div>
+          <div className="mt-4 inline-flex rounded-lg border border-white/[0.08] bg-[#080E0C] p-0.5" role="tablist" aria-label="League connection instructions">
+            {(["sleeper", "espn"] as const).map((platform) => (
+              <button key={platform} type="button" role="tab" aria-selected={guidePlatform === platform} onClick={() => setGuidePlatform(platform)} className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${guidePlatform === platform ? "bg-white/[0.1] text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+                {platform === "espn" ? "ESPN" : "Sleeper"}
+              </button>
+            ))}
+          </div>
+          {guidePlatform === "sleeper" ? (
+            <ol className="mt-4 grid gap-3 text-xs leading-relaxed text-zinc-400 sm:grid-cols-3">
+              <li className="flex gap-2"><span className="font-mono font-bold text-emerald-400">01</span><span>Open the Sleeper app or sleeper.com and find your <strong className="font-semibold text-zinc-200">@username</strong> in your profile settings. No password is needed.</span></li>
+              <li className="flex gap-2"><span className="font-mono font-bold text-emerald-400">02</span><span>Enter your exact Sleeper username in the form above and select <strong className="font-semibold text-zinc-200">Connect Sleeper</strong>.</span></li>
+              <li className="flex gap-2"><span className="font-mono font-bold text-emerald-400">03</span><span>Select your active league under Saved leagues. DraftEdge imports your roster and settings, including PPR, Half-PPR, Superflex slots, and TE Premium when applicable.</span></li>
+            </ol>
+          ) : (
+            <ol className="mt-4 grid gap-3 text-xs leading-relaxed text-zinc-400 sm:grid-cols-3">
+              <li className="flex gap-2"><span className="font-mono font-bold text-emerald-400">01</span><span>Open your ESPN Fantasy Football league. Find your League ID in the URL, for example <code className="rounded bg-[#080E0C] px-1 py-0.5 text-zinc-300">leagueId=12345678</code>. Copy the number.</span></li>
+              <li className="flex gap-2"><span className="font-mono font-bold text-emerald-400">02</span><span>For a public league, paste the League ID above and select <strong className="font-semibold text-zinc-200">Connect ESPN</strong>.</span></li>
+              <li className="flex gap-2"><span className="font-mono font-bold text-emerald-400">03</span><span>For a private league, ask your league manager to enable <strong>Make League Viewable to Public</strong> in League Settings, or enter espn_s2 and SWID under <strong>Add ESPN cookies</strong>.</span></li>
+            </ol>
+          )}
+        </section>
 
         <section className="mt-8" aria-labelledby="saved-leagues-heading">
           <div className="mb-3 flex items-center justify-between gap-3">

@@ -90,6 +90,16 @@ export default function TradePage() {
   const initialized = useRef(false);
 
   useEffect(() => {
+    const selectPlayer = (event: Event) => {
+      const playerId = (event as CustomEvent<string>).detail;
+      setSideB((ids) => ids.filter((id) => id !== playerId));
+      setSideA((ids) => ids.includes(playerId) ? ids : [...ids, playerId]);
+    };
+    window.addEventListener("draftedge:select-player", selectPlayer);
+    return () => window.removeEventListener("draftedge:select-player", selectPlayer);
+  }, []);
+
+  useEffect(() => {
     if (!loading && !user) router.replace("/signin");
   }, [user, loading, router]);
 

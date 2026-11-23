@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useSyncedLeagues } from "@/lib/league-context";
+import { PlayerQuickSearch } from "@/components/dashboard/PlayerQuickSearch";
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -68,10 +69,7 @@ const NAV = {
   },
   app: {
     menus: [{ trigger: "Tools", items: TOOLS }],
-    links: [
-      { label: "Home", href: "/home" },
-      { label: "Leagues", href: "/leagues" },
-    ],
+    links: [{ label: "Home", href: "/home" }],
   },
 } as const;
 
@@ -189,7 +187,7 @@ export function SiteHeader({
   return (
     <div ref={rootRef}>
       <header className="glass-nav sticky top-0 z-50">
-        <nav className="flex h-16 w-full items-center justify-between px-4 sm:px-6">
+        <nav className={`flex w-full items-center justify-between px-4 sm:px-6 ${variant === "app" ? "flex-wrap gap-y-2 py-3 xl:h-16 xl:flex-nowrap xl:py-0" : "h-16"}`}>
           <div className="flex items-center gap-6">
             <Link href={logoHref} className="flex items-center gap-2.5">
               <DraftEdgeLogo size={24} />
@@ -239,10 +237,15 @@ export function SiteHeader({
                   )}
                 </div>
               ))}
+              {variant === "app" && (
+                <Link href="/leagues" className="rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white">League Sync</Link>
+              )}
             </div>
           </div>
 
-          <div className="hidden items-center gap-2 md:flex">
+          {variant === "app" && <div className="order-last h-10 w-full min-w-0 xl:order-none xl:mx-8 xl:max-w-xl xl:flex-1"><PlayerQuickSearch /></div>}
+
+          <div className="hidden shrink-0 items-center gap-2 md:flex">
             {variant === "app" && activeLeague && (leagues.length > 1 ? (
               <select aria-label="Switch active fantasy league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="max-w-48 rounded-lg border border-white/[0.08] bg-[#0D1412] px-2.5 py-2 text-xs text-zinc-300">
                 {leagues.map((league) => <option key={league.id} value={league.id}>{league.platform.toUpperCase()} · {league.league_name}</option>)}
@@ -273,7 +276,7 @@ export function SiteHeader({
           id="site-mobile-menu"
           className="fixed inset-0 z-40 bg-zinc-950/95 backdrop-blur-xl md:hidden"
         >
-          <div className="flex h-full flex-col overflow-y-auto px-4 pb-10 pt-24 sm:px-6">
+          <div className="flex h-full flex-col overflow-y-auto px-4 pb-10 pt-32 sm:px-6">
             {variant === "app" && activeLeague && (
               <label className="mb-4 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Active fantasy league
                 <select aria-label="Switch active fantasy league" value={activeLeague.id ?? ""} onChange={(event) => setActiveLeagueId(event.target.value)} className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#0D1412] px-3 py-2.5 text-sm font-medium text-zinc-200">
@@ -303,6 +306,9 @@ export function SiteHeader({
                 </div>
               </div>
             ))}
+            {variant === "app" && (
+              <Link href="/leagues" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/5">League Sync</Link>
+            )}
             <div className="mt-6 flex flex-col gap-2 border-t border-emerald-400/10 pt-4">
               {rightActions}
             </div>

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui";
 import { SiteHeader } from "@/components/ui/header";
-import { PlayerQuickSearch } from "@/components/dashboard/PlayerQuickSearch";
 import { useSyncedLeagues } from "@/lib/league-context";
 import { usePlayers } from "@/lib/players";
 import {
@@ -106,11 +105,10 @@ export default function HomePage() {
         <p className="mt-2 text-sm text-zinc-400">
           {weekContext}
         </p>
-        <PlayerQuickSearch />
         <Link href="/leagues" className="mt-4 inline-flex max-w-full items-center gap-2 rounded-lg border border-white/[0.08] bg-[#0D1412] px-3 py-2 text-xs text-zinc-400 transition hover:border-emerald-500/25 hover:text-zinc-100">
           <span className={`size-1.5 shrink-0 rounded-full ${activeLeague ? "bg-emerald-400" : "bg-zinc-600"}`} />
-          <span className="truncate">{activeLeague ? `Synced: ${activeLeague.league_name} (${activeLeague.total_teams}-Team ${activeLeague.scoring_format}${activeLeague.te_premium ? " · TEP" : ""})` : "No league synced yet · Connect Sleeper or ESPN"}</span>
-          <span className="shrink-0 font-semibold text-emerald-400">Manage →</span>
+          <span className="truncate">{activeLeague ? `Synced: ${activeLeague.league_name} (${activeLeague.total_teams}-Team ${activeLeague.scoring_format}${activeLeague.te_premium ? " · TEP" : ""})` : "No league synced · Sync in League Sync"}</span>
+          <span className="shrink-0 font-semibold text-emerald-400">{activeLeague ? "Manage →" : "→"}</span>
         </Link>
 
         <section className="mt-8">
