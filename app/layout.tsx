@@ -31,6 +31,9 @@ export const metadata: Metadata = {
   title: "DraftEdge — Free Fantasy Draft Assistant",
   description:
     "Live fantasy football rankings, automated tiers, trade tools, and custom cheat sheets powered by daily player snapshots. Free to use.",
+  verification: {
+    google: "lWRtvvTII8sDTausv0Q-4m5C3JIlXbf85MnLMBHeGI0",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
