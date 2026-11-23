@@ -1,5 +1,5 @@
 export type Position = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
-export type InjuryStatus = "Q" | "D" | "O" | "IR" | "PUP";
+export type InjuryStatus = "Q" | "D" | "O" | "IR" | "PUP" | "SUS";
 export type LeagueFormat = "redraft" | "dynasty" | "keeper";
 export type DraftType = "snake" | "linear" | "third_round_reversal";
 
@@ -126,4 +126,5 @@ export interface PlayersResponse {
   generatedAt: number;
   schemaVersion?: number;
   weeklyRankingsUpdated?: string;
+  currentWeek?: number | null;
 }

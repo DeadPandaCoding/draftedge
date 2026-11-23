@@ -189,8 +189,9 @@ export function CheatSheetTable({
                     value={state.notes[p.id] ?? ""}
                     onChange={(e) => onNote(p.id, e.target.value)}
                     placeholder="Add note…"
+                    aria-label={`${p.name} note`}
                     maxLength={500}
-                    className="w-full min-w-[140px] rounded-md border border-transparent bg-zinc-800/40 px-2 py-1 text-xs text-zinc-200 placeholder-zinc-500 outline-none transition focus:border-emerald-400/60 focus:bg-zinc-800/80 focus:ring-2 focus:ring-emerald-400/20"
+                    className="min-h-9 w-full min-w-[160px] rounded-md border border-transparent bg-zinc-800/40 px-2 py-1 text-base text-zinc-200 placeholder-zinc-500 outline-none transition focus:border-emerald-400/60 focus:bg-zinc-800/80 focus:ring-2 focus:ring-emerald-400/20 sm:min-h-0 sm:text-xs"
                   />
                 </td>
               </tr>

@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 const SLEEPER_BASE = "https://api.sleeper.app/v1";
 const REVALIDATE_SECONDS = 3600; // refresh upstream data hourly
 const SNAPSHOT_MAX_AGE_MS = 36 * 60 * 60 * 1000;
-const SNAPSHOT_SCHEMA_VERSION = 5;
+const SNAPSHOT_SCHEMA_VERSION = 6;
 
 /** Max number of live-only players (not in seed) to append per position. */
 const LIVE_CAPS: Record<Position, number> = {
@@ -57,6 +57,7 @@ function normalizeInjuryStatus(raw?: string | null): InjuryStatus | null {
   if (value === "O" || value === "OUT") return "O";
   if (value === "IR" || value.includes("INJURED RESERVE")) return "IR";
   if (value === "PUP" || value.includes("PHYSICALLY UNABLE")) return "PUP";
+  if (value === "SUS" || value.includes("SUSPEND")) return "SUS";
   return null;
 }
 
@@ -96,7 +97,7 @@ async function fetchLivePlayers(): Promise<LivePlayer[]> {
         team,
         searchRank: Number(p.search_rank ?? 9999999),
         gsisId: p.gsis_id ?? "",
-        injuryStatus: normalizeInjuryStatus(p.injury_status),
+        injuryStatus: normalizeInjuryStatus(p.injury_status || (status.toLowerCase().includes("suspend") ? "SUS" : null)),
         injuryBodyPart: p.injury_body_part ?? null,
       });
     }
@@ -387,6 +388,7 @@ async function readLatestSnapshot(scoring: ScoringFormat): Promise<PlayersRespon
     generatedAt,
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     weeklyRankingsUpdated: snapshot.weeklyRankingsUpdated,
+    currentWeek: snapshot.currentWeek ?? null,
   };
 }
 
@@ -516,6 +518,7 @@ export async function GET(req: NextRequest) {
     generatedAt: Date.now(),
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     weeklyRankingsUpdated,
+    currentWeek: state?.season_type === "regular" ? state.week : null,
   };
 
   return NextResponse.json(body, {

@@ -9,7 +9,7 @@ import { SCORING_LABELS } from "@/lib/league";
 import { usePlayers } from "@/lib/players";
 import type { DraftState, LeagueConfig, Player } from "@/lib/types";
 import { buildTradeValues } from "@/lib/trade-value";
-import { buildMatchupContext } from "@/lib/matchup-context";
+import { buildMatchupContext, getWeeklyInjuryMultiplier } from "@/lib/matchup-context";
 import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
@@ -47,7 +47,7 @@ export default function StartSitPage() {
   const [draftState, setDraftState] = useState<DraftState | null>(null);
 
   const scoring = activeLeague ? toScoringFormat(activeLeague.scoring_format) : league?.scoring ?? "ppr";
-  const { players, loading: playersLoading } = usePlayers(scoring);
+  const { players, loading: playersLoading, currentWeek } = usePlayers(scoring);
 
   const [sideA, setSideA] = useState<string | null>(null);
   const [sideB, setSideB] = useState<string | null>(null);
@@ -79,7 +79,14 @@ export default function StartSitPage() {
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const contexts = useMemo(() => buildMatchupContext(players, league?.format ?? "redraft"), [players, league?.format]);
-  const values = useMemo(() => buildTradeValues(players.map((p) => ({ ...p, projection: contexts.get(p.id)?.adjustedRosPoints ?? p.projection })), league?.teamCount ?? 12), [players, league, contexts]);
+  const values = useMemo(() => buildTradeValues(players.map((p) => {
+    const context = contexts.get(p.id);
+    const healthFactor = 1 - (context?.healthDiscount ?? 0);
+    const contextWithoutHealthDiscount = context && healthFactor > 0
+      ? context.adjustedRosPoints / healthFactor
+      : context?.adjustedRosPoints;
+    return { ...p, projection: contextWithoutHealthDiscount ?? p.rosProjection ?? p.projection };
+  }), league?.teamCount ?? 12), [players, league, contexts]);
 
   const a = sideA ? playersById.get(sideA) : undefined;
   const b = sideB ? playersById.get(sideB) : undefined;
@@ -117,12 +124,25 @@ export default function StartSitPage() {
 
   // Prefer this week's Sleeper projection when both players have one; fall
   // back to the season projection (the only signal available in the offseason).
-  const useWeek = Boolean(a && b && a.weekProjection != null && b.weekProjection != null);
-  const aScore = a ? (useWeek ? contexts.get(a.id)?.adjustedWeeklyPoints ?? a.weekProjection ?? a.projection : contexts.get(a.id)?.adjustedRosPoints ?? a.projection) : 0;
-  const bScore = b ? (useWeek ? contexts.get(b.id)?.adjustedWeeklyPoints ?? b.weekProjection ?? b.projection : contexts.get(b.id)?.adjustedRosPoints ?? b.projection) : 0;
+  const useWeek = Boolean(a && b && currentWeek != null);
+  const isOnBye = (player: Player) => currentWeek != null && player.bye === currentWeek;
+  const weeklyScore = (player: Player) => {
+    const points = contexts.get(player.id)?.adjustedWeeklyPoints ?? player.weekProjection ?? 0;
+    return points * getWeeklyInjuryMultiplier(player.injuryStatus, isOnBye(player));
+  };
+  const aScore = a ? (useWeek ? weeklyScore(a) : contexts.get(a.id)?.adjustedRosPoints ?? a.projection) : 0;
+  const bScore = b ? (useWeek ? weeklyScore(b) : contexts.get(b.id)?.adjustedRosPoints ?? b.projection) : 0;
   const diff = a && b ? aScore - bScore : 0;
-  const band = a && b ? confidence(diff) : null;
-  const winner = a && b ? (aScore >= bScore ? a : b) : null;
+  const aUnavailable = Boolean(a && useWeek && getWeeklyInjuryMultiplier(a.injuryStatus, isOnBye(a)) === 0);
+  const bUnavailable = Boolean(b && useWeek && getWeeklyInjuryMultiplier(b.injuryStatus, isOnBye(b)) === 0);
+  const winner = a && b
+    ? aUnavailable !== bUnavailable
+      ? (aUnavailable ? b : a)
+      : aUnavailable && bUnavailable
+        ? null
+        : aScore >= bScore ? a : b
+    : null;
+  const band = winner ? confidence(diff) : null;
 
   const statRow = (label: string, value: string, highlight = false) => (
     <div className="flex items-center justify-between gap-2 border-b border-zinc-800/70 py-2 last:border-0">
@@ -158,8 +178,11 @@ export default function StartSitPage() {
       </div>
       <div className="mt-4">
         {statRow("ROS projection", `${(contexts.get(p.id)?.adjustedRosPoints ?? p.projection).toFixed(1)} pts`, winner === p)}
-        {p.weekProjection != null &&
-          statRow("This week (adjusted)", `${(contexts.get(p.id)?.adjustedWeeklyPoints ?? p.weekProjection).toFixed(1)} pts`, winner === p)}
+        {useWeek && statRow(
+          `This week${getWeeklyInjuryMultiplier(p.injuryStatus, isOnBye(p)) === 0 ? " · SIT" : " (adjusted)"}`,
+          `${weeklyScore(p).toFixed(1)} pts`,
+          winner === p,
+        )}
         {statRow("Weekly avg", p.weeklyAvg.toFixed(1))}
         {statRow("Season PPG", contexts.get(p.id)?.ppg == null ? "Unavailable" : `${contexts.get(p.id)!.ppg!.toFixed(1)} pts`)}
         {statRow("Opponent rank", "Unavailable")}

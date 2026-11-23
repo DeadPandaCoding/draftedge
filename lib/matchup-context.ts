@@ -17,10 +17,23 @@ export interface PlayerMatchupContext {
 }
 
 const OUT_STATUSES = new Set<InjuryStatus>(["O", "IR", "PUP"]);
+
+export function getWeeklyInjuryMultiplier(
+  status: InjuryStatus | null | undefined,
+  onBye = false,
+): number {
+  if (onBye || status === "O" || status === "IR" || status === "PUP" || status === "SUS") return 0;
+  if (status === "Q") return 0.88;
+  if (status === "D") return 0.25;
+  return 1;
+}
+
 function healthDiscount(status: InjuryStatus | null | undefined, format: LeagueFormat): number {
   if (status === "Q") return 0.05;
-  if (status === "D") return 0.35;
-  if (status === "O" || status === "IR" || status === "PUP") return format === "dynasty" ? 0 : 0.25;
+  // Weekly D/O tags should only discount a small portion of ROS value; they
+  // must not be treated as season-ending absences.
+  if (status === "D" || status === "O") return 0.06;
+  if (status === "IR" || status === "PUP") return format === "dynasty" ? 0 : 0.25;
   return 0;
 }
 
@@ -46,6 +59,7 @@ export function buildMatchupContext(
     const tags: string[] = [];
     const health = healthDiscount(player.injuryStatus, format);
     if (health > 0 && player.injuryStatus) tags.push(`Health ${player.injuryStatus}: −${Math.round(health * 100)}%`);
+    if (player.injuryStatus === "Q") tags.push("Questionable: check inactive reports 90 minutes before kickoff.");
 
     const teammates = teamPlayers.get(player.team) ?? [];
     const injuredQb = teammates.find((mate) => mate.position === "QB" && OUT_STATUSES.has(mate.injuryStatus ?? "Q"));
@@ -72,7 +86,7 @@ export function buildMatchupContext(
       teammateUsageBoost: usageBoost,
       backupQbDiscount: qbDiscount,
       adjustedRosPoints: Math.round(rosPoints * factor * 10) / 10,
-      adjustedWeeklyPoints: Math.round(weeklyPoints * factor * 10) / 10,
+      adjustedWeeklyPoints: Math.round(weeklyPoints * (1 + usageBoost) * (1 - qbDiscount) * 10) / 10,
       opponentRank: null,
       matchupGrade: null,
       rosSos: null,

@@ -12,6 +12,7 @@ interface PlayersState {
   loading: boolean;
   error?: string;
   weeklyRankingsUpdated?: string;
+  currentWeek?: number | null;
 }
 
 export function usePlayers(scoring: ScoringFormat): PlayersState {
@@ -23,7 +24,7 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
 
   useEffect(() => {
     let cancelled = false;
-    const cacheKey = `draftedge.players.${scoring}.v7`;
+    const cacheKey = `draftedge.players.${scoring}.v8`;
 
     // 1) Serve from cache immediately if fresh.
     try {
@@ -33,6 +34,7 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
           players: Player[];
           source: "live" | "seed";
           weeklyRankingsUpdated?: string;
+          currentWeek?: number | null;
           t: number;
         };
         if (Date.now() - cached.t < CACHE_TTL_MS) {
@@ -42,6 +44,7 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
             players: cached.players,
             source: cached.source,
             weeklyRankingsUpdated: cached.weeklyRankingsUpdated,
+            currentWeek: cached.currentWeek,
             loading: false,
           });
         }
@@ -65,6 +68,7 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
               players: data.players,
               source: data.source,
               weeklyRankingsUpdated: data.weeklyRankingsUpdated,
+              currentWeek: data.currentWeek,
               t: Date.now(),
             }),
           );
@@ -75,6 +79,7 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
           players: data.players,
           source: data.source,
           weeklyRankingsUpdated: data.weeklyRankingsUpdated,
+          currentWeek: data.currentWeek,
           loading: false,
         });
       })

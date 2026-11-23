@@ -6,6 +6,17 @@ const DEEP_BASELINE_RANK: Record<Position, number> = {
 
 type PlayerWithMarketValue = Player & { redraftValue?: number; redraft_value?: number };
 
+export function getTradeInjuryMultiplier(
+  status: Player["injuryStatus"],
+  rosPoints: number,
+  baseline: number,
+): number {
+  if (rosPoints <= 0 || rosPoints <= baseline) return 0;
+  if (status === "D" || status === "O") return 0.92;
+  if (status === "IR" || status === "PUP") return 0.6;
+  return 1;
+}
+
 /** Build a 0–100 estimate from market value when available, then positional depth,
  * ROS points, and ADP. This is an estimate, not a claim that points equal trade value. */
 export function buildTradeValues(
@@ -23,7 +34,7 @@ export function buildTradeValues(
   const values = new Map<string, number>();
   for (const [position, positionPlayers] of grouped) {
     const sorted = [...positionPlayers].sort((a, b) => {
-      const projectionDiff = b.projection - a.projection;
+      const projectionDiff = tradeProjection(b) - tradeProjection(a);
       if (projectionDiff !== 0) return projectionDiff;
       if (a.adp > 0 && b.adp > 0) return a.adp - b.adp;
       return a.adp > 0 ? -1 : b.adp > 0 ? 1 : a.name.localeCompare(b.name);
@@ -31,17 +42,23 @@ export function buildTradeValues(
     const rankById = new Map(sorted.map((player, index) => [player.id, index + 1]));
     const depthRank = Math.max(1, Math.round(DEEP_BASELINE_RANK[position] * teamCount / 12));
     const baseRank = Math.min(depthRank, sorted.length);
-    const baselineProjection = sorted[baseRank - 1]?.projection ?? 0;
-    const topAboveBaseline = Math.max(1, (sorted[0]?.projection ?? 0) - baselineProjection);
+    const baselineProjection = sorted[baseRank - 1] ? tradeProjection(sorted[baseRank - 1]) : 0;
+    const topProjection = sorted[0] ? tradeProjection(sorted[0]) : 0;
+    const topAboveBaseline = Math.max(1, topProjection - baselineProjection);
 
     for (const player of positionPlayers) {
-      const isUnavailable = ["O", "IR", "PUP"].includes(player.injuryStatus ?? "");
-      if (isUnavailable) {
+      const projection = Math.max(0, tradeProjection(player));
+      if (projection <= 0) {
         values.set(player.id, 0);
         continue;
       }
 
-      const projection = Math.max(0, Number(player.projection) || 0);
+      const healthMultiplier = getTradeInjuryMultiplier(player.injuryStatus, projection, baselineProjection);
+      if (healthMultiplier === 0) {
+        values.set(player.id, 0);
+        continue;
+      }
+
       const adp = Number(player.adp) || 0;
       const rank = rankById.get(player.id) ?? sorted.length;
       const rankCurve = 66 * Math.exp(-((rank - 1) / depthRank) * 2.2);
@@ -51,11 +68,18 @@ export function buildTradeValues(
       const fallback = Math.min(100, Math.max(rankCurve, vorCurve, adpCurve, projectionFloor));
       const suppliedMarket = (marketValues?.get(player.id) ?? (player as PlayerWithMarketValue).redraftValue ?? (player as PlayerWithMarketValue).redraft_value) ?? 0;
       const market = Math.max(0, Math.min(100, Number(suppliedMarket) || 0));
-      const combined = market > 0 ? market * 0.7 + fallback * 0.3 : fallback;
+      const baseValue = market > 0 ? market * 0.7 + fallback * 0.3 : fallback;
+      const combined = baseValue * healthMultiplier;
       values.set(player.id, Math.round(combined * 10) / 10);
     }
   }
   return values;
+}
+
+function tradeProjection(player: Player): number {
+  // Callers can pass a context-adjusted ROS total through `projection`.
+  const projection = player.projection;
+  return Number.isFinite(projection) ? Math.max(0, projection) : 0;
 }
 
 export interface TradeGrade {

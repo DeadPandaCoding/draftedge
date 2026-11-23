@@ -182,7 +182,14 @@ export default function TradePage() {
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const contexts = useMemo(() => buildMatchupContext(players, league?.format ?? "redraft"), [players, league?.format]);
   const values = useMemo(() => buildTradeValues(
-    players.map((p) => ({ ...p, projection: contexts.get(p.id)?.adjustedRosPoints ?? p.projection })),
+    players.map((p) => {
+      const context = contexts.get(p.id);
+      const healthFactor = 1 - (context?.healthDiscount ?? 0);
+      const contextWithoutHealthDiscount = context && healthFactor > 0
+        ? context.adjustedRosPoints / healthFactor
+        : context?.adjustedRosPoints;
+      return { ...p, projection: contextWithoutHealthDiscount ?? p.rosProjection ?? p.projection };
+    }),
     teamCount,
     fcValueMap,
   ), [players, teamCount, contexts, fcValueMap]);
