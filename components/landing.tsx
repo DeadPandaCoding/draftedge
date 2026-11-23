@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { BoltIcon, CheckIcon, GridIcon, UsersIcon } from "@/components/icons";
+import { BoltIcon } from "@/components/icons";
 import { SiteHeader } from "@/components/ui/header";
-import { TIER_STYLES } from "@/lib/tiers";
 import { DraftBoardMockup } from "@/components/landing/DraftBoardMockup";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
 import { SmoothScroll } from "@/components/landing/SmoothScroll";
@@ -9,24 +8,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { TextReveal } from "@/components/ui/text-reveal";
 import { ScrollText } from "@/components/ui/scroll-text";
 import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
-
-const FEATURES = [
-  {
-    icon: <GridIcon size={20} />,
-    title: "Tier-Based Rankings",
-    body: "See tiers, position runs, and drop-offs instead of treating every rank gap as equal.",
-  },
-  {
-    icon: <CheckIcon size={20} />,
-    title: "Draft Pick Tracking",
-    body: "Log each pick as it happens. DraftEdge updates the board and helps you track roster needs.",
-  },
-  {
-    icon: <UsersIcon size={20} />,
-    title: "Free & Open Source",
-    body: "Use draft prep and player research tools at no cost. The project code is public on GitHub.",
-  },
-];
+import { StickyToolShowcase } from "@/components/landing/StickyToolShowcase";
 
 const STEPS = [
   {
@@ -44,15 +26,6 @@ const STEPS = [
     title: "Track the board",
     body: "Log picks as they happen and keep your roster needs in view while you draft.",
   },
-];
-
-const [featureTiers, featureSync, featureFree] = FEATURES;
-
-// Mini board used inside the featured bento panel (matches the draft-room tiers).
-const TIER_PREVIEW = [
-  { tier: 1, label: "Tier 1", players: ["Ja'Marr Chase", "Bijan Robinson", "Justin Jefferson"] },
-  { tier: 2, label: "Tier 2", players: ["Jahmyr Gibbs", "Puka Nacua", "CeeDee Lamb"] },
-  { tier: 3, label: "Tier 3", players: ["Malik Nabers", "Amon-Ra St. Brown"] },
 ];
 
 // No social profiles exist yet — links were removed instead of shipping dead `#` hrefs.
@@ -117,74 +90,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Features ────────────────────────────────────────── */}
-      <section id="features" className="relative z-10 scroll-mt-20 overflow-hidden border-b border-white/[0.07]">
-        <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
-          <ScrollText
-            as="h2"
-            text="A better answer to “Who’s next?”"
-            className="mx-auto max-w-4xl text-center font-display text-4xl leading-[1.15] tracking-wide text-white sm:text-5xl"
-          />
-          <Reveal>
-            <p className="mx-auto mt-4 max-w-xl text-center text-zinc-300">
-              Your top pick is gone. Who moves up next? Start with tiers, then compare the details.
-            </p>
-          </Reveal>
-          {/* Bento — one large feature panel with a live tier preview, two compact panels */}
-          <Reveal delay={140}>
-          <div className="mt-12 grid gap-5 md:grid-cols-3 md:grid-rows-2">
-            <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0D1412] p-7 transition hover:-translate-y-1 md:col-span-2 md:row-span-2">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                {featureTiers.icon}
-              </div>
-              <h3 className="mt-4 text-xl font-semibold text-white">{featureTiers.title}</h3>
-              <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-300">{featureTiers.body}</p>
-
-              {/* Mini tier board */}
-              <div className="mt-8 space-y-2.5">
-                {TIER_PREVIEW.map((t) => (
-                  <div
-                    key={t.tier}
-                    className="flex flex-wrap items-center gap-3 rounded-xl bg-zinc-900/40 px-3.5 py-2.5"
-                  >
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${TIER_STYLES[t.tier].pill}`}
-                    >
-                      {t.label}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {t.players.map((p) => (
-                        <span
-                          key={p}
-                          className="rounded-md bg-zinc-800/80 px-2 py-0.5 text-[11px] font-medium text-zinc-300"
-                        >
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0D1412] p-6 transition hover:-translate-y-1">
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                {featureSync.icon}
-              </div>
-              <h3 className="text-base font-semibold text-white">{featureSync.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">{featureSync.body}</p>
-            </div>
-
-            <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0D1412] p-6 transition hover:-translate-y-1">
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                {featureFree.icon}
-              </div>
-              <h3 className="text-base font-semibold text-white">{featureFree.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">{featureFree.body}</p>
-            </div>
-          </div>
-          </Reveal>
-        </div>
-      </section>
+      <StickyToolShowcase />
 
       {/* ── How it works ────────────────────────────────────── */}
       <section id="how-it-works" className="relative z-10 scroll-mt-20 overflow-hidden border-b border-white/[0.07]">

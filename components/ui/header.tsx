@@ -7,7 +7,6 @@ import {
   ActivityIcon,
   ArrowUpIcon,
   BarChartIcon,
-  BoltIcon,
   ChevronDownIcon,
   ClockIcon,
   FlaskIcon,
@@ -16,6 +15,7 @@ import {
   PollIcon,
   SwapIcon,
   TableIcon,
+  DraftEdgeLogo,
   XIcon,
 } from "@/components/icons";
 
@@ -214,11 +214,9 @@ export function SiteHeader({
       <header className="glass-nav sticky top-0 z-50">
         <nav className="flex h-16 w-full items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-6">
-            <Link href={logoHref} className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-                <BoltIcon size={16} />
-              </span>
-              <span className="font-display text-lg tracking-wide text-white">
+            <Link href={logoHref} className="flex items-center gap-2.5">
+              <DraftEdgeLogo size={24} />
+              <span className="font-display text-lg font-bold tracking-tight text-white">
                 Draft<span className="text-emerald-400">Edge</span>
               </span>
             </Link>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BoltIcon } from "@/components/icons";
+import { DraftEdgeLogo } from "@/components/icons";
 
 /**
  * Shared shell + prose primitives for the legal pages (Privacy, Terms,
@@ -27,11 +27,9 @@ export function LegalPage({
   return (
     <div className="relative flex min-h-screen flex-col">
       <header className="glass-nav sticky top-0 z-30 mx-auto flex w-full items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-            <BoltIcon size={16} />
-          </span>
-          <span className="font-display text-lg tracking-wide text-white">
+        <Link href="/" className="flex items-center gap-2.5">
+          <DraftEdgeLogo size={24} />
+          <span className="font-display text-lg font-bold tracking-tight text-white">
             Draft<span className="text-emerald-400">Edge</span>
           </span>
         </Link>

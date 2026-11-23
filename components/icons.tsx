@@ -23,6 +23,15 @@ export const BoltIcon = (p: IconProps) => (
   </svg>
 );
 
+export const DraftEdgeLogo = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 5h12l4 4H4V5z" fill="#10B981" />
+    <path d="M4 10.5h15l-3 4H4v-4z" fill="#34D399" />
+    <path d="M4 16h9l-2 3.5H4V16z" fill="#10B981" />
+    <circle cx="17.5" cy="17.75" r="1.75" fill="#FF3E9D" />
+  </svg>
+);
+
 export const SearchIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <circle cx="11" cy="11" r="7" />
