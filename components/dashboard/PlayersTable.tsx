@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPositiveStat } from "@/lib/player-display";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Player } from "@/lib/types";
@@ -199,7 +200,7 @@ export function PlayersTable({
                   {ros ? p.rosRank ?? "—" : rankOf(p, weekly, ros)}
                 </td>
                 <td className="font-tech border-b border-zinc-800/60 px-2.5 py-1.5 text-xs text-zinc-400">
-                  {p.adp > 0 ? p.adp.toFixed(1) : "—"}
+                  {formatPositiveStat(p.adp)}
                 </td>
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
                   <div className="flex items-center gap-1.5">
@@ -244,7 +245,7 @@ export function PlayersTable({
                 </td>
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
                   <span className="font-tech font-semibold text-zinc-200">
-                    {projectionOf(p, weekly, ros) > 0 ? projectionOf(p, weekly, ros).toFixed(1) : "—"}
+                    {formatPositiveStat(projectionOf(p, weekly, ros))}
                   </span>
                   {!weekly && !ros && p.weeklyAvg > 0 && (
                     <span className="font-tech ml-1.5 text-[11px] text-zinc-500">

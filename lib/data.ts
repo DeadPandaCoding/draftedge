@@ -53,15 +53,6 @@ export async function persistLeague(userId: string, league: LeagueConfig): Promi
   localStorage.setItem(leagueLocalKey(userId), JSON.stringify(league));
 }
 
-export async function removeLeague(userId: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseBrowser();
-    await supabase.from("leagues").delete().eq("user_id", userId);
-    return;
-  }
-  localStorage.removeItem(leagueLocalKey(userId));
-}
-
 // ── Draft state ────────────────────────────────────────────────────
 
 /**

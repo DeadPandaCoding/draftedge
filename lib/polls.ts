@@ -26,7 +26,7 @@ export interface PollVote {
   option: number;
 }
 
-export interface PollResult {
+interface PollResult {
   poll: Poll;
   counts: number[];
   total: number;
@@ -60,7 +60,7 @@ function rowToPoll(row: PollRow): Poll {
 }
 
 // ── Persistence ──────────────────────────────────────────────────────
-export async function fetchPolls(): Promise<Poll[]> {
+async function fetchPolls(): Promise<Poll[]> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseBrowser();
     const { data, error } = await supabase
@@ -78,7 +78,7 @@ export async function fetchPolls(): Promise<Poll[]> {
   }
 }
 
-export async function fetchVotes(): Promise<PollVote[]> {
+async function fetchVotes(): Promise<PollVote[]> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseBrowser();
     const { data, error } = await supabase.from("poll_votes").select("poll_id, user_id, option");
@@ -98,7 +98,7 @@ export async function fetchVotes(): Promise<PollVote[]> {
   }
 }
 
-export async function createPoll(
+async function createPoll(
   question: string,
   options: string[],
   userId: string
@@ -127,7 +127,7 @@ export async function createPoll(
   return poll;
 }
 
-export async function castVote(pollId: string, userId: string, option: number): Promise<void> {
+async function castVote(pollId: string, userId: string, option: number): Promise<void> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseBrowser();
     const { error } = await supabase.from("poll_votes").upsert(

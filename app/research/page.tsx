@@ -1,5 +1,7 @@
 "use client";
 
+import { formatPositiveStat } from "@/lib/player-display";
+import { SCORING_FORMATS } from "@/lib/types";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,7 +18,6 @@ import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
 import { PosBadge, Skeleton, TierBadge } from "@/components/ui";
 import { StarIcon } from "@/components/icons";
 
-const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
 
 /** Core starters per team, used to compute the replacement-level baseline. */
 const STARTERS_PER_TEAM: Record<Position, number> = {
@@ -137,7 +138,7 @@ export default function ResearchPage() {
           </p>
         </div>
         <div className="flex rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-1">
-          {SCORING_OPTIONS.map((s) => (
+          {SCORING_FORMATS.map((s) => (
             <button
               key={s}
               type="button"
@@ -210,7 +211,7 @@ export default function ResearchPage() {
                           <PosBadge position={p.position} size="xs" />
                         </td>
                         <td className="font-tech px-4 py-2.5 text-zinc-400">
-                          {p.adp > 0 ? p.adp.toFixed(1) : "—"}
+                          {formatPositiveStat(p.adp)}
                         </td>
                         <td className="font-tech px-4 py-2.5 text-zinc-300">{p.projection.toFixed(1)}</td>
                         <td className="font-tech px-4 py-2.5 text-right font-bold text-emerald-300">

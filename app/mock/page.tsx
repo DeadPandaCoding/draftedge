@@ -1,5 +1,8 @@
 "use client";
 
+import { DraftBoardTile } from "@/components/draft/DraftBoardTile";
+import { indexPlayersById, formatPositiveStat } from "@/lib/player-display";
+import { SCORING_FORMATS } from "@/lib/types";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -49,7 +52,6 @@ function eligible(slot: Slot | "ALL", position: Position) {
 /* ───────── Constants ───────── */
 
 const TEAM_COUNTS = [8, 10, 12, 14, 16];
-const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
 const TIMER_OPTIONS = [
   { value: 30, label: "30s" },
   { value: 60, label: "60s" },
@@ -339,7 +341,7 @@ export default function MockDraftPage() {
       ? (player.usage.receptions / player.usage.games) * 17 * 0.5
       : 0),
   })), [players, tePremium]);
-  const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const playersById = useMemo(() => indexPlayersById(players), [players]);
   const tradeValues = useMemo(() => buildTradeValues(draftPlayers, teams), [draftPlayers, teams]);
 
   const totalRounds = rosterSize(roster);
@@ -658,19 +660,15 @@ export default function MockDraftPage() {
   }, [done, myPicks, playersById]);
 
   const tradeAssets = useMemo(() => {
-    if (!done) return [];
-    const counts: Record<Position, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
-    for (const pick of myPicks) {
-      const p = playersById.get(pick.playerId);
-      if (p) counts[p.position]++;
-    }
+    if (!positionBalance) return [];
+    const { counts } = positionBalance;
     const assets: { pos: Position; count: number; msg: string }[] = [];
     if (counts.QB > roster.qb + 1) assets.push({ pos: "QB", count: counts.QB, msg: "Trade surplus QBs for RB/WR depth" });
     if (counts.TE > roster.te + 1) assets.push({ pos: "TE", count: counts.TE, msg: "Trade surplus TEs — position is deep" });
     if (counts.RB > roster.rb + roster.flex + 2) assets.push({ pos: "RB", count: counts.RB, msg: "Extra RBs are trade bait" });
     if (counts.WR > roster.wr + roster.flex + 2) assets.push({ pos: "WR", count: counts.WR, msg: "Extra WRs are trade bait" });
     return assets;
-  }, [done, myPicks, playersById, roster]);
+  }, [positionBalance, roster]);
 
   if (loading || !user) {
     return <ToolLoadingState title="Fantasy Football Mock Draft Simulator" description="Practice fantasy football drafts with configurable league settings, roster slots, draft strategy, and position-aware picks." />;
@@ -704,7 +702,7 @@ export default function MockDraftPage() {
             <div>
               <label className="mb-2 block text-xs font-semibold text-zinc-400">Scoring Format</label>
               <div className="flex rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-1">
-                {SCORING_OPTIONS.map((s) => (
+                {SCORING_FORMATS.map((s) => (
                   <button key={s} type="button" onClick={() => setScoring(s)} aria-pressed={scoring === s}
                     className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition ${scoring === s ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-400 hover:text-zinc-200"}`}>
                     {SCORING_LABELS[s]}
@@ -896,13 +894,8 @@ export default function MockDraftPage() {
                           const pick = picks[pickNumber - 1];
                           const player = pick && playersById.get(pick.playerId);
                           const active = !done && pickNumber === currentPick;
-                          const [first, ...last] = player?.name.split(" ") ?? [];
                           return (
-                            <td key={slot} aria-current={active ? "step" : undefined} data-pos={player?.position} data-mine={slot === mySlot} className={styles.tile}>
-                              <small>{round}.{pickNumber - i * teams}{pickNumber % teams === 0 && round < totalRounds && " ↓"}</small>
-                              {active ? <><strong className="text-pop">ON THE CLOCK</strong><b className="font-mono text-white">{pickTimer ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Untimed"}</b></>
-                                : player && <><span>{last.length ? first : ""}</span><strong>{last.join(" ") || first}</strong><small>{player.position} &middot; {player.team} (Bye {player.bye || "—"})</small></>}
-                            </td>
+                            <DraftBoardTile key={slot} player={player} round={round} pickNumber={pickNumber} teams={teams} totalRounds={totalRounds} active={active} mine={slot === mySlot} clock={pickTimer ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Untimed"} />
                           );
                         })}
                       </tr>
@@ -1036,7 +1029,7 @@ export default function MockDraftPage() {
                         <td>{p.rank}</td>
                         <td><strong>{p.name}</strong> <InjuryBadge status={p.injuryStatus} /><small>{p.position} &middot; {p.team} (Bye {p.bye || "—"})</small>{blockReason && <small className="block text-rose-300">{blockReason}</small>}</td>
                         <td><button aria-pressed={queued} title={queued ? "Remove from Queue" : "Add to Queue"} aria-label={`${queued ? "Remove from" : "Add to"} queue: ${p.name}`} onClick={() => toggleQueue(p.id)}>&#9733; {queued ? "Queued" : "Queue"}</button></td>
-                        <td>{p.adp > 0 ? p.adp.toFixed(1) : "—"}</td><td>{p.projection.toFixed(1)}</td>
+                        <td>{formatPositiveStat(p.adp)}</td><td>{p.projection.toFixed(1)}</td>
                         <td>{p.usage?.games && p.actualPoints != null ? (p.actualPoints / p.usage.games).toFixed(1) : "—"}</td>
                       </tr>;
                     })}</tbody>

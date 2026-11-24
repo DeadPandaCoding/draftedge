@@ -280,83 +280,6 @@ select:focus-visible {
   }
 }
 
-/* Animated flowing gradient for headline text (disabled for reduced-motion) */
-@keyframes gradient-shift {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-.animate-gradient-text {
-  background-size: 200% 200%;
-  animation: gradient-shift 6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .animate-gradient-text {
-    animation: none;
-  }
-}
-
-/* Terminal-style caret: solid while the phrase enters, then soft blink + glow */
-@keyframes caret-blink {
-  0%,
-  28% {
-    opacity: 1;
-  }
-  34%,
-  48% {
-    opacity: 0.15;
-  }
-  54%,
-  68% {
-    opacity: 1;
-  }
-  74%,
-  88% {
-    opacity: 0.15;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-.rotating-caret {
-  animation: caret-blink 1.8s ease-in-out infinite;
-  box-shadow: 0 0 10px 1px rgba(52, 211, 153, 0.4);
-}
-@media (prefers-reduced-motion: reduce) {
-  .rotating-caret {
-    animation: none;
-  }
-}
-
-/* Rotating headline text: entrance blur-fade-slide + flowing gradient */
-@keyframes text-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.55em);
-    filter: blur(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-.rotating-phrase {
-  background-size: 200% 200%;
-  animation:
-    gradient-shift 6s ease-in-out infinite,
-    text-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .rotating-phrase {
-    animation: none;
-  }
-}
-
 /* Skeleton shimmer for loading placeholders (disabled for reduced-motion) */
 @keyframes skeleton-shimmer {
   0% {
@@ -382,45 +305,6 @@ select:focus-visible {
   }
 }
 
-/* Landing preview tab content entrance (disabled for reduced-motion users) */
-@keyframes landing-panel-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.landing-panel-in {
-  animation: landing-panel-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .landing-panel-in {
-    animation: none;
-  }
-}
-
-/* Slow float for the hero mockup (disabled for reduced-motion users) */
-@keyframes float-slow {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-.animate-float-slow {
-  animation: float-slow 7s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .animate-float-slow {
-    animation: none;
-  }
-}
-
 /* Tailwind's animate-pulse (status dots, pick-clock expiry, loaders) — the
    project's motion constraint applies to utility animations too, so flatten
    the pulse for reduced-motion users. */
@@ -428,43 +312,6 @@ select:focus-visible {
   .animate-pulse {
     animation: none;
   }
-}
-
-/* Scroll reveal — `.is-visible` is added by the Reveal component when the
-   element enters the viewport. Transform/opacity only (compositor-friendly). */
-.reveal {
-  opacity: 0;
-  transform: translateY(26px);
-  transition:
-    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: var(--reveal-delay, 0ms);
-}
-.reveal.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Scrolling line-by-line text reveal (see ScrollText component). Each rendered
-   line sits in an overflow-hidden mask; its inner line is translated down and
-   eased up as it scrolls into view. The transform is applied by GSAP only when
-   motion is allowed, so the base state is fully visible — a graceful no-JS /
-   reduced-motion fallback. */
-.scroll-text {
-  font-kerning: none;
-}
-.scroll-text-word {
-  display: inline-block;
-  margin-right: 0.25em;
-  white-space: nowrap;
-}
-.scroll-text-line-mask {
-  display: block;
-  overflow: hidden;
-}
-.scroll-text-line {
-  display: block;
-  will-change: transform;
 }
 
 /* Polished primary-button hover — glossy shine sweep + gentle lift/scale. */
@@ -493,13 +340,8 @@ select:focus-visible {
   transform: translateX(140%);
 }
 
-/* Respect reduced motion for decorative reveals and button transitions. */
+/* Respect reduced motion for button transitions. */
 @media (prefers-reduced-motion: reduce) {
-.reveal {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
   .btn-glass-primary::after {
     display: none;
   }

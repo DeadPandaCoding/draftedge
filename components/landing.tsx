@@ -1,9 +1,10 @@
+import { TOOLS } from "@/lib/tools";
 import Link from "next/link";
 import { DraftEdgeLogo } from "@/components/icons";
 import { LandingPrimaryCta } from "@/components/landing/LandingPrimaryCta";
 import { SpotlightStages } from "@/components/landing/SpotlightStages";
 
-const tools = [["Trade Analyzer", "/trade"], ["Mock Draft", "/mock"], ["Start/Sit", "/start-sit"], ["League Sync", "/leagues"]];
+const tools = [TOOLS.trade, { ...TOOLS.mock, label: "Mock Draft" }, TOOLS.startSit, { label: "League Sync", href: "/leagues" }];
 
 export function LandingPage() {
   return (
@@ -12,7 +13,7 @@ export function LandingPage() {
         <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-y-3 px-5 py-4 lg:px-12">
           <Link href="/" className="inline-flex items-center gap-2 font-display text-xl font-extrabold tracking-tight"><DraftEdgeLogo />DraftEdge</Link>
           <div className="order-last flex w-full justify-between gap-3 text-xs text-zinc-300 md:order-none md:w-auto md:gap-6">
-            {tools.map(([label, href]) => <Link key={href} href={href} className="hover:text-white">{label}</Link>)}
+            {tools.map(({ label, href }) => <Link key={href} href={href} className="hover:text-white">{label}</Link>)}
           </div>
           <div className="flex items-center gap-4 text-sm font-semibold"><Link href="/signin">Sign In</Link><Link href="/home" className="bg-[#10B981] px-4 py-2 text-black">Launch App</Link></div>
         </nav>
@@ -30,7 +31,7 @@ export function LandingPage() {
             <p className="mx-auto mb-6 mt-5 text-sm text-zinc-300">Bring your league’s scoring into your next draft, trade, or lineup call.</p>
             <div className="flex flex-wrap justify-center gap-3">
               <Link href="/signin?next=%2Fleagues" className="bg-[#10B981] px-5 py-3 text-sm font-bold text-black">Sync Your League →</Link>
-              <Link href="/trade" className="border border-white/30 px-5 py-3 text-sm font-semibold hover:border-white">Open Trade Analyzer</Link>
+              <Link href={TOOLS.trade.href} className="border border-white/30 px-5 py-3 text-sm font-semibold hover:border-white">Open Trade Analyzer</Link>
             </div>
           </div>
         </section>

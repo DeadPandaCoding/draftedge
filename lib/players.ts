@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Player, PlayersResponse, ScoringFormat } from "./types";
-import { getSeedPlayers } from "./seed-data";
+import { buildSeedPlayers } from "./seed-data";
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -54,7 +54,7 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
     // reads. Without this, a failed fetch could keep showing the previous
     // format's numbers under the new scoring label.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState({ players: getSeedPlayers(scoring), source: "seed", loading: true, scoring });
+    setState({ players: buildSeedPlayers(scoring), source: "seed", loading: true, scoring });
 
     // 1) Serve from cache immediately if fresh.
     try {
@@ -119,7 +119,7 @@ export function usePlayers(scoring: ScoringFormat): PlayersState {
         setState((s) => {
           const aligned = s.scoring === scoring && s.players.length > 0;
           return {
-            players: aligned ? s.players : getSeedPlayers(scoring),
+            players: aligned ? s.players : buildSeedPlayers(scoring),
             source: aligned ? s.source : "seed",
             loading: false,
             scoring,

@@ -1,3 +1,4 @@
+import { scoringFromReceptionPoints } from "./league";
 import type { SyncedSleeperLeague, SyncedSleeperRoster } from "@/lib/sleeper-sync";
 
 const ESPN_API = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
@@ -68,12 +69,6 @@ async function getEspnPlayerMap(): Promise<Map<string, string>> {
   return map;
 }
 
-function formatScoring(points: number): "PPR" | "Half-PPR" | "Standard" {
-  if (points >= 0.9) return "PPR";
-  if (points >= 0.25) return "Half-PPR";
-  return "Standard";
-}
-
 function normalizeSwid(value: string): string { return value.replace(/[{}]/g, "").toLowerCase(); }
 
 function mapPlayerId(id: number | undefined, playerMap: Map<string, string>, player?: EspnPlayer): string | null {
@@ -82,7 +77,7 @@ function mapPlayerId(id: number | undefined, playerMap: Map<string, string>, pla
   return playerMap.get(String(id)) ?? `espn:${id}`;
 }
 
-export interface EspnTeamOption { teamId: string; label: string; }
+interface EspnTeamOption { teamId: string; label: string; }
 export interface EspnSyncResult { league: SyncedSleeperLeague; teams: EspnTeamOption[]; needsTeamSelection: boolean; }
 
 export async function syncEspnLeague(input: {
@@ -145,7 +140,7 @@ export async function syncEspnLeague(input: {
       sleeper_username: null,
       league_name: settings?.name ?? `ESPN League ${leagueId}`,
       season,
-      scoring_format: formatScoring(receptionPoints),
+      scoring_format: scoringFromReceptionPoints(receptionPoints),
       te_premium: false,
       total_teams: Number(settings?.size) || data.teams.length || 12,
       roster_positions: rosterPositions,

@@ -18,6 +18,12 @@ export const SCORING_LABELS: Record<ScoringFormat, string> = {
   standard: "Standard",
 };
 
+export function scoringFromReceptionPoints(points: number): "PPR" | "Half-PPR" | "Standard" {
+  if (points >= 0.9) return "PPR";
+  if (points >= 0.25) return "Half-PPR";
+  return "Standard";
+}
+
 export const STATUS_LABELS: Record<DraftStatus, string> = {
   pre_draft: "Pre-Draft",
   live: "Draft Live",

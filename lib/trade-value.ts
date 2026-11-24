@@ -6,7 +6,7 @@ const DEEP_BASELINE_RANK: Record<Position, number> = {
 
 type PlayerWithMarketValue = Player & { redraftValue?: number; redraft_value?: number };
 
-export function getTradeInjuryMultiplier(
+function getTradeInjuryMultiplier(
   status: Player["injuryStatus"],
   rosPoints: number,
   baseline: number,

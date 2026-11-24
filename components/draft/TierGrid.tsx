@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPositiveStat } from "@/lib/player-display";
 import { useMemo } from "react";
 import type { DraftState, PickOwner, Player } from "@/lib/types";
 import { isDrafted } from "@/lib/draft";
@@ -73,7 +74,7 @@ export function TierGrid({
                     <div className="mt-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-3 font-mono text-[11px] text-zinc-500">
                         <span>
-                          ADP <span className="font-semibold text-zinc-300">{p.adp > 0 ? p.adp.toFixed(1) : "—"}</span>
+                          ADP <span className="font-semibold text-zinc-300">{formatPositiveStat(p.adp)}</span>
                         </span>
                         <span>
                           Proj{" "}

@@ -1,5 +1,6 @@
 "use client";
 
+import { indexPlayersById, formatPositiveStat } from "@/lib/player-display";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -9,7 +10,7 @@ import { SCORING_LABELS } from "@/lib/league";
 import { usePlayers } from "@/lib/players";
 import type { DraftState, LeagueConfig, Player } from "@/lib/types";
 import { buildTradeValues } from "@/lib/trade-value";
-import { buildMatchupContext, getWeeklyInjuryMultiplier } from "@/lib/matchup-context";
+import { startSitConfidence, buildMatchupContext, getWeeklyInjuryMultiplier } from "@/lib/matchup-context";
 import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayerPicker } from "@/components/dashboard/PlayerPicker";
@@ -17,28 +18,6 @@ import { InjuryBadge, PosBadge, Skeleton } from "@/components/ui";
 import { XIcon } from "@/components/icons";
 import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 import { playerSlug } from "@/lib/seed-data";
-
-/** Confidence band from the projection gap between two players. */
-function confidence(diff: number) {
-  const abs = Math.abs(diff);
-  if (abs >= 2)
-    return {
-      label: "Clear start",
-      detail: "The projection gap is decisive — start the higher-projected player.",
-      cls: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10",
-    };
-  if (abs >= 0.75)
-    return {
-      label: "Lean start",
-      detail: "A real edge, but matchup or gut feel can overrule it.",
-      cls: "text-emerald-400 border-emerald-500/30 bg-emerald-500/5",
-    };
-  return {
-    label: "Coin flip",
-    detail: "Essentially even on projection — tiebreak on matchup or ceiling.",
-    cls: "text-zinc-200 border-zinc-600/60 bg-zinc-800/40",
-  };
-}
 
 export default function StartSitPage() {
   const router = useRouter();
@@ -102,7 +81,7 @@ export default function StartSitPage() {
     commandPlayerHandled.current = true;
   }, [players, playersLoading]);
 
-  const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const playersById = useMemo(() => indexPlayersById(players), [players]);
   const contexts = useMemo(() => buildMatchupContext(players), [players]);
   const values = useMemo(() => buildTradeValues(players.map((p) => {
     const context = contexts.get(p.id);
@@ -204,7 +183,7 @@ export default function StartSitPage() {
     a && b && !bothUnavailable && !aUnavailable && !bUnavailable &&
     aScore != null && bScore != null && aScore === bScore
   );
-  const band = winner ? confidence(diff) : null;
+  const band = winner ? startSitConfidence(diff) : null;
 
   const statRow = (label: string, value: string, highlight = false) => (
     <div className="flex items-center justify-between gap-2 border-b border-zinc-800/70 py-2 last:border-0">
@@ -236,7 +215,7 @@ export default function StartSitPage() {
         <PosBadge position={p.position} size="sm" />
       </div>
       <div className="mt-1 text-xs text-zinc-500">
-        {p.team} · ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"}
+        {p.team} · ADP {formatPositiveStat(p.adp)}
       </div>
       <div className="mt-4">
         {statRow("ROS projection", `${(contexts.get(p.id)?.adjustedRosPoints ?? p.projection).toFixed(1)} pts`, winner === p)}

@@ -7,7 +7,7 @@ const RANKINGS_URL =
 const REVALIDATE_SECONDS = 3600;
 const MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000;
 
-export interface WeeklyRanking {
+interface WeeklyRanking {
   position: Position;
   positionRank: number;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPositiveStat } from "@/lib/player-display";
 import { useMemo, useState } from "react";
 import type { DraftState, PickOwner, Player } from "@/lib/types";
 import { isDrafted } from "@/lib/draft";
@@ -151,7 +152,7 @@ export function CheatSheetTable({
                   {p.rank}
                 </td>
                 <td className="font-tech border-b border-zinc-800/60 px-2.5 py-1.5 text-xs text-zinc-400">
-                  {p.adp > 0 ? p.adp.toFixed(1) : "—"}
+                  {formatPositiveStat(p.adp)}
                 </td>
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
                   <div className="flex items-center gap-1.5">
@@ -176,7 +177,7 @@ export function CheatSheetTable({
                 </td>
                 <td className="border-b border-zinc-800/60 px-2.5 py-1.5">
                   <span className="font-tech font-semibold text-zinc-200">
-                    {p.projection > 0 ? p.projection.toFixed(1) : "—"}
+                    {formatPositiveStat(p.projection)}
                   </span>
                   {p.weeklyAvg > 0 && (
                     <span className="font-tech ml-1.5 text-[11px] text-zinc-500">

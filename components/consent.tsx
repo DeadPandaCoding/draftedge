@@ -15,7 +15,7 @@ import BorderGlow, { GLOW_PRESET } from "@/components/ui/BorderGlow";
  * The only cookies DraftEdge sets are strictly necessary ones (Supabase auth session). Vercel Web Analytics loads only after analytics consent is granted; preferences and marketing are currently recorded but unused.
  */
 
-export type ConsentCategory = "preferences" | "analytics" | "marketing";
+type ConsentCategory = "preferences" | "analytics" | "marketing";
 
 export interface ConsentCategories {
   necessary: boolean;

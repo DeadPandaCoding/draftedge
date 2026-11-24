@@ -1,3 +1,4 @@
+import { SCORING_FORMATS } from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
 import { GET as getPlayers } from "@/app/api/players/route";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -20,7 +21,6 @@ export const dynamic = "force-dynamic";
  *                              Falls back to localhost:3000 in dev.
  */
 
-const SCORING_FORMATS = ["ppr", "half_ppr", "standard"] as const;
 
 function isAuthorized(req: Request): boolean {
   // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.

@@ -11,7 +11,7 @@ import { RANKINGS, type RankingTuple } from "./rankings-data";
  */
 
 /** Team → bye week map (fallback for live-only players; rankings already carry byes). */
-export const BYE_WEEKS: Record<string, number> = {
+const BYE_WEEKS: Record<string, number> = {
   ARI: 6, ATL: 12, BAL: 14, BUF: 12, CAR: 11, CHI: 7, CIN: 12, CLE: 10,
   DAL: 7, DEN: 14, DET: 5, GB: 10, HOU: 14, IND: 14, JAX: 12, KC: 6,
   LAC: 5, LAR: 6, LV: 10, MIA: 6, MIN: 6, NE: 14, NO: 12, NYG: 11,
@@ -31,7 +31,7 @@ export function byeForTeam(team: string): number {
  * keeps saved drafts and shared trades from silently swapping identities when
  * the scoring format changes.
  */
-export function canonicalPlayerId(name: string, position: string, team?: string): string {
+function canonicalPlayerId(name: string, position: string, team?: string): string {
   return position === "DEF" && team ? team : playerSlug(name);
 }
 
@@ -62,11 +62,6 @@ const LEGACY_RANK_ID = /^r\d+$/;
 
 export function isLegacyPlayerId(id: string): boolean {
   return LEGACY_RANK_ID.test(id);
-}
-
-/** Fresh copy of the fully-built seed roster (already ranked + tiered). */
-export function getSeedPlayers(scoring: ScoringFormat = "ppr"): Player[] {
-  return buildSeedPlayers(scoring);
 }
 
 /**

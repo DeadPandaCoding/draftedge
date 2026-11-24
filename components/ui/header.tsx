@@ -1,18 +1,14 @@
 "use client";
 
+import { TOOLS } from "@/lib/tools";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useSyncedLeagues } from "@/lib/league-context";
 import { PlayerQuickSearch } from "@/components/dashboard/PlayerQuickSearch";
 import {
-  ArrowUpIcon,
   ChevronDownIcon,
-  ClockIcon,
-  ListCheckIcon,
   MenuIcon,
-  SwapIcon,
-  TableIcon,
   DraftEdgeLogo,
   XIcon,
 } from "@/components/icons";
@@ -25,46 +21,17 @@ type HeaderItem = {
   external?: boolean;
 };
 
-const TOOLS: HeaderItem[] = [
-  {
-    label: "Trade Analyzer",
-    href: "/trade",
-    icon: <SwapIcon size={18} />,
-    description: "See who wins a deal before you accept.",
-  },
-  {
-    label: "Cheat Sheets",
-    href: "/cheatsheet",
-    icon: <TableIcon size={18} />,
-    description: "A draft board tuned to your league.",
-  },
-  {
-    label: "Mock Drafts",
-    href: "/mock",
-    icon: <ClockIcon size={18} />,
-    description: "Practice against position-aware picks.",
-  },
-  {
-    label: "Player Rankings",
-    href: "/rankings",
-    icon: <ArrowUpIcon size={18} />,
-    description: "Projections, tiers, and ADP.",
-  },
-  {
-    label: "Start/Sit",
-    href: "/start-sit",
-    icon: <ListCheckIcon size={18} />,
-    description: "Head-to-head calls and your best lineup.",
-  },
-];
+const toolItems: HeaderItem[] = Object.values(TOOLS).map(({ label, href, Icon, description }) => ({
+  label, href, icon: <Icon size={18} />, description,
+}));
 
 const NAV = {
   marketing: {
-    menus: [{ trigger: "Tools", items: TOOLS }],
+    menus: [{ trigger: "Tools", items: toolItems }],
     links: [{ label: "How it works", href: "/#how-it-works" }],
   },
   app: {
-    menus: [{ trigger: "Tools", items: TOOLS }],
+    menus: [{ trigger: "Tools", items: toolItems }],
     links: [{ label: "Home", href: "/home" }],
   },
 } as const;

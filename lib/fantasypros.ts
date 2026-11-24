@@ -23,10 +23,6 @@ function getApiKey(): string | undefined {
   return process.env.FANTASYPROS_API_KEY?.trim() || undefined;
 }
 
-export function isFantasyProsConfigured(): boolean {
-  return Boolean(getApiKey());
-}
-
 interface FPPlayer {
   player_name?: string;
   player_id?: string | number;

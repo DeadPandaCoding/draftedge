@@ -1,5 +1,6 @@
 "use client";
 
+import { LeagueSummary } from "./LeagueSummary";
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useSyncedLeagues } from "@/lib/league-context";
@@ -77,14 +78,7 @@ export function LeagueSyncCard({ compactWhenConnected = false }: { compactWhenCo
       ) : activeLeague && !showConnectForm ? (
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate font-semibold text-zinc-100">{activeLeague.league_name}</p>
-              <span className="rounded bg-white/[0.06] px-2 py-0.5 font-mono text-[10px] text-zinc-300">
-                {activeLeague.scoring_format}{activeLeague.te_premium ? " · TEP" : ""}
-              </span>
-              <span className="font-mono text-[10px] uppercase text-zinc-500">{activeLeague.platform}</span>
-              <span className="font-mono text-[10px] text-zinc-500">{activeLeague.total_teams} teams</span>
-            </div>
+            <LeagueSummary name={activeLeague.league_name} scoring={activeLeague.scoring_format} tePremium={activeLeague.te_premium} platform={activeLeague.platform} teams={activeLeague.total_teams} />
             <p className="mt-1 text-xs text-zinc-500">{activeLeague.platform === "sleeper" && activeLeague.sleeper_username ? `@${activeLeague.sleeper_username} · ` : ""}synced {relativeTime(activeLeague.last_synced_at)}</p>
             {activeLeague.platform === "espn" && <p className="mt-1 text-[10px] text-zinc-600">Private league cookies stay in memory and may need to be entered again after a page reload.</p>}
           </div>

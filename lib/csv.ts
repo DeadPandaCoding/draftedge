@@ -48,7 +48,7 @@ export function exportRosterCsv(
   URL.revokeObjectURL(url);
 }
 
-export type ProjectionHorizon = "week" | "ros" | "season";
+type ProjectionHorizon = "week" | "ros" | "season";
 
 export interface PlayersCsvOptions {
   /** Projection horizon currently shown in the table. Defaults to season. */

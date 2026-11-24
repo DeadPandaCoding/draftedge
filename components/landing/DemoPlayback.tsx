@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import "./walkthrough.css";
 
-const DemoStep = createContext(0);
+const DemoStep = createContext({ step: 0, select: (_step: number) => { void _step; } });
 
 export function useDemoStep() {
   return useContext(DemoStep);
@@ -14,8 +14,10 @@ export function DemoPlayback({ children, title, draft }: { children: ReactNode; 
   const cursor = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
+  const [focusWithin, setFocusWithin] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [reduced, setReduced] = useState(false);
-  const playing = visible && !reduced;
+  const playing = visible && !reduced && !focusWithin && !hovered;
 
   useEffect(() => {
     const element = frame.current!;
@@ -64,12 +66,8 @@ export function DemoPlayback({ children, title, draft }: { children: ReactNode; 
   }, [draft, playing]);
 
   return (
-    <div ref={frame} className="relative">
-      <div className="mb-3 flex items-center justify-between gap-2 border-b border-white/15 pb-2">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-400">{title}</span>
-
-      </div>
-      <DemoStep.Provider value={step}>{children}</DemoStep.Provider>
+    <div ref={frame} className="relative" role="group" aria-label={title} onPointerEnter={e => setHovered(e.pointerType === "mouse")} onPointerLeave={() => setHovered(false)} onFocusCapture={() => setFocusWithin(true)} onBlurCapture={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocusWithin(false); }}>
+      <DemoStep.Provider value={{ step, select: setStep }}>{children}</DemoStep.Provider>
       <div ref={cursor} aria-hidden="true" className="demo-pointer">
         <i /><svg width="23" height="27" viewBox="0 0 23 27"><path d="M2 2 20 14l-8 1.5 4 8-4 1.5-4-8L3 22Z" fill="white" stroke="#09090B" strokeWidth="1.6" strokeLinejoin="round" /></svg>
       </div>

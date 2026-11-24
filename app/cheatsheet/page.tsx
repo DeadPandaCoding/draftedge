@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { usePlayers } from "@/lib/players";
 import type { LeagueConfig, Player, Position } from "@/lib/types";
-import { POSITIONS } from "@/lib/types";
+import { POSITION_FILTERS } from "@/lib/types";
 import { SCORING_LABELS } from "@/lib/league";
 import { fetchLeague } from "@/lib/data";
 import { exportPlayersCsv } from "@/lib/csv";
@@ -17,7 +17,6 @@ import { DownloadIcon, SearchIcon } from "@/components/icons";
 import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
-const POSITION_FILTERS = ["ALL", ...POSITIONS] as (Position | "ALL")[];
 
 export default function CheatSheetPage() {
   const router = useRouter();

@@ -1,5 +1,6 @@
 "use client";
 
+import { indexPlayersById, formatPositiveStat } from "@/lib/player-display";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,7 +29,7 @@ export default function AnalyticsPage() {
   const [ready, setReady] = useState(false);
 
   const { players } = usePlayers(league?.scoring ?? "ppr");
-  const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const playersById = useMemo(() => indexPlayersById(players), [players]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -225,10 +226,10 @@ export default function AnalyticsPage() {
                     {player && <PosBadge position={player.position} size="xs" />}
                   </td>
                   <td className="font-tech border-b border-zinc-800/60 px-3 py-2 text-xs text-zinc-400">
-                    {player && player.adp > 0 ? player.adp.toFixed(1) : "—"}
+                    {formatPositiveStat(player?.adp ?? 0)}
                   </td>
                   <td className="font-tech border-b border-zinc-800/60 px-3 py-2 text-xs text-zinc-200">
-                    {player && player.projection > 0 ? player.projection.toFixed(1) : "—"}
+                    {formatPositiveStat(player?.projection ?? 0)}
                   </td>
                   <td className="border-b border-zinc-800/60 px-3 py-2">
                     <span className={`font-tech text-xs font-bold ${value > 0 ? "text-emerald-300" : value < 0 ? "text-rose-400" : "text-zinc-500"}`}>

@@ -1,5 +1,7 @@
 "use client";
 
+import { TradeVerdictSummary } from "@/components/dashboard/TradeVerdictSummary";
+import { indexPlayersById, formatPositiveStat } from "@/lib/player-display";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -150,7 +152,7 @@ export default function TradePage() {
     initialized.current = true;
 
     const params = new URLSearchParams(window.location.search);
-    const byId = new Map(players.map((p) => [p.id, p]));
+    const byId = indexPlayersById(players);
     const resolve = (raw: string): { ids: string[]; unresolved: string[] } => {
       const ids: string[] = [];
       const unresolved: string[] = [];
@@ -220,7 +222,7 @@ export default function TradePage() {
     return m;
   }, [players, fcEntries]);
 
-  const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const playersById = useMemo(() => indexPlayersById(players), [players]);
   const contexts = useMemo(() => buildMatchupContext(players), [players]);
   const values = useMemo(() => buildTradeValues(
     players.map((p) => {
@@ -320,7 +322,6 @@ export default function TradePage() {
   // unresolved share-link players keep the grade withheld.
   const tradeComplete = aPlayers.length > 0 && bPlayers.length > 0 && unresolvedIds.length === 0;
   const grade = gradeTrade(net, total, tradeComplete);
-  const aPct = total > 0 ? (aValue / total) * 100 : 50;
   const fitGroups: readonly string[] =
     (league?.roster.superflex ?? 0) > 0 ? [...GROUPS, "SUPERFLEX"] : GROUPS;
 
@@ -385,7 +386,7 @@ export default function TradePage() {
           </div>
         </div>
         <div className="mt-0.5 text-[11px] text-zinc-500">
-          {(contexts.get(p.id)?.adjustedRosPoints ?? p.projection).toFixed(1)} ROS pts · ADP {p.adp > 0 ? p.adp.toFixed(1) : "—"}
+          {(contexts.get(p.id)?.adjustedRosPoints ?? p.projection).toFixed(1)} ROS pts · ADP {formatPositiveStat(p.adp)}
           {fcEntry && (
             <>
               <span className="mx-1">·</span>
@@ -585,40 +586,7 @@ export default function TradePage() {
           {/* Verdict */}
           {tradeComplete && (
             <div className={`mt-6 rounded-2xl border p-6 ${grade.ring}`}>
-              <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-between">
-                <div className="flex items-center gap-4">
-                  <span className={`font-display text-5xl font-bold ${grade.text}`}>{grade.letter}</span>
-                  <div>
-                    <p className={`font-display text-xl tracking-wide ${grade.text}`}>{grade.label}</p>
-                    <p className="text-sm text-zinc-400">
-                      {aPlayers.length + bPlayers.length} players compared
-                    </p>
-                  </div>
-                </div>
-                <div className="text-center sm:text-right">
-                  <p className="text-xs uppercase tracking-wider text-zinc-500">Net value</p>
-                  <p className={`font-tech text-2xl font-bold ${net >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                    {net >= 0 ? "+" : ""}
-                    {net.toFixed(1)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Value split bar */}
-              <div className="mt-5">
-                <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                  <span className="text-emerald-300">Receive</span>
-                  <span className="text-rose-300">Give up</span>
-                </div>
-                <div className="mt-1.5 flex h-2.5 overflow-hidden rounded-full">
-                  <div className="bg-emerald-500" style={{ width: `${aPct}%` }} />
-                  <div className="bg-rose-500" style={{ width: `${100 - aPct}%` }} />
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
-                  <span className="font-tech">{aValue.toFixed(1)} value</span>
-                  <span className="font-tech">{bValue.toFixed(1)} value</span>
-                </div>
-              </div>
+              <TradeVerdictSummary grade={grade} count={aPlayers.length + bPlayers.length} aValue={aValue} bValue={bValue} />
 
               <div className="mt-5 grid gap-3 border-t border-white/[0.08] pt-4 sm:grid-cols-2">
                 {([["You receive", aPlayers, aValue, aProj], ["You give up", bPlayers, bValue, bProj]] as const).map(([label, list, value, ros]) => {

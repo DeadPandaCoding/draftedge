@@ -158,19 +158,7 @@ export function useDraft(league: LeagueConfig | null) {
   return value;
 }
 
-/** The single set of slot keys used for both roster counting and assignment. */
-export const ROSTER_SLOTS = [
-  "QB",
-  "RB",
-  "WR",
-  "TE",
-  "FLEX",
-  "SUPERFLEX",
-  "K",
-  "DEF",
-  "BENCH",
-] as const;
-export type RosterSlot = (typeof ROSTER_SLOTS)[number];
+type RosterSlot = Position | "FLEX" | "SUPERFLEX" | "BENCH";
 
 function slotLimit(roster: RosterTemplate, slot: RosterSlot): number {
   switch (slot) {

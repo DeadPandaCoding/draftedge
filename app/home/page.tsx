@@ -1,5 +1,6 @@
 "use client";
 
+import { TOOLS } from "@/lib/tools";
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,47 +10,9 @@ import { SiteHeader } from "@/components/ui/header";
 import { useSyncedLeagues } from "@/lib/league-context";
 import { usePlayers } from "@/lib/players";
 import {
-  ArrowUpIcon,
   ChevronRightIcon,
-  ClockIcon,
-  ListCheckIcon,
   LogoutIcon,
-  SwapIcon,
-  TableIcon,
 } from "@/components/icons";
-
-const TOOLS = [
-  {
-    icon: <SwapIcon size={18} />,
-    title: "Trade Analyzer",
-    desc: "Compare both sides and see who wins.",
-    href: "/trade",
-  },
-  {
-    icon: <TableIcon size={18} />,
-    title: "Cheat Sheets",
-    desc: "Browse player values, tiers, and ADP.",
-    href: "/cheatsheet",
-  },
-  {
-    icon: <ClockIcon size={18} />,
-    title: "Mock Drafts",
-    desc: "Practice against realistic pick simulations.",
-    href: "/mock",
-  },
-  {
-    icon: <ArrowUpIcon size={18} />,
-    title: "Player Rankings",
-    desc: "Projections, tiers, and ADP by position.",
-    href: "/rankings",
-  },
-  {
-    icon: <ListCheckIcon size={18} />,
-    title: "Start/Sit",
-    desc: "Compare players and build a strong lineup.",
-    href: "/start-sit",
-  },
-];
 
 export default function HomePage() {
   const router = useRouter();
@@ -114,20 +77,20 @@ export default function HomePage() {
         <section className="mt-8">
           <h2 className="text-sm font-semibold text-zinc-300">Tools</h2>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {TOOLS.map((t) => (
+            {Object.values(TOOLS).map((t) => (
               <Link
-                key={t.title}
+                key={t.label}
                 href={t.href}
-                className={`group flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-[#0D1412] p-5 transition hover:border-emerald-500/30 hover:bg-[#131D1A] ${t.title === "Start/Sit" ? "sm:col-span-2" : ""}`}
+                className={`group flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-[#0D1412] p-5 transition hover:border-emerald-500/30 hover:bg-[#131D1A] ${t.label === "Start/Sit" ? "sm:col-span-2" : ""}`}
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-zinc-400 transition group-hover:text-emerald-400">
-                  {t.icon}
+                  <t.Icon size={18} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-semibold text-zinc-100 transition group-hover:text-white">
-                    {t.title}
+                    {t.label}
                   </h3>
-                  <p className="mt-0.5 text-xs text-zinc-400">{t.desc}</p>
+                  <p className="mt-0.5 text-xs text-zinc-400">{t.overview}</p>
                 </div>
                 <ChevronRightIcon size={15} className="shrink-0 text-zinc-600 transition group-hover:text-emerald-400" />
               </Link>

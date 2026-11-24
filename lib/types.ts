@@ -4,7 +4,9 @@ export type DraftType = "snake" | "linear" | "third_round_reversal";
 
 export const POSITIONS: Position[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 
-export type ScoringFormat = "ppr" | "half_ppr" | "standard";
+export const POSITION_FILTERS: (Position | "ALL")[] = ["ALL", ...POSITIONS];
+export const SCORING_FORMATS = ["ppr", "half_ppr", "standard"] as const;
+export type ScoringFormat = (typeof SCORING_FORMATS)[number];
 
 export type DraftStatus = "pre_draft" | "live" | "completed";
 

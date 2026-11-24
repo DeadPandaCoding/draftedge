@@ -23,7 +23,7 @@ export interface FFCPlayer {
   bye: number; // bye week
 }
 
-export interface FFCMeta {
+interface FFCMeta {
   type: string;
   teams: number;
   rounds: number;

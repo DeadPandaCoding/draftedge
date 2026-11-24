@@ -1,4 +1,7 @@
-export type SleeperScoringFormat = "PPR" | "Half-PPR" | "Standard";
+import { SLEEPER_BASE } from "./live-data";
+import { scoringFromReceptionPoints } from "./league";
+
+type SleeperScoringFormat = "PPR" | "Half-PPR" | "Standard";
 
 export interface SyncedSleeperRoster {
   owner_id: string | null;
@@ -41,7 +44,6 @@ interface SleeperLeague {
 interface SleeperRoster { owner_id?: string | null; starters?: string[] | null; players?: string[] | null; }
 interface SleeperDraft { draft_id: string; created?: number; status?: string; }
 
-const API = "https://api.sleeper.app/v1";
 
 /** Sleeper rolls leagues over in March; Jan/Feb still belong to the prior season. */
 function nflSeasonYear(now = new Date()): number {
@@ -50,16 +52,9 @@ function nflSeasonYear(now = new Date()): number {
 }
 
 async function sleeperGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
+  const response = await fetch(`${SLEEPER_BASE}${path}`, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
   if (!response.ok) throw new Error(`Sleeper request failed (${response.status})`);
   return response.json() as Promise<T>;
-}
-
-function scoringFormat(settings?: Record<string, number> | null): SleeperScoringFormat {
-  const receptionPoints = Number(settings?.rec ?? 0);
-  if (receptionPoints >= 0.9) return "PPR";
-  if (receptionPoints >= 0.25) return "Half-PPR";
-  return "Standard";
 }
 
 async function mapLeague(
@@ -100,7 +95,7 @@ async function mapLeague(
     sleeper_username: username,
     league_name: league.name ?? "Sleeper League",
     season: league.season ?? String(nflSeasonYear()),
-    scoring_format: scoringFormat(settings),
+    scoring_format: scoringFromReceptionPoints(Number(settings.rec ?? 0)),
     te_premium: Number(settings.bonus_rec_te ?? 0) > 0,
     total_teams: Number(league.total_rosters) || mappedRosters.length || 12,
     roster_positions: league.roster_positions ?? [],

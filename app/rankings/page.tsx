@@ -1,11 +1,12 @@
 "use client";
 
+import { SCORING_FORMATS } from "@/lib/types";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { usePlayers } from "@/lib/players";
 import type { Player, Position, ScoringFormat } from "@/lib/types";
-import { POSITIONS } from "@/lib/types";
+import { POSITION_FILTERS } from "@/lib/types";
 import { SCORING_LABELS } from "@/lib/league";
 import AppShell from "@/components/dashboard/AppShell";
 import { PlayersTable } from "@/components/dashboard/PlayersTable";
@@ -15,8 +16,6 @@ import { exportPlayersCsv } from "@/lib/csv";
 import { RANKINGS_SOURCE } from "@/lib/rankings-data";
 import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
-const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
-const POSITION_FILTERS = ["ALL", ...POSITIONS] as (Position | "ALL")[];
 
 export default function RankingsPage() {
   const router = useRouter();
@@ -68,7 +67,7 @@ export default function RankingsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-1">
-            {SCORING_OPTIONS.map((s) => (
+            {SCORING_FORMATS.map((s) => (
               <button
                 key={s}
                 type="button"

@@ -147,8 +147,26 @@ export function buildMatchupContext(
   return contexts;
 }
 
-export function isOutOrIr(status?: InjuryStatus | null): boolean {
-  return !!status && OUT_STATUSES.has(status);
-}
-
 export const MATCHUP_DATA_UNAVAILABLE = "Opponent and ROS SOS unavailable: no schedule matchup source is configured.";
+
+/** Confidence band from the projection gap between two players. */
+export function startSitConfidence(diff: number) {
+  const abs = Math.abs(diff);
+  if (abs >= 2)
+    return {
+      label: "Clear start",
+      detail: "The projection gap is decisive — start the higher-projected player.",
+      cls: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10",
+    };
+  if (abs >= 0.75)
+    return {
+      label: "Lean start",
+      detail: "A real edge, but matchup or gut feel can overrule it.",
+      cls: "text-emerald-400 border-emerald-500/30 bg-emerald-500/5",
+    };
+  return {
+    label: "Coin flip",
+    detail: "Essentially even on projection — tiebreak on matchup or ceiling.",
+    cls: "text-zinc-200 border-zinc-600/60 bg-zinc-800/40",
+  };
+}

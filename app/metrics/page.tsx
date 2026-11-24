@@ -1,5 +1,7 @@
 "use client";
 
+import { formatPositiveStat } from "@/lib/player-display";
+import { POSITION_FILTERS } from "@/lib/types";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -12,7 +14,6 @@ import AppShell from "@/components/dashboard/AppShell";
 import { PosBadge, Skeleton, TierBadge } from "@/components/ui";
 import { ActivityIcon, SearchIcon } from "@/components/icons";
 
-const POSITIONS: (Position | "ALL")[] = ["ALL", "QB", "RB", "WR", "TE", "K", "DEF"];
 
 type SortKey = "vor" | "proj" | "adp";
 
@@ -118,7 +119,7 @@ export default function MetricsPage() {
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {POSITIONS.map((p) => (
+          {POSITION_FILTERS.map((p) => (
             <button
               key={p}
               type="button"
@@ -204,7 +205,7 @@ export default function MetricsPage() {
                     <td className="px-3 py-2.5 font-tech font-bold text-emerald-300">
                       {(values.get(p.id) ?? 0).toFixed(1)}
                     </td>
-                    <td className="px-3 py-2.5 font-tech text-zinc-400">{p.adp > 0 ? p.adp.toFixed(1) : "—"}</td>
+                    <td className="px-3 py-2.5 font-tech text-zinc-400">{formatPositiveStat(p.adp)}</td>
                     <td className="px-3 py-2.5">
                       <TierBadge tier={p.tier} size="xs" />
                     </td>

@@ -8,11 +8,11 @@ import { buildTradeValues } from "@/lib/trade-value";
 import { usePlayers } from "@/lib/players";
 import { playerSlug } from "@/lib/seed-data";
 import { normalizeSearchText } from "@/lib/utils";
-import { useSyncedLeagues } from "@/lib/league-context";
+import { toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 
 export function PlayerQuickSearch() {
   const { activeLeague } = useSyncedLeagues();
-  const scoring = activeLeague?.scoring_format === "Half-PPR" ? "half_ppr" : activeLeague?.scoring_format === "Standard" ? "standard" : "ppr";
+  const scoring = toScoringFormat(activeLeague?.scoring_format);
   const { players, loading } = usePlayers(scoring);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);

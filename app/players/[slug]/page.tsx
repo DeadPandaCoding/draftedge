@@ -1,5 +1,7 @@
 "use client";
 
+import { formatPositiveStat } from "@/lib/player-display";
+import { SCORING_FORMATS } from "@/lib/types";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -15,7 +17,6 @@ import AppShell from "@/components/dashboard/AppShell";
 import { PosBadge, Skeleton, TierBadge } from "@/components/ui";
 import { StarIcon } from "@/components/icons";
 
-const SCORING_OPTIONS: ScoringFormat[] = ["ppr", "half_ppr", "standard"];
 
 export default function PlayerProfilePage() {
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function PlayerProfilePage() {
           ← Back to rankings
         </Link>
         <div className="flex rounded-xl border border-zinc-700/70 bg-zinc-800/40 p-1">
-          {SCORING_OPTIONS.map((s) => (
+          {SCORING_FORMATS.map((s) => (
             <button
               key={s}
               type="button"
@@ -146,7 +147,7 @@ export default function PlayerProfilePage() {
             <div className="glass rounded-xl p-4">
               <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">ADP</dt>
               <dd className="font-tech mt-1 text-2xl font-bold text-white">
-                {player.adp > 0 ? player.adp.toFixed(1) : "—"}
+                {formatPositiveStat(player.adp)}
               </dd>
             </div>
             <div className="glass rounded-xl p-4">

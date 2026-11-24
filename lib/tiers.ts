@@ -40,10 +40,22 @@ export const TIER_STYLES: Record<number, { pill: string; border: string; glow: s
 };
 
 export const POSITION_STYLES: Record<Position, { pill: string; dot: string }> = {
-  QB: { pill: "bg-rose-400/15 text-rose-300 ring-rose-400/40", dot: "bg-rose-400" },
-  RB: { pill: "bg-emerald-400/15 text-emerald-300 ring-emerald-400/40", dot: "bg-emerald-400" },
-  WR: { pill: "bg-sky-400/15 text-sky-300 ring-sky-400/40", dot: "bg-sky-400" },
-  TE: { pill: "bg-amber-400/15 text-amber-300 ring-amber-400/40", dot: "bg-amber-400" },
-  K: { pill: "bg-violet-400/15 text-violet-300 ring-violet-400/40", dot: "bg-violet-400" },
-  DEF: { pill: "bg-zinc-400/15 text-zinc-300 ring-zinc-400/40", dot: "bg-zinc-400" },
+  QB: {
+    pill: "bg-rose-400/15 text-rose-300 ring-rose-400/40", dot: "bg-rose-400",
+  },
+  RB: {
+    pill: "bg-emerald-400/15 text-emerald-300 ring-emerald-400/40", dot: "bg-emerald-400",
+  },
+  WR: {
+    pill: "bg-sky-400/15 text-sky-300 ring-sky-400/40", dot: "bg-sky-400",
+  },
+  TE: {
+    pill: "bg-amber-400/15 text-amber-300 ring-amber-400/40", dot: "bg-amber-400",
+  },
+  K: {
+    pill: "bg-violet-400/15 text-violet-300 ring-violet-400/40", dot: "bg-violet-400",
+  },
+  DEF: {
+    pill: "bg-zinc-400/15 text-zinc-300 ring-zinc-400/40", dot: "bg-zinc-400",
+  },
 };

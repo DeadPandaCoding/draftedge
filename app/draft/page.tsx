@@ -1,5 +1,6 @@
 "use client";
 
+import { indexPlayersById } from "@/lib/player-display";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -63,7 +64,7 @@ export default function DraftPage() {
   const { players, source, loading: playersLoading } = usePlayers(league?.scoring ?? "ppr");
   const draft = useDraft(league);
 
-  const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const playersById = useMemo(() => indexPlayersById(players), [players]);
   const draftedIds = useMemo(() => new Set(draft.state.picks.map((p) => p.playerId)), [draft.state.picks]);
 
   const entries = useMemo(

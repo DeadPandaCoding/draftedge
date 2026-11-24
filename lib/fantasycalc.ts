@@ -9,7 +9,7 @@
  * projection-derived number and the community-consensus number.
  */
 
-export interface FantasyCalcPlayer {
+interface FantasyCalcPlayer {
   id: number;
   name: string;
   position: string;

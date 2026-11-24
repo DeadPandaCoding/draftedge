@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { CopyIcon, LinkIcon, RedditIcon, TwitterIcon } from "@/components/icons";
 
 /** Open the X (Twitter) compose dialog pre-filled with text + URL. */
-export function shareOnTwitter(text: string, url: string) {
+function shareOnTwitter(text: string, url: string) {
   const target = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
     text
   )}&url=${encodeURIComponent(url)}`;
@@ -12,7 +12,7 @@ export function shareOnTwitter(text: string, url: string) {
 }
 
 /** Open Reddit's submit dialog pre-filled with a title + URL. */
-export function shareOnReddit(title: string, url: string) {
+function shareOnReddit(title: string, url: string) {
   const target = `https://www.reddit.com/submit?url=${encodeURIComponent(
     url
   )}&title=${encodeURIComponent(title)}`;

@@ -1,9 +1,10 @@
+import { indexPlayersById } from "@/lib/player-display";
 import { NextRequest, NextResponse } from "next/server";
 import type { InjuryStatus, Player, Position, PlayersResponse, ScoringFormat, UsageMetrics } from "@/lib/types";
 import { POSITIONS } from "@/lib/types";
 import { buildSeedPlayers, byeForTeam, normalizeName } from "@/lib/seed-data";
 import { fetchNflverseUsage } from "@/lib/nflverse";
-import { fetchSleeperProjectionRange, fetchSleeperSeasonTotals, fetchSleeperState } from "@/lib/live-data";
+import { SLEEPER_BASE, fetchSleeperProjectionRange, fetchSleeperSeasonTotals, fetchSleeperState } from "@/lib/live-data";
 import { fetchFantasyProsProjections } from "@/lib/fantasypros";
 import { fetchWeeklyRankings, type WeeklyRankings } from "@/lib/fantasypros-weekly-rankings";
 import { fetchFFCAdp, matchFFC, type FFCPlayer } from "@/lib/ffc";
@@ -11,7 +12,6 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const SLEEPER_BASE = "https://api.sleeper.app/v1";
 const REVALIDATE_SECONDS = 3600; // refresh upstream data hourly
 const SNAPSHOT_MAX_AGE_MS = 36 * 60 * 60 * 1000;
 // v7: canonical, scoring-independent player IDs (see lib/seed-data.ts).
@@ -120,7 +120,7 @@ function mergeWithSeed(
   ffcPlayers: FFCPlayer[],
 ): Player[] {
   const seed = buildSeedPlayers(scoring);
-  const seedById = new Map(seed.map((p) => [p.id, p]));
+  const seedById = indexPlayersById(seed);
   const seedByName = new Map(seed.map((p) => [normalizeName(p.name), p]));
 
   // matchedLive: live ids that already resolved to a seed player (id or name match).
