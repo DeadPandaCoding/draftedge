@@ -13,6 +13,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { SmoothScroll } from "@/components/landing/SmoothScroll";
 import { LandingPlayerLookup } from "@/components/landing/LandingPlayerLookup";
 import { LandingPrimaryCta } from "@/components/landing/LandingPrimaryCta";
+import { SpotlightStages } from "@/components/landing/SpotlightStages";
 import { buildSeedPlayers, playerSlug } from "@/lib/seed-data";
 import { buildTradeValues } from "@/lib/trade-value";
 
@@ -184,6 +185,8 @@ export function LandingPage() {
             </div>
           </div>
         </section>
+
+        <SpotlightStages />
 
         <section id="features" className="scroll-mt-20 border-b border-white/[0.08] bg-[#09090B]">
           <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-6 sm:py-24 lg:px-8">
