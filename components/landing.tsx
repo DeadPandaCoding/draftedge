@@ -20,9 +20,9 @@ import { buildTradeValues } from "@/lib/trade-value";
 const GITHUB_URL = "https://github.com/DeadPandaCoding/draftedge";
 
 const QUICK_LAUNCH = [
-  { label: "Trade Analyzer", href: "/trade", icon: <SwapIcon size={13} /> },
-  { label: "Mock Draft", href: "/mock", icon: <ClockIcon size={13} /> },
-  { label: "Start/Sit", href: "/start-sit", icon: <ListCheckIcon size={13} /> },
+  { label: "Grade a trade", href: "/trade", icon: <SwapIcon size={13} /> },
+  { label: "Practice a mock", href: "/mock", icon: <ClockIcon size={13} /> },
+  { label: "Set a lineup", href: "/start-sit", icon: <ListCheckIcon size={13} /> },
 ] as const;
 
 const TOOL_ROWS: Array<{
@@ -69,7 +69,7 @@ const TOOL_ROWS: Array<{
     n: "05",
     title: "Rankings",
     body: "Scan the full 2026 player board by projection, position, tier, and draft cost.",
-    meta: "Full player board · Updated data",
+    meta: "Full 2026 board · Rank, tier, ADP",
     href: "/rankings",
     icon: <ArrowUpIcon size={18} />,
   },
@@ -79,7 +79,7 @@ const STEPS = [
   {
     n: "01",
     title: "Connect your league",
-    body: "Pull scoring, rosters, and draft slots from Sleeper or ESPN. No manual setup.",
+    body: "Pull scoring, rosters, and draft slots from Sleeper or ESPN.",
   },
   {
     n: "02",
@@ -136,10 +136,10 @@ export function LandingPage() {
 
                 <h1 className="mt-7 font-display text-[clamp(2.15rem,8.2vw,4.5rem)] font-extrabold leading-[0.92] tracking-[-0.06em] text-white">
                   <span className="block">
-                    Draft <span className="text-emerald-300">smarter.</span>
+                    Value the <span className="text-emerald-300">board.</span>
                   </span>
                   <span className="mt-1 block">
-                    Win every trade<span className="text-[#FF3E9D]">.</span>
+                    Make the <span className="text-[#FF3E9D]">call.</span>
                   </span>
                 </h1>
 
@@ -154,28 +154,23 @@ export function LandingPage() {
                   />
                 </div>
 
-                <div className="mt-8">
-                  <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#52525B]">
-                    Start with a tool
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {QUICK_LAUNCH.map((chip) => (
-                      <Link
-                        key={chip.label}
-                        href={chip.href}
-                        className="group inline-flex min-h-9 items-center gap-2 border border-white/[0.1] bg-[#111214] px-3 py-2 text-[11px] font-semibold text-[#D4D4D8] transition hover:border-emerald-400/35 hover:bg-[#151719] hover:text-white"
-                      >
-                        <span className="text-[#71717A] transition group-hover:text-emerald-300">
-                          {chip.icon}
-                        </span>
-                        {chip.label}
-                        <ChevronRightIcon
-                          size={11}
-                          className="text-[#52525B] transition group-hover:translate-x-0.5 group-hover:text-emerald-300"
-                        />
-                      </Link>
-                    ))}
-                  </div>
+                <div role="group" aria-label="Tool shortcuts" className="mt-8 flex flex-wrap gap-2">
+                  {QUICK_LAUNCH.map((chip) => (
+                    <Link
+                      key={chip.label}
+                      href={chip.href}
+                      className="group inline-flex min-h-9 items-center gap-2 border border-white/[0.1] bg-[#111214] px-3 py-2 text-[11px] font-semibold text-[#D4D4D8] transition hover:border-emerald-400/35 hover:bg-[#151719] hover:text-white"
+                    >
+                      <span className="text-[#71717A] transition group-hover:text-emerald-300">
+                        {chip.icon}
+                      </span>
+                      {chip.label}
+                      <ChevronRightIcon
+                        size={11}
+                        className="text-[#52525B] transition group-hover:translate-x-0.5 group-hover:text-emerald-300"
+                      />
+                    </Link>
+                  ))}
                 </div>
               </div>
 
@@ -358,23 +353,22 @@ export function LandingPage() {
 
               <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-12">
                 <div>
-                  <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#71717A]">
-                    Ready when you are
-                  </p>
-                  <h2 className="mt-3 max-w-2xl font-display text-3xl font-extrabold leading-[1.03] tracking-[-0.045em] text-white sm:text-4xl">
+                  <h2 className="max-w-2xl font-display text-3xl font-extrabold leading-[1.03] tracking-[-0.045em] text-white sm:text-4xl">
                     Get the board ready before the clock starts.
                   </h2>
-                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#A1A1AA]">
-                    Sync your league or explore the 2026 board first. Every tool starts from the same values.
-                  </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row lg:flex-col lg:items-stretch">
-                  <LandingPrimaryCta className="w-full whitespace-nowrap sm:w-auto" />
                   <Link
-                    href="/mock"
+                    href="/cheatsheet"
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-[2px] bg-emerald-500 px-6 py-3.5 text-sm font-bold text-[#022C22] transition-colors hover:bg-emerald-400 active:bg-emerald-600 sm:w-auto"
+                  >
+                    Build a cheat sheet <ChevronRightIcon size={16} />
+                  </Link>
+                  <Link
+                    href="/rankings"
                     className="inline-flex min-h-12 items-center justify-center gap-2 border border-white/[0.12] bg-transparent px-5 py-3.5 text-sm font-semibold text-[#D4D4D8] transition hover:border-white/[0.22] hover:bg-white/[0.04] hover:text-white"
                   >
-                    Try a mock draft <ChevronRightIcon size={14} />
+                    Open the rankings <ChevronRightIcon size={14} />
                   </Link>
                 </div>
               </div>

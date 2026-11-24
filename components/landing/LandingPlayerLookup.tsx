@@ -259,14 +259,14 @@ export function LandingPlayerLookup() {
                 className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 bg-emerald-500 px-4 py-2.5 text-xs font-bold text-[#022C22] transition hover:bg-emerald-400"
               >
                 <SwapIcon size={14} />
-                Analyze this trade value
+                Value this player in a trade
               </Link>
               <Link
                 href="/mock"
                 className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 border border-white/[0.12] bg-white/[0.025] px-4 py-2.5 text-xs font-semibold text-[#D4D4D8] transition hover:border-white/[0.22] hover:bg-white/[0.05] hover:text-white"
               >
                 <ClockIcon size={14} />
-                Start a mock draft
+                Draft against bots
               </Link>
             </div>
           </div>
