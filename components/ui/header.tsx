@@ -61,11 +61,7 @@ const TOOLS: HeaderItem[] = [
 const NAV = {
   marketing: {
     menus: [{ trigger: "Tools", items: TOOLS }],
-    links: [
-      { label: "Rankings", href: "/rankings" },
-      { label: "Trade Analyzer", href: "/trade" },
-      { label: "Mock Drafts", href: "/mock" },
-    ],
+    links: [{ label: "How it works", href: "/#how-it-works" }],
   },
   app: {
     menus: [{ trigger: "Tools", items: TOOLS }],
@@ -169,7 +165,7 @@ export function SiteHeader({
       <>
         <Link
           href="/signin"
-          className="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-white/5 hover:text-white"
+          className="rounded-lg px-4 py-2 text-sm font-semibold text-[#A1A1AA] transition hover:bg-white/[0.05] hover:text-white"
         >
           Sign In
         </Link>
@@ -186,7 +182,9 @@ export function SiteHeader({
 
   return (
     <div ref={rootRef}>
-      <header className="glass-nav sticky top-0 z-50">
+      <header
+        className={`${variant === "marketing" ? "landing-nav" : "glass-nav"} sticky top-0 z-50`}
+      >
         <nav className={`flex w-full items-center justify-between px-4 sm:px-6 ${variant === "app" ? "flex-wrap gap-y-2 py-3 xl:h-16 xl:flex-nowrap xl:py-0" : "h-16"}`}>
           <div className="flex items-center gap-6">
             <Link href={logoHref} className="flex items-center gap-2.5">
@@ -202,7 +200,9 @@ export function SiteHeader({
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition hover:bg-white/[0.05] hover:text-white ${
+                    variant === "marketing" ? "text-[#A1A1AA]" : "text-zinc-300"
+                  }`}
                 >
                   {link.label}
                 </Link>
@@ -214,8 +214,12 @@ export function SiteHeader({
                     onClick={() => setOpenMenu(openMenu === menu.trigger ? null : menu.trigger)}
                     aria-expanded={openMenu === menu.trigger}
                     aria-haspopup="menu"
-                    className={`flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition hover:bg-white/5 hover:text-white ${
-                      openMenu === menu.trigger ? "text-white" : "text-zinc-300"
+                    className={`flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition hover:bg-white/[0.05] hover:text-white ${
+                      openMenu === menu.trigger
+                        ? "text-white"
+                        : variant === "marketing"
+                          ? "text-[#A1A1AA]"
+                          : "text-zinc-300"
                     }`}
                   >
                     {menu.trigger}
@@ -227,7 +231,11 @@ export function SiteHeader({
                     />
                   </button>
                   {openMenu === menu.trigger && (
-                    <div className="glass-popover absolute left-0 top-full z-40 mt-2 w-[430px] overflow-hidden rounded-xl p-1.5">
+                    <div className={`absolute left-0 top-full z-40 mt-2 w-[430px] overflow-hidden rounded-xl p-1.5 ${
+                      variant === "marketing"
+                        ? "border border-white/[0.12] bg-[#111214] shadow-2xl"
+                        : "glass-popover"
+                    }`}>
                       <div className="grid grid-cols-2 gap-1">
                         {menu.items.map((item) => (
                           <MenuLink key={item.label} item={item} onNavigate={() => setOpenMenu(null)} />
@@ -274,7 +282,9 @@ export function SiteHeader({
       {mobileOpen && (
         <div
           id="site-mobile-menu"
-          className="fixed inset-0 z-40 bg-zinc-950/95 backdrop-blur-xl md:hidden"
+          className={`fixed inset-0 z-40 backdrop-blur-xl md:hidden ${
+            variant === "marketing" ? "bg-[#09090B]/98" : "bg-zinc-950/95"
+          }`}
         >
           <div className="flex h-full flex-col overflow-y-auto px-4 pb-10 pt-32 sm:px-6">
             {variant === "app" && activeLeague && (
@@ -289,7 +299,9 @@ export function SiteHeader({
                 key={link.label}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/5"
+                className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition hover:bg-white/[0.05] ${
+                  variant === "marketing" ? "text-[#D4D4D8]" : "text-zinc-200"
+                }`}
               >
                 {link.label}
               </Link>
