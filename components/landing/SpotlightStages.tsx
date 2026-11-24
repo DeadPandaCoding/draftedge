@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DemoPlayback } from "./DemoPlayback";
+import { DemoPlayback, useDemoStep } from "./DemoPlayback";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ChevronRightIcon } from "@/components/icons";
@@ -170,7 +170,7 @@ function SpotlightStage({
 }
 
 function TradeStage() {
-  const [index, select] = useState(0);
+  const index = useDemoStep() % DEALS.length;
   const deal = DEALS[index];
   const send = playerFor(deal.send);
   const receive = deal.receive.map(playerFor);
@@ -179,8 +179,8 @@ function TradeStage() {
   const net = received - sent;
   return (
     <div>
-      <div className="mb-4 flex gap-2">{DEALS.map((d, i) => <button key={d.send} data-demo-choice aria-pressed={index === i} onClick={() => select(i)} className="border border-white/20 px-3 py-2 text-sm aria-pressed:border-[#10B981] aria-pressed:text-[#10B981]">{playerFor(d.send).name.split(" ").at(-1)} deal</button>)}</div>
-      <div aria-live="polite">
+      <div className="mb-4 flex gap-2">{DEALS.map((d, i) => <span key={d.send} data-demo-choice data-active={index === i} className="border border-white/20 px-3 py-2 text-sm data-[active=true]:border-[#10B981] data-[active=true]:text-[#10B981]">{playerFor(d.send).name.split(" ").at(-1)} deal</span>)}</div>
+      <div>
         {[send, ...receive].map((p, i) => <div key={p.id} className="demo-change flex items-center gap-3 border-t border-white/10 py-3 text-sm"><PositionTag position={p.position} /><strong>{p.name}</strong><span className="ml-auto font-mono text-xs text-zinc-400">{i ? "Receive" : "Send"}</span></div>)}
         <div className="mt-2 flex items-center gap-5 bg-[#17171A] p-4">
           <div><p className="text-xs text-zinc-400">Sample grade</p><strong key={deal.grade} className="demo-change inline-block font-display text-5xl text-[#10B981]">{deal.grade}</strong></div>
@@ -194,9 +194,8 @@ function TradeStage() {
 const DRAFT_POOL = [...SEED_PLAYERS].filter(p => p.adp > 0).sort((a, b) => a.adp - b.adp);
 
 function MockDraftStage() {
-  const [lastPick, setLastPick] = useState(15);
+  const lastPick = 15 + useDemoStep();
   const next = DRAFT_POOL[lastPick];
-  const complete = lastPick >= 36;
   const visible = lastPick <= 16 ? DRAFT_PICK_NUMBERS : [...DRAFT_PICK_NUMBERS.slice(0, 4), ...Array.from({ length: 4 }, (_, i) => lastPick - 3 + i)];
   return (
     <div>
@@ -211,9 +210,9 @@ function MockDraftStage() {
         </div>;
       })}</div>
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/15 pt-4">
-        <div data-demo-player aria-live="polite"><p className="font-mono text-xs text-zinc-400">{complete ? "3 rounds complete" : "Next pick · " + pickLabel(lastPick + 1)}</p>
-        <p className="mt-1 font-semibold">{complete ? "Draft complete" : next.name}</p></div>
-        <button data-demo-draft onClick={() => setLastPick(complete ? 15 : lastPick + 1)} className="bg-[#EC4899] px-5 py-2 font-mono text-sm font-bold text-black">{complete ? "Reset" : "DRAFT"}</button>
+        <div data-demo-player><p className="font-mono text-xs text-zinc-400">{"Next pick · " + pickLabel(lastPick + 1)}</p>
+        <p className="mt-1 font-semibold">{next.name}</p></div>
+        <span data-demo-draft className="font-mono text-xs text-[#EC4899]">Team {teamForPick(lastPick + 1)}</span>
       </div>
     </div>
   );
@@ -224,7 +223,7 @@ function StartSitStage() {
     ...entry,
     player: playerFor(entry.playerId),
   }));
-  const [selectedId, setSelectedId] = useState(matchups[0].player.id);
+  const selectedId = matchups[useDemoStep() % matchups.length].player.id;
   const selected = matchups.find((entry) => entry.player.id === selectedId) ?? matchups[0];
   const other = matchups.find((entry) => entry.player.id !== selected.player.id) ?? matchups[1];
 
@@ -240,26 +239,24 @@ function StartSitStage() {
             Weekly matchup
           </span>
           <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-[#52525B]">
-            Select a row
+            PPR
           </span>
         </div>
 
-        <div className="relative isolate" role="group" aria-label="Select a player for the start verdict">
+        <div className="relative isolate" role="group" aria-label="Weekly starter comparison">
           <span aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-1/2 border-l-2 border-[#10B981] bg-emerald-500/10 motion-safe:transition-transform motion-safe:duration-500" style={{ transform: selectedId === matchups[0].player.id ? "none" : "translateY(100%)" }} />
           {matchups.map(({ player, opponent }) => {
             const active = player.id === selected.player.id;
             const weekly = player.weekProjection ?? player.weeklyAvg;
             return (
-              <button
+              <div
                 key={player.id}
                 data-demo-choice
-                type="button"
-                aria-pressed={active}
-                onClick={() => setSelectedId(player.id)}
+                data-active={active}
                 className={`grid w-full grid-cols-[32px_minmax(0,1fr)_58px] items-center gap-3 border-b border-[#27272A] px-3 py-4 text-left transition-colors last:border-b-0 ${
                   active
                     ? "bg-transparent"
-                    : "hover:bg-white/[0.03] active:bg-white/[0.05]"
+                    : ""
                 }`}
               >
                 <PositionTag position={player.position} />
@@ -286,7 +283,7 @@ function StartSitStage() {
                     Proj
                   </span>
                 </span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -297,7 +294,7 @@ function StartSitStage() {
       </div>
 
       <div
-        aria-live="polite"
+
         className={`min-w-0 border ${HAIRLINE} ${INNER_SURFACE} lg:mt-5 lg:translate-x-2`}
       >
         <div className={`flex items-center justify-between gap-2 border-b ${HAIRLINE} px-3 py-2.5`}>
@@ -362,7 +359,7 @@ function StartSitStage() {
 }
 
 function LeaguePreview() {
-  const [provider, select] = useState("Sleeper");
+  const provider = useDemoStep() % 2 === 0 ? "Sleeper" : "ESPN";
   const [loaded, setLoaded] = useState("Sleeper");
   const syncing = loaded !== provider;
   useEffect(() => {
@@ -371,8 +368,8 @@ function LeaguePreview() {
   }, [provider]);
   return (
     <div className="p-2">
-      <div className="mb-4 flex gap-2">{["Sleeper", "ESPN"].map(name => <button key={name} data-demo-choice aria-pressed={name === provider} onClick={() => select(name)} className="border border-white/20 px-4 py-2 text-sm aria-pressed:border-[#EC4899] aria-pressed:text-[#EC4899]">{name}</button>)}</div>
-      <div aria-live="polite"><p className="border-y border-white/15 py-3 font-mono text-xs">{syncing ? "Syncing " + provider + "…" : provider + " sample import"}</p>
+      <div className="mb-4 flex gap-2">{["Sleeper", "ESPN"].map(name => <span key={name} data-demo-choice data-active={name === provider} className="border border-white/20 px-4 py-2 text-sm data-[active=true]:border-[#EC4899] data-[active=true]:text-[#EC4899]">{name}</span>)}</div>
+      <div><p className="border-y border-white/15 py-3 font-mono text-xs">{syncing ? "Syncing " + provider + "…" : provider + " sample import"}</p>
       <dl key={loaded} aria-busy={syncing} className={`demo-change divide-y divide-white/10 ${syncing ? "opacity-40" : ""}`}>{[["Scoring format", "PPR"], ["Roster slot", "Superflex"], ["League size", "12-Team"]].map(([k,v]) => <div key={k} className="flex justify-between py-3 text-sm"><dt className="text-zinc-400">{k}</dt><dd>{v}</dd></div>)}</dl>
       <p className="bg-[#17171A] p-3 text-sm font-semibold">PPR · Superflex · 12-Team</p></div>
     </div>
@@ -412,11 +409,11 @@ export function SpotlightStages() {
     };
   }, []);
   return (
-    <section ref={section} aria-label="Interactive product walkthrough" className="relative">
+    <section ref={section} aria-label="Product walkthrough" className="relative">
       <svg aria-hidden="true" viewBox="0 0 80 1000" preserveAspectRatio="none" className="pointer-events-none absolute inset-y-0 left-1/2 hidden text-[#45454b] h-full w-20 -translate-x-1/2 lg:block"><defs><clipPath id="walk-progress"><rect ref={progress} width="80" height="0" /></clipPath></defs><path id="walk-spine" d="M40 0 C-40 100 120 180 40 270 S0 440 40 510 S85 690 40 760 S5 920 40 1000" fill="none" stroke="currentColor" className="text-inherit" strokeDasharray="4 7" vectorEffect="non-scaling-stroke" /><use href="#walk-spine" clipPath="url(#walk-progress)" className="walk-progress" /></svg>
-      <SpotlightStage number="01" eyebrow="Trade Analyzer" headline={["Win every trade", "before you accept."]} description="Compare both sides of a two-for-one offer. Switch deals to see the change in projected points above replacement." href="/trade" linkLabel="Open Trade Analyzer" accent="emerald"><TradeStage /></SpotlightStage>
-      <SpotlightStage number="02" eyebrow="Mock Draft Room" headline={["Mock drafts that", "adapt to your league."]} description="Practice a snake draft with a 12-team board. Make a pick to see the next available player." href="/mock" linkLabel="Start Mock Draft" accent="pink" reverse><MockDraftStage /></SpotlightStage>
-      <SpotlightStage number="03" eyebrow="Start/Sit Evaluator" headline={["Settle every", "lineup call."]} description="Compare two running backs using their weekly PPR projections. Select a starter to see the projected difference." href="/start-sit" linkLabel="Compare Players" accent="emerald"><StartSitStage /></SpotlightStage>
+      <SpotlightStage number="01" eyebrow="Trade Analyzer" headline={["Win every trade", "before you accept."]} description="Compare both sides of a two-for-one offer. Each sample deal shows its projected points above replacement." href="/trade" linkLabel="Open Trade Analyzer" accent="emerald"><TradeStage /></SpotlightStage>
+      <SpotlightStage number="02" eyebrow="Mock Draft Room" headline={["Mock drafts that", "adapt to your league."]} description="Practice a snake draft with a 12-team board. The board updates after each pick." href="/mock" linkLabel="Start Mock Draft" accent="pink" reverse><MockDraftStage /></SpotlightStage>
+      <SpotlightStage number="03" eyebrow="Start/Sit Evaluator" headline={["Settle every", "lineup call."]} description="Compare two running backs using their weekly PPR projections. The verdict shows the projected difference for each starter." href="/start-sit" linkLabel="Compare Players" accent="emerald"><StartSitStage /></SpotlightStage>
       <SpotlightStage number="04" eyebrow="Sleeper & ESPN Sync" headline={["Synced to your", "exact scoring."]} description="Import roster slots and scoring settings from Sleeper or ESPN. Preview the settings for a 12-team superflex league." href="/leagues" linkLabel="Connect League" accent="pink" reverse><LeaguePreview /></SpotlightStage>
     </section>
   );

@@ -1,17 +1,21 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import "./walkthrough.css";
+
+const DemoStep = createContext(0);
+
+export function useDemoStep() {
+  return useContext(DemoStep);
+}
 
 export function DemoPlayback({ children, title, draft }: { children: ReactNode; title: string; draft: boolean }) {
   const frame = useRef<HTMLDivElement>(null);
   const cursor = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  const [manual, setManual] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const [step, setStep] = useState(0);
   const [reduced, setReduced] = useState(false);
-  const [generation, restart] = useState(0);
-  const playing = visible && !manual && !hovered && !reduced;
+  const playing = visible && !reduced;
 
   useEffect(() => {
     const element = frame.current!;
@@ -39,15 +43,15 @@ export function DemoPlayback({ children, title, draft }: { children: ReactNode; 
       pointer.style.opacity = "1";
     }
     function advance() {
-      const target = root.querySelector<HTMLElement>(draft ? "[data-demo-draft]" : '[data-demo-choice][aria-pressed="false"]');
+      const target = root.querySelector<HTMLElement>(draft ? "[data-demo-draft]" : '[data-demo-choice][data-active="false"]');
       if (!target) return;
-      const start = root.querySelector<HTMLElement>(draft ? "[data-demo-player]" : '[data-demo-choice][aria-pressed="true"]');
+      const start = root.querySelector<HTMLElement>(draft ? "[data-demo-player]" : '[data-demo-choice][data-active="true"]');
       if (start) move(start);
       timer = setTimeout(() => {
         move(target);
         timer = setTimeout(() => {
           pointer.firstElementChild?.animate([{ transform: "scale(.5)", opacity: 1 }, { transform: "scale(2.2)", opacity: 0 }], 450);
-          target.click();
+          setStep(previous => (previous + 1) % 4);
           timer = setTimeout(advance, 2300);
         }, 720);
       }, 950);
@@ -57,27 +61,15 @@ export function DemoPlayback({ children, title, draft }: { children: ReactNode; 
       clearTimeout(timer);
       pointer.style.opacity = "0";
     };
-  }, [draft, playing, generation]);
+  }, [draft, playing]);
 
   return (
-    <div ref={frame} className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div ref={frame} className="relative">
       <div className="mb-3 flex items-center justify-between gap-2 border-b border-white/15 pb-2">
         <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-400">{title}</span>
-        {!reduced && <div className="flex items-center gap-2 text-xs text-zinc-400">
-          <button type="button" className="px-1 py-1 hover:text-white" onClick={() => {
-            restart(n => n + 1);
-            setManual(false);
-            setHovered(false);
-          }}>↻ Replay</button>
-          <button type="button" aria-pressed={manual} className="border-l border-white/15 px-2 py-1 hover:text-white aria-pressed:text-white" onClick={() => {
-            setManual(value => !value);
-            setHovered(false);
-          }}>Interactive</button>
-        </div>}
+
       </div>
-      <div onPointerDownCapture={() => setManual(true)} onFocusCapture={() => setManual(true)} onClickCapture={e => { if (e.nativeEvent.isTrusted) setManual(true); }}>
-        <Fragment key={generation}>{children}</Fragment>
-      </div>
+      <DemoStep.Provider value={step}>{children}</DemoStep.Provider>
       <div ref={cursor} aria-hidden="true" className="demo-pointer">
         <i /><svg width="23" height="27" viewBox="0 0 23 27"><path d="M2 2 20 14l-8 1.5 4 8-4 1.5-4-8L3 22Z" fill="white" stroke="#09090B" strokeWidth="1.6" strokeLinejoin="round" /></svg>
       </div>
