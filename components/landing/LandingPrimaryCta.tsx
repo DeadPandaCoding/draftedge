@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { ChevronRightIcon } from "@/components/icons";
@@ -20,6 +22,10 @@ export function LandingPrimaryCta({
   marketingHref?: string;
 }) {
   const { user } = useAuth();
+  const router = useRouter();
+  useEffect(() => {
+    if (user) router.replace("/home");
+  }, [user, router]);
   const href = user ? "/home" : marketingHref;
 
   return (

@@ -1,24 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { CookieConsent } from "@/components/consent";
 import { ConsentAwareAnalytics } from "@/components/analytics";
 import { LeagueContextProvider } from "@/lib/league-context";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const display = Plus_Jakarta_Sans({
-  variable: "--font-russo",
-  weight: ["600", "700", "800"],
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-tech",
   subsets: ["latin"],
 });
 
@@ -59,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${display.variable} h-full antialiased`}
+      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-[#080E0C] text-zinc-100" suppressHydrationWarning>
         <AuthProvider>
