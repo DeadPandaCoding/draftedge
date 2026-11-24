@@ -185,7 +185,13 @@ export function SiteHeader({
       <header
         className={`${variant === "marketing" ? "landing-nav" : "glass-nav"} sticky top-0 z-50`}
       >
-        <nav className={`flex w-full items-center justify-between px-4 sm:px-6 ${variant === "app" ? "flex-wrap gap-y-2 py-3 xl:h-16 xl:flex-nowrap xl:py-0" : "h-16"}`}>
+        <nav
+          className={
+            variant === "marketing"
+              ? "mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8"
+              : "flex w-full flex-wrap items-center justify-between gap-y-2 px-4 py-3 sm:px-6 xl:h-16 xl:flex-nowrap xl:py-0"
+          }
+        >
           <div className="flex items-center gap-6">
             <Link href={logoHref} className="flex items-center gap-2.5">
               <DraftEdgeLogo size={24} />

@@ -134,7 +134,7 @@ export function LandingPage() {
                   </p>
                 </div>
 
-                <h1 className="mt-7 font-display text-[clamp(2.15rem,8.2vw,4.5rem)] font-extrabold leading-[0.92] tracking-[-0.06em] text-white">
+                <h1 className="mt-7 font-display text-[clamp(2.15rem,8.2vw,4.5rem)] font-extrabold leading-[0.92] tracking-[-0.06em] text-white lg:text-[3.75rem] xl:text-[4.5rem]">
                   <span className="block">
                     Value the <span className="text-emerald-300">board.</span>
                   </span>
@@ -366,7 +366,7 @@ export function LandingPage() {
                   </Link>
                   <Link
                     href="/rankings"
-                    className="inline-flex min-h-12 items-center justify-center gap-2 border border-white/[0.12] bg-transparent px-5 py-3.5 text-sm font-semibold text-[#D4D4D8] transition hover:border-white/[0.22] hover:bg-white/[0.04] hover:text-white"
+                    className="inline-flex min-h-12 items-center justify-center gap-2 border border-white/[0.12] bg-transparent px-5 text-sm font-semibold text-[#D4D4D8] transition hover:border-white/[0.22] hover:bg-white/[0.04] hover:text-white"
                   >
                     Open the rankings <ChevronRightIcon size={14} />
                   </Link>
