@@ -4,7 +4,6 @@ import {
   ArrowUpIcon,
   ChevronRightIcon,
   ClockIcon,
-  LinkIcon,
   ListCheckIcon,
   SwapIcon,
   TableIcon,
@@ -177,14 +176,6 @@ export function LandingPage() {
                     ))}
                   </div>
                 </div>
-
-                <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.08] pt-5 font-mono text-[9px] uppercase tracking-[0.11em] text-[#71717A]">
-                  <span>Free to use</span>
-                  <span aria-hidden="true" className="h-3 w-px bg-white/[0.12]" />
-                  <span>Sleeper + ESPN sync</span>
-                  <span aria-hidden="true" className="hidden h-3 w-px bg-white/[0.12] sm:block" />
-                  <span className="hidden sm:inline">PPR · Half-PPR · Standard</span>
-                </div>
               </div>
 
               <Reveal delay={120} className="min-w-0">
@@ -194,83 +185,52 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section
-          aria-label="League sync and scoring formats"
-          className="border-b border-white/[0.08] bg-[#0B0B0D]"
-        >
-          <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:px-8">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#52525B]">
-                League sync
-              </span>
-              <span className="text-sm font-semibold text-white">Sleeper</span>
-              <span aria-hidden="true" className="h-3 w-px bg-white/[0.12]" />
-              <span className="text-sm font-semibold text-white">ESPN</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-[#A1A1AA]">
-              <span>PPR</span>
-              <span className="text-[#3F3F46]">/</span>
-              <span>Half-PPR</span>
-              <span className="text-[#3F3F46]">/</span>
-              <span>Standard</span>
-              <span className="text-[#3F3F46]">/</span>
-              <span>Superflex</span>
-            </div>
-
-            <div className="flex items-center gap-2 text-[11px] text-[#71717A]">
-              <LinkIcon size={12} className="text-emerald-400/80" />
-              Values adjust to your rules
-            </div>
-          </div>
-        </section>
-
         <section id="features" className="scroll-mt-20 border-b border-white/[0.08] bg-[#09090B]">
           <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-6 sm:py-24 lg:px-8">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)] lg:items-end">
-              <div>
-                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#52525B]">
-                  01 / Tools
-                </p>
-                <h2 className="mt-3 max-w-2xl font-display text-3xl font-extrabold leading-[1.02] tracking-[-0.045em] text-white sm:text-4xl lg:text-5xl">
-                  One board. Five ways to use it.
-                </h2>
-              </div>
-              <p className="max-w-md text-sm leading-relaxed text-[#A1A1AA] lg:justify-self-end">
-                Draft, trade, and lineup decisions all start from the same player values. No second spreadsheet, no stale rankings.
-              </p>
-            </div>
+            <h2 className="max-w-2xl font-display text-3xl font-extrabold leading-[1.02] tracking-[-0.045em] text-white sm:text-4xl lg:text-5xl">
+              One board. Five ways to use it.
+            </h2>
 
-            <div className="mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-14">
+            <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
               <Reveal delay={80}>
-                <div className="border-t border-white/[0.08]">
-                  {TOOL_ROWS.map((tool) => (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {TOOL_ROWS.map((tool, index) => (
                     <Link
                       key={tool.n}
                       href={tool.href}
-                      className="group grid grid-cols-[32px_minmax(0,1fr)_20px] items-start gap-4 border-b border-white/[0.08] px-1 py-6 transition hover:bg-white/[0.025] sm:px-4"
+                      className={`group relative flex min-h-[210px] flex-col border border-white/[0.12] bg-[#111214] p-5 transition-colors hover:border-white/[0.22] hover:bg-[#151719] ${
+                        index === TOOL_ROWS.length - 1 ? "sm:col-span-2 sm:min-h-[170px]" : ""
+                      }`}
                     >
-                      <span className="pt-0.5 font-mono text-[10px] font-bold tracking-[0.12em] text-[#52525B]">
-                        {tool.n}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-2.5">
-                          <span className="text-emerald-400">{tool.icon}</span>
-                          <span className="text-base font-bold tracking-tight text-white sm:text-lg">
-                            {tool.title}
-                          </span>
+                      <span
+                        aria-hidden="true"
+                        className={`absolute left-0 top-0 h-[3px] w-12 ${
+                          index % 2 === 1 ? "bg-[#FF3E9D]" : "bg-emerald-400"
+                        }`}
+                      />
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="flex size-8 items-center justify-center border border-white/[0.08] bg-[#0B0B0D] text-emerald-300">
+                          {tool.icon}
                         </span>
-                        <span className="mt-2 block max-w-xl text-sm leading-relaxed text-[#A1A1AA]">
-                          {tool.body}
+                        <span className="font-mono text-[9px] font-bold tracking-[0.14em] text-[#52525B]">
+                          {tool.n}
                         </span>
-                        <span className="mt-2.5 block font-mono text-[9px] uppercase tracking-[0.12em] text-[#52525B]">
+                      </div>
+                      <h3 className="mt-7 text-lg font-bold tracking-tight text-white">
+                        {tool.title}
+                      </h3>
+                      <p className="mt-2 max-w-md text-sm leading-relaxed text-[#A1A1AA]">
+                        {tool.body}
+                      </p>
+                      <div className="mt-auto flex items-end justify-between gap-4 border-t border-white/[0.07] pt-4">
+                        <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#52525B]">
                           {tool.meta}
                         </span>
-                      </span>
-                      <ChevronRightIcon
-                        size={16}
-                        className="mt-0.5 text-[#3F3F46] transition group-hover:translate-x-0.5 group-hover:text-emerald-300"
-                      />
+                        <ChevronRightIcon
+                          size={15}
+                          className="shrink-0 text-[#3F3F46] transition group-hover:translate-x-0.5 group-hover:text-emerald-300"
+                        />
+                      </div>
                     </Link>
                   ))}
                 </div>
@@ -329,9 +289,6 @@ export function LandingPage() {
                     </Link>
                   </div>
                 </div>
-                <p className="mt-3 text-[11px] leading-relaxed text-[#52525B]">
-                  Bundled 2026 PPR board. Sync a league to use its exact scoring and roster rules.
-                </p>
               </aside>
             </div>
           </div>
@@ -339,42 +296,53 @@ export function LandingPage() {
 
         <section id="how-it-works" className="scroll-mt-20 border-b border-white/[0.08] bg-[#0B0B0D]">
           <div className="mx-auto w-full max-w-7xl px-5 py-20 sm:px-6 sm:py-24 lg:px-8">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)] lg:items-end">
-              <div>
-                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#52525B]">
-                  02 / How it works
-                </p>
-                <h2 className="mt-3 max-w-xl font-display text-3xl font-extrabold leading-[1.02] tracking-[-0.045em] text-white sm:text-4xl lg:text-5xl">
-                  Three steps. No spreadsheet.
-                </h2>
-              </div>
-              <p className="max-w-md text-sm leading-relaxed text-[#A1A1AA] lg:justify-self-end">
-                Connect once, then make every draft, trade, and lineup decision from the same source of truth.
-              </p>
-            </div>
+            <h2 className="max-w-xl font-display text-3xl font-extrabold leading-[1.02] tracking-[-0.045em] text-white sm:text-4xl lg:text-5xl">
+              Three steps. No spreadsheet.
+            </h2>
 
             <Reveal delay={80}>
-              <div className="mt-12 grid border-t border-white/[0.08] md:grid-cols-3">
-                {STEPS.map((step, index) => (
-                  <div
-                    key={step.n}
-                    className={`px-0 py-7 md:px-7 md:py-8 ${
-                      index > 0
-                        ? "border-t border-white/[0.08] md:border-l md:border-t-0"
-                        : ""
-                    }`}
-                  >
-                    <span className="font-mono text-[10px] font-bold tracking-[0.14em] text-[#FF3E9D]">
-                      {step.n}
-                    </span>
-                    <h3 className="mt-5 text-base font-bold tracking-tight text-white">
-                      {step.title}
-                    </h3>
-                    <p className="mt-2 max-w-xs text-sm leading-relaxed text-[#A1A1AA]">
-                      {step.body}
-                    </p>
-                  </div>
-                ))}
+              <div className="relative mt-12 max-w-4xl md:mt-16">
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-4 left-[3px] top-4 w-px bg-white/[0.1] md:left-1/2 md:-translate-x-1/2"
+                />
+                <div className="space-y-3 md:space-y-0">
+                  {STEPS.map((step, index) => {
+                    const right = index === 1;
+                    const accent = right ? "bg-[#FF3E9D]" : "bg-emerald-400";
+                    return (
+                      <div key={step.n} className="relative md:grid md:grid-cols-2 md:gap-16">
+                        <span
+                          aria-hidden="true"
+                          className={`absolute left-0 top-7 z-10 size-2 border-2 border-[#0B0B0D] md:left-1/2 md:-translate-x-1/2 ${accent}`}
+                        />
+                        <div
+                          className={`ml-7 py-2 md:ml-0 md:py-5 ${
+                            right
+                              ? "md:col-start-2 md:mr-auto md:pl-10"
+                              : "md:col-start-1 md:ml-auto md:pr-10"
+                          }`}
+                        >
+                          <div className="relative w-full max-w-md border border-white/[0.12] bg-[#111214] p-5">
+                            <span
+                              aria-hidden="true"
+                              className={`absolute left-0 top-0 h-[3px] w-12 ${accent}`}
+                            />
+                            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#71717A]">
+                              Step {step.n}
+                            </p>
+                            <h3 className="mt-4 text-lg font-bold tracking-tight text-white">
+                              {step.title}
+                            </h3>
+                            <p className="mt-2 text-sm leading-relaxed text-[#A1A1AA]">
+                              {step.body}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </Reveal>
           </div>

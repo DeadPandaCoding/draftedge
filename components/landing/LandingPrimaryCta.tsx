@@ -25,7 +25,7 @@ export function LandingPrimaryCta({
   return (
     <Link
       href={href}
-      className={`btn-glass-primary inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold ${className}`}
+      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-[2px] bg-emerald-500 px-6 py-3.5 text-sm font-bold text-[#022C22] transition-colors hover:bg-emerald-400 active:bg-emerald-600 ${className}`}
     >
       {user ? signedInLabel : label}
       <ChevronRightIcon size={16} />

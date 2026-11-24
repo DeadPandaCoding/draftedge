@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRightIcon, ClockIcon, SearchIcon, SwapIcon } from "@/components/icons";
+import { ClockIcon, SearchIcon, SwapIcon } from "@/components/icons";
 import { usePlayers } from "@/lib/players";
 import { getSeedPlayers, playerSlug } from "@/lib/seed-data";
 import { buildTradeValues } from "@/lib/trade-value";
@@ -32,7 +32,7 @@ function rankLabel(player: Player) {
 
 export function LandingPlayerLookup() {
   const seedPlayers = useMemo(() => getSeedPlayers("ppr"), []);
-  const { players: livePlayers, source, loading } = usePlayers("ppr");
+  const { players: livePlayers } = usePlayers("ppr");
   const players = livePlayers.length ? livePlayers : seedPlayers;
   const values = useMemo(() => buildTradeValues(players, 12), [players]);
 
@@ -86,11 +86,6 @@ export function LandingPlayerLookup() {
   }
 
   const selectedValue = selected ? values.get(selected.id) ?? 0 : 0;
-  const sourceLabel = loading
-    ? "Refreshing the player board…"
-    : source === "live"
-      ? "Live player feed"
-      : "2026 baseline board";
 
   return (
     <div ref={rootRef} className="relative mx-auto w-full max-w-[650px] lg:max-w-none">
@@ -101,14 +96,9 @@ export function LandingPlayerLookup() {
 
       <div className="relative border border-white/[0.1] bg-[#111214] shadow-[0_32px_90px_-38px_rgba(0,0,0,0.95)]">
         <div className="border-b border-white/[0.08] p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-4">
-            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#A1A1AA]">
-              Player value lookup
-            </p>
-            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#71717A]">
-              PPR · 12 team
-            </span>
-          </div>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#A1A1AA]">
+            Player value lookup
+          </p>
 
           <div className="relative mt-4">
             <SearchIcon
@@ -196,10 +186,6 @@ export function LandingPlayerLookup() {
               </div>
             )}
           </div>
-
-          <p className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#71717A]">
-            Name, team, or position · {sourceLabel}
-          </p>
         </div>
 
         {selected ? (
@@ -286,17 +272,6 @@ export function LandingPlayerLookup() {
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-3 border-t border-white/[0.08] px-4 py-3 sm:px-5">
-          <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#71717A]">
-            {players.length.toLocaleString()} players on the board
-          </span>
-          <Link
-            href="/rankings"
-            className="inline-flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-[#A1A1AA] transition hover:text-white"
-          >
-            Full rankings <ChevronRightIcon size={11} />
-          </Link>
-        </div>
       </div>
     </div>
   );
