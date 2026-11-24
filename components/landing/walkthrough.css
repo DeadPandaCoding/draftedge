@@ -1,0 +1,36 @@
+.demo-pointer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 650ms cubic-bezier(.22,.77,.23,1), opacity 160ms;
+}
+.demo-pointer i {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid white;
+  border-radius: 50%;
+  opacity: 0;
+}
+.walk-progress { color: #10b981; }
+@media (prefers-reduced-motion: no-preference) {
+  .walk-entered > div { animation: walk-enter .7s ease-out both; }
+  article:nth-of-type(even) { --walk-offset: -9px; }
+  .demo-change { animation: demo-change .32s ease-out; }
+  @keyframes walk-enter {
+    from { opacity: 0; transform: translate(var(--walk-offset, 9px), 16px); }
+    to { opacity: 1; transform: translate(0, 0); }
+  }
+  @keyframes demo-change {
+    from { opacity: .4; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-pointer, .walk-progress { display: none; }
+}

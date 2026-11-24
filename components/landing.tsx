@@ -24,6 +24,16 @@ export function LandingPage() {
           <LandingPrimaryCta signedInLabel="Open App" />
         </section>
         <SpotlightStages />
+        <section aria-labelledby="closing-title" className="mx-auto my-12 max-w-7xl px-5 sm:my-20 lg:px-8">
+          <div className="border border-white/20 bg-[#101012] px-5 py-12 text-center sm:py-16">
+            <h2 id="closing-title" className="font-display text-5xl font-extrabold leading-tight tracking-[-.055em] sm:text-7xl">Ready for <span className="text-[#10B981] underline decoration-[.085em] underline-offset-[.1em]">kickoff?</span></h2>
+            <p className="mx-auto mb-6 mt-5 text-sm text-zinc-300">Bring your league’s scoring into your next draft, trade, or lineup call.</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link href="/signin?next=%2Fleagues" className="bg-[#10B981] px-5 py-3 text-sm font-bold text-black">Sync Your League →</Link>
+              <Link href="/trade" className="border border-white/30 px-5 py-3 text-sm font-semibold hover:border-white">Open Trade Analyzer</Link>
+            </div>
+          </div>
+        </section>
       </main>
       <footer className="border-t border-white/15"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-6 text-xs text-zinc-400"><span>© {new Date().getFullYear()} DraftEdge</span><nav aria-label="Legal" className="flex gap-4"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/accessibility">Accessibility</Link></nav></div></footer>
     </div>
