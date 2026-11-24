@@ -21,6 +21,7 @@ interface EspnLeagueResponse {
   settings?: {
     name?: string;
     size?: number;
+    draftSettings?: { keeperCount?: number };
     scoringSettings?: { scoringItems?: Array<{ statId?: number; points?: number }> };
     rosterSettings?: { lineupSlotCounts?: Record<string, number> };
   };
@@ -104,11 +105,12 @@ export async function syncEspnLeague(input: {
   }
   const url = `${ESPN_API}/${season}/segments/0/leagues/${encodeURIComponent(leagueId)}?view=mTeam&view=mRoster&view=mSettings&view=mDraftDetail`;
   const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(15_000) });
-  if (response.status === 401 || response.status === 403) throw new Error("ESPN denied access. Check the league ID and private league cookies.");
+  if (response.status === 401 || response.status === 403) throw new Error("ESPN denied access. Ask your league manager to open ESPN League Settings and enable Make League Viewable to Public, then reconnect. For a private league, enter current espn_s2 and SWID cookies.");
   if (response.status === 404) throw new Error("ESPN league was not found for that season.");
   if (!response.ok) throw new Error(`ESPN request failed (${response.status}).`);
   const data = await response.json() as EspnLeagueResponse;
   if (!data?.id || !Array.isArray(data.teams)) throw new Error("ESPN returned an incomplete league response.");
+  if ((data.settings?.draftSettings?.keeperCount ?? 0) > 0) throw new Error("This league retains players between seasons. Connect an ESPN redraft league.");
   const playerMap = await getEspnPlayerMap();
   const settings = data.settings;
   const receptionPoints = Number(settings?.scoringSettings?.scoringItems?.find((item) => item.statId === 53)?.points ?? 0);

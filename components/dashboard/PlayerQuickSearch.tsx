@@ -7,6 +7,7 @@ import { SearchIcon } from "@/components/icons";
 import { buildTradeValues } from "@/lib/trade-value";
 import { usePlayers } from "@/lib/players";
 import { playerSlug } from "@/lib/seed-data";
+import { normalizeSearchText } from "@/lib/utils";
 import { useSyncedLeagues } from "@/lib/league-context";
 
 export function PlayerQuickSearch() {
@@ -21,10 +22,10 @@ export function PlayerQuickSearch() {
   const resultsId = "player-command-results";
 
   const matches = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = normalizeSearchText(query);
     if (!term) return [];
     return players
-      .filter((player) => `${player.name} ${player.team} ${player.position}`.toLowerCase().includes(term))
+      .filter((player) => normalizeSearchText(`${player.name} ${player.team} ${player.position}`).includes(term))
       .sort((a, b) => a.rank - b.rank)
       .slice(0, 7);
   }, [players, query]);
@@ -116,7 +117,7 @@ export function PlayerQuickSearch() {
       </div>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-40 mt-2 max-h-[70dvh] overflow-y-auto rounded-xl border border-white/[0.1] bg-[#0B1210] shadow-2xl">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70dvh] overflow-y-auto rounded-xl border border-white/[0.1] bg-[#0B1210] shadow-2xl">
           {loading && players.length === 0 ? (
             <p className="px-4 py-5 text-sm text-zinc-400">Loading player data…</p>
           ) : matches.length ? (

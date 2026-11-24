@@ -22,10 +22,23 @@ export function byeForTeam(team: string): number {
   return BYE_WEEKS[team] ?? 0;
 }
 
-function toPlayer(t: RankingTuple, index: number): Player {
+/**
+ * Deterministic, scoring-independent player ID.
+ *
+ * The same player has the same ID on the PPR, Half-PPR, and Standard boards,
+ * because the ID comes from the player's name (and the NFL team for a DEF)
+ * rather than their rank within a particular scoring dataset. This is what
+ * keeps saved drafts and shared trades from silently swapping identities when
+ * the scoring format changes.
+ */
+export function canonicalPlayerId(name: string, position: string, team?: string): string {
+  return position === "DEF" && team ? team : playerSlug(name);
+}
+
+function toPlayer(t: RankingTuple): Player {
   const [name, position, team, bye, adp, rank, positionRank, tier, projection] = t;
   return {
-    id: position === "DEF" ? team : `r${index + 1}`,
+    id: canonicalPlayerId(name, position, team),
     name,
     position: position as Position,
     team,
@@ -42,6 +55,13 @@ function toPlayer(t: RankingTuple, index: number): Player {
 
 export function buildSeedPlayers(scoring: ScoringFormat = "ppr"): Player[] {
   return RANKINGS[scoring].map(toPlayer);
+}
+
+/** Legacy rank-based IDs (`r1`, `r2`, …) from the pre-canonical-ID dataset. */
+const LEGACY_RANK_ID = /^r\d+$/;
+
+export function isLegacyPlayerId(id: string): boolean {
+  return LEGACY_RANK_ID.test(id);
 }
 
 /** Fresh copy of the fully-built seed roster (already ranked + tiered). */
@@ -62,12 +82,24 @@ export function normalizeName(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-/** Dash slug for a player name, used in profile URLs and share links. */
+/**
+ * Canonical dash slug for a player name, used for IDs, profile URLs, and share
+ * links. Apostrophes and periods are dropped so "Ja'Marr Chase" becomes
+ * "jamarr-chase" and "A.J. Brown" becomes "aj-brown".
+ */
 export function playerSlug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return name
+    .toLowerCase()
+    .replace(/['\u2019.]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-/** Resolve a slug (e.g. "ja-marr-chase") back to a player by normalized name. */
+/** Resolve a slug (e.g. "jamarr-chase") back to a player by canonical ID, then name. */
 export function findPlayerBySlug(players: Player[], slug: string): Player | undefined {
-  return players.find((p) => normalizeName(p.name) === normalizeName(slug));
+  const normalized = normalizeName(slug);
+  return (
+    players.find((p) => p.id === slug) ??
+    players.find((p) => normalizeName(p.name) === normalized)
+  );
 }

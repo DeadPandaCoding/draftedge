@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Player } from "@/lib/types";
 import { InjuryBadge, TierBadge, PosBadge } from "@/components/ui";
@@ -41,11 +41,14 @@ export function PlayersTable({
   weekly = false,
   ros = false,
   draftedPlayerIds,
+  onSortedChange,
 }: {
   players: Player[];
   weekly?: boolean;
   ros?: boolean;
   draftedPlayerIds?: Set<string>;
+  /** Receives the currently displayed (sorted) rows, for CSV export parity. */
+  onSortedChange?: (players: Player[]) => void;
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "rank", dir: 1 });
   const { isStarred, toggleStar } = useStarredPlayers();
@@ -82,6 +85,11 @@ export function PlayersTable({
       return cmp * dir;
     });
   }, [players, sort, weekly, ros]);
+
+  // Export uses the exact order the table is showing.
+  useEffect(() => {
+    onSortedChange?.(sorted);
+  }, [sorted, onSortedChange]);
 
   // Per-position, per-tier average projection. Used to size the drop-off
   // between adjacent tiers so the number stays robust to projection noise.

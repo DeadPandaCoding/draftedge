@@ -28,6 +28,42 @@ export function rosterSize(roster: RosterTemplate): number {
   return roster.qb + roster.rb + roster.wr + roster.te + roster.flex + (roster.superflex ?? 0) + roster.k + roster.def + roster.bench;
 }
 
+function rosterPositionEntries(rawPositions: unknown): string[] {
+  if (Array.isArray(rawPositions)) return rawPositions.filter((value): value is string => typeof value === "string");
+  if (!rawPositions || typeof rawPositions !== "object") return [];
+  return Object.entries(rawPositions as Record<string, unknown>).flatMap(([slot, value]) => {
+    const count = typeof value === "number" ? Math.max(0, Math.min(30, Math.floor(value))) : 0;
+    return Array.from({ length: count }, () => slot);
+  });
+}
+
+/** Convert a platform's raw `roster_positions` payload into our roster template. */
+export function rosterFromPositions(rawPositions: unknown): RosterTemplate {
+  const counts: RosterTemplate = { qb: 0, rb: 0, wr: 0, te: 0, flex: 0, superflex: 0, k: 0, def: 0, bench: 0 };
+  for (const rawPosition of rosterPositionEntries(rawPositions)) {
+    const position = rawPosition.trim().toUpperCase().replace(/[\s-]+/g, "_");
+    if (position === "QB") counts.qb++;
+    else if (position === "RB") counts.rb++;
+    else if (position === "WR") counts.wr++;
+    else if (position === "TE") counts.te++;
+    else if (position === "K") counts.k++;
+    else if (position === "DEF" || position === "DST") counts.def++;
+    else if (position === "SUPER_FLEX" || position === "SUPERFLEX") counts.superflex++;
+    else if (["FLEX", "REC_FLEX", "WRRB_FLEX", "WR_RB_FLEX", "WR_TE_FLEX"].includes(position)) counts.flex++;
+    else if (position === "BN" || position === "BENCH") counts.bench++;
+  }
+  return counts;
+}
+
+export function hasRosterSlots(roster: RosterTemplate): boolean {
+  return Object.values(roster).some((count) => count > 0);
+}
+
+/** Superflex and 2QB leagues price quarterbacks as 2QB leagues in FantasyCalc. */
+export function numQbsForRoster(roster: RosterTemplate): number {
+  return (roster.superflex ?? 0) > 0 || roster.qb >= 2 ? 2 : 1;
+}
+
 /** Draft slot owning pick #n for the selected draft order (1-based). */
 export function slotForPick(pickNumber: number, teamCount: number, draftType: DraftType = "snake"): number {
   const round = Math.ceil(pickNumber / teamCount);

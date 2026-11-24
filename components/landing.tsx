@@ -58,7 +58,7 @@ export function LandingPage() {
               />
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-zinc-300 sm:text-xl">
-              Player rankings, scoring-aware projections, and a draft board that keeps every pick in context.
+              Prepare for your redraft league with player rankings, projections for your scoring format, and a live draft board.
             </p>
             <Reveal delay={250}>
               <div className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">

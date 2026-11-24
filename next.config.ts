@@ -28,6 +28,12 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   async redirects() {
     return [
+      // Legacy plural path → canonical cheat sheet. Next preserves query params.
+      {
+        source: "/cheatsheets",
+        destination: "/cheatsheet",
+        permanent: true,
+      },
       {
         source: "/:path(analytics|research|metrics|polls)",
         destination: "/home",

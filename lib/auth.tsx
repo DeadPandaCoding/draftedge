@@ -38,9 +38,9 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   supabaseEnabled: boolean;
-  signUp: (name: string, email: string, password: string) => Promise<AuthResult>;
+  signUp: (name: string, email: string, password: string, nextPath?: string) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
-  signInWithGoogle: () => Promise<AuthResult>;
+  signInWithGoogle: (nextPath?: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
@@ -89,6 +89,19 @@ function mapSupabaseUser(u: User): AuthUser {
     provider: u.app_metadata?.provider === "google" ? "google" : "email",
     createdAt: u.created_at ? new Date(u.created_at).getTime() : Date.now(),
   };
+}
+
+/**
+ * Build the auth callback URL, preserving a safe internal return path so
+ * email-confirmation and OAuth flows land back on the originally requested
+ * tool (including its query string) instead of always /home.
+ */
+function authCallbackUrl(nextPath?: string): string {
+  const safe =
+    nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") && !nextPath.includes("\\")
+      ? nextPath
+      : "/home";
+  return `${window.location.origin}/auth/callback?next=${encodeURIComponent(safe)}`;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -219,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       loading,
       supabaseEnabled: true,
-      async signUp(name, email, password) {
+      async signUp(name, email, password, nextPath) {
         if (!name.trim()) return { ok: false, error: "Please enter your name." };
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email)))
           return { ok: false, error: "Please enter a valid email address." };
@@ -230,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password,
           options: {
             data: { name: name.trim() },
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fhome`,
+            emailRedirectTo: authCallbackUrl(nextPath),
           },
         });
         if (error) return { ok: false, error: error.message };
@@ -246,10 +259,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) return { ok: false, error: error.message };
         return { ok: true };
       },
-      async signInWithGoogle() {
+      async signInWithGoogle(nextPath) {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${window.location.origin}/auth/callback?next=/home` },
+          options: { redirectTo: authCallbackUrl(nextPath) },
         });
         return error ? { ok: false, error: error.message } : { ok: true };
       },

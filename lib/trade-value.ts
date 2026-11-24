@@ -1,7 +1,7 @@
 import type { Player, Position } from "./types";
 
 const DEEP_BASELINE_RANK: Record<Position, number> = {
-  QB: 24, RB: 48, WR: 60, TE: 24, K: 20, DEF: 20,
+  QB: 24, RB: 48, WR: 60, TE: 24, K: 12, DEF: 12,
 };
 
 type PlayerWithMarketValue = Player & { redraftValue?: number; redraft_value?: number };
@@ -41,8 +41,11 @@ export function buildTradeValues(
     });
     const rankById = new Map(sorted.map((player, index) => [player.id, index + 1]));
     const depthRank = Math.max(1, Math.round(DEEP_BASELINE_RANK[position] * teamCount / 12));
-    const baseRank = Math.min(depthRank, sorted.length);
-    const baselineProjection = sorted[baseRank - 1] ? tradeProjection(sorted[baseRank - 1]) : 0;
+    const streamable = position === "K" || position === "DEF";
+    // With a partial streamer feed, use the last projected starter available.
+    const projectedCount = streamable ? sorted.filter(p => tradeProjection(p) > 0).length : sorted.length;
+    const baseRank = Math.min(depthRank, Math.max(1, projectedCount));
+    const baselineProjection = tradeProjection(sorted[baseRank - 1]);
     const topProjection = sorted[0] ? tradeProjection(sorted[0]) : 0;
     const topAboveBaseline = Math.max(1, topProjection - baselineProjection);
 
@@ -55,7 +58,17 @@ export function buildTradeValues(
 
       const healthMultiplier = getTradeInjuryMultiplier(player.injuryStatus, projection, baselineProjection);
       if (healthMultiplier === 0) {
-        values.set(player.id, 0);
+        // A positive non-streamer projection retains a small, ordered bench value.
+        const benchValue = 0.1 + 1.9 * projection / (projection + 60);
+        values.set(player.id, streamable ? 0 : benchValue);
+        continue;
+      }
+
+      if (streamable) {
+        // Price only the ROS points gained over a readily available replacement.
+        const surplus = projection - baselineProjection;
+        const value = Math.min(5, surplus * 0.15 * healthMultiplier);
+        values.set(player.id, Math.round(value * 10) / 10);
         continue;
       }
 
@@ -82,6 +95,13 @@ function tradeProjection(player: Player): number {
   return Number.isFinite(projection) ? Math.max(0, projection) : 0;
 }
 
+/** Match the strongest pieces one-for-one; each surplus roster spot halves its contribution. */
+export function packageTradeValue(values: number[], opposingCount: number): number {
+  const matched = Math.max(1, opposingCount);
+  return [...values].sort((a, b) => b - a).reduce((total, value, index) =>
+    total + value * 0.5 ** Math.max(0, index - matched + 1), 0);
+}
+
 export interface TradeGrade {
   letter: string;
   label: string;
@@ -89,13 +109,25 @@ export interface TradeGrade {
   ring: string;
 }
 
-/** Letter grade for "your side" (Side A) from net value over total value. */
-export function gradeTrade(net: number, total: number): TradeGrade {
-  if (total <= 0) {
+/** Letter grade for "your side" (Side A) from net value over total value.
+ * `bothSidesPopulated` must be false whenever either side has no resolved
+ * players — a one-sided package is incomplete, not a grade. When both sides do
+ * have players but every value is zero, the trade is even and grades as a
+ * neutral C rather than an empty placeholder. */
+export function gradeTrade(net: number, total: number, bothSidesPopulated = true): TradeGrade {
+  if (!bothSidesPopulated) {
     return {
       letter: "—",
       label: "Add players to both sides",
       text: "text-zinc-300",
+      ring: "border-zinc-600/60 bg-zinc-800/40",
+    };
+  }
+  if (total <= 0) {
+    return {
+      letter: "C",
+      label: "Even trade",
+      text: "text-zinc-200",
       ring: "border-zinc-600/60 bg-zinc-800/40",
     };
   }

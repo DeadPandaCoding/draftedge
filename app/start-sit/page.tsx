@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { fetchDraftState, fetchLeague } from "@/lib/data";
@@ -103,7 +103,7 @@ export default function StartSitPage() {
   }, [players, playersLoading]);
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  const contexts = useMemo(() => buildMatchupContext(players, league?.format ?? "redraft"), [players, league?.format]);
+  const contexts = useMemo(() => buildMatchupContext(players), [players]);
   const values = useMemo(() => buildTradeValues(players.map((p) => {
     const context = contexts.get(p.id);
     const healthFactor = 1 - (context?.healthDiscount ?? 0);
@@ -141,32 +141,69 @@ export default function StartSitPage() {
     else if (!sideB && sideA !== id) setSideB(id);
     else setSideB(id);
   };
-
-  const roster = useMemo(
-    () => (league ? buildRoster(myPicks, playersById, league.roster) : []),
-    [league, myPicks, playersById]
-  );
+  // Never offer a player already occupying the other comparison slot.
+  const selectableSyncedPlayers = syncedPlayers.filter(({ player }) => !excluded.has(player.id));
 
   // Prefer this week's Sleeper projection when both players have one; fall
   // back to the season projection (the only signal available in the offseason).
   const useWeek = Boolean(a && b && currentWeek != null);
-  const isOnBye = (player: Player) => currentWeek != null && player.bye === currentWeek;
-  const weeklyScore = (player: Player) => {
-    const points = contexts.get(player.id)?.adjustedWeeklyPoints ?? player.weekProjection ?? 0;
+  const isOnBye = useCallback(
+    (player: Player) => currentWeek != null && player.bye === currentWeek,
+    [currentWeek]
+  );
+  /** Weekly points, or null when neither a weekly projection nor a weekly avg exists. */
+  const weeklyScore = useCallback((player: Player): number | null => {
+    const context = contexts.get(player.id);
+    const points = context?.adjustedWeeklyPoints ?? player.weekProjection ?? null;
+    if (points == null) return null;
     return points * getWeeklyInjuryMultiplier(player.injuryStatus, isOnBye(player));
+  }, [contexts, isOnBye]);
+  const rosterPreference = useCallback((player: Player) => weeklyScore(player) ?? 0, [weeklyScore]);
+
+  // Legal starters are chosen by highest weekly projection, not draft order.
+  const roster = useMemo(
+    () => (league ? buildRoster(myPicks, playersById, league.roster, rosterPreference) : []),
+    [league, myPicks, playersById, rosterPreference]
+  );
+
+  const aScore = a ? (useWeek ? weeklyScore(a) : contexts.get(a.id)?.adjustedRosPoints ?? a.projection) : null;
+  const bScore = b ? (useWeek ? weeklyScore(b) : contexts.get(b.id)?.adjustedRosPoints ?? b.projection) : null;
+  const diff = typeof aScore === "number" && typeof bScore === "number" ? aScore - bScore : 0;
+
+  /** Why a player cannot be started this week, or null when they are available. */
+  const weeklyUnavailableReason = (player: Player): string | null => {
+    if (isOnBye(player)) return `Bye (Week ${player.bye})`;
+    const status = player.injuryStatus;
+    if (status && getWeeklyInjuryMultiplier(status, false) === 0) return `Injury status: ${status}`;
+    const score = weeklyScore(player);
+    if (score == null) return "No weekly projection available";
+    if (score === 0) return "Projected 0.0 this week";
+    return null;
   };
-  const aScore = a ? (useWeek ? weeklyScore(a) : contexts.get(a.id)?.adjustedRosPoints ?? a.projection) : 0;
-  const bScore = b ? (useWeek ? weeklyScore(b) : contexts.get(b.id)?.adjustedRosPoints ?? b.projection) : 0;
-  const diff = a && b ? aScore - bScore : 0;
-  const aUnavailable = Boolean(a && useWeek && getWeeklyInjuryMultiplier(a.injuryStatus, isOnBye(a)) === 0);
-  const bUnavailable = Boolean(b && useWeek && getWeeklyInjuryMultiplier(b.injuryStatus, isOnBye(b)) === 0);
+  const aIssue = a && useWeek ? weeklyUnavailableReason(a) : null;
+  const bIssue = b && useWeek ? weeklyUnavailableReason(b) : null;
+  const aUnavailable = Boolean(aIssue);
+  const bUnavailable = Boolean(bIssue);
+  const bothUnavailable = Boolean(useWeek && a && b && aUnavailable && bUnavailable);
   const winner = a && b
-    ? aUnavailable !== bUnavailable
-      ? (aUnavailable ? b : a)
-      : aUnavailable && bUnavailable
-        ? null
-        : aScore >= bScore ? a : b
+    ? bothUnavailable
+      ? null
+      : aUnavailable !== bUnavailable
+        ? (aUnavailable ? b : a)
+        : aScore == null && bScore == null
+          ? null
+          : aScore == null
+            ? b
+            : bScore == null
+              ? a
+              : aScore === bScore
+                ? null
+                : aScore > bScore ? a : b
     : null;
+  const tied = Boolean(
+    a && b && !bothUnavailable && !aUnavailable && !bUnavailable &&
+    aScore != null && bScore != null && aScore === bScore
+  );
   const band = winner ? confidence(diff) : null;
 
   const statRow = (label: string, value: string, highlight = false) => (
@@ -204,11 +241,17 @@ export default function StartSitPage() {
       <div className="mt-4">
         {statRow("ROS projection", `${(contexts.get(p.id)?.adjustedRosPoints ?? p.projection).toFixed(1)} pts`, winner === p)}
         {useWeek && statRow(
-          `This week${getWeeklyInjuryMultiplier(p.injuryStatus, isOnBye(p)) === 0 ? " · SIT" : " (adjusted)"}`,
-          `${weeklyScore(p).toFixed(1)} pts`,
+          `This week${
+            getWeeklyInjuryMultiplier(p.injuryStatus, isOnBye(p)) === 0
+              ? " · SIT"
+              : contexts.get(p.id)?.weeklyPointsEstimated
+                ? " (season-avg estimate)"
+                : " (adjusted)"
+          }`,
+          weeklyScore(p) == null ? "Unavailable" : `${weeklyScore(p)!.toFixed(1)} pts`,
           winner === p,
         )}
-        {statRow("Weekly avg", p.weeklyAvg.toFixed(1))}
+        {statRow("Weekly avg", p.weeklyAvg > 0 ? `${p.weeklyAvg.toFixed(1)} pts` : "Unavailable")}
         {statRow("Season PPG", contexts.get(p.id)?.ppg == null ? "Unavailable" : `${contexts.get(p.id)!.ppg!.toFixed(1)} pts`)}
         {statRow("Opponent rank", "Unavailable")}
         {statRow("Trade value", (values.get(p.id) ?? 0).toFixed(1))}
@@ -245,10 +288,11 @@ export default function StartSitPage() {
           <span className="font-mono text-[10px] text-zinc-500">{syncedPlayers.filter((entry) => entry.isStarter).length} starters · {syncedPlayers.filter((entry) => !entry.isStarter).length} bench</span>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {syncedPlayers.map(({ player, isStarter }) => <button key={player.id} type="button" onClick={() => selectSyncedPlayer(player.id)} className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#080E0C] px-2 py-1.5 text-xs text-zinc-300 hover:border-emerald-500/30">
+          {selectableSyncedPlayers.map(({ player, isStarter }) => <button key={player.id} type="button" onClick={() => selectSyncedPlayer(player.id)} className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#080E0C] px-2 py-1.5 text-xs text-zinc-300 hover:border-emerald-500/30">
             <span className="font-mono text-[9px] text-zinc-500">{isStarter ? "START" : "BENCH"}</span>{player.name}
           </button>)}
         </div>
+        {selectableSyncedPlayers.length === 0 && <p className="mt-2 text-[10px] text-zinc-500">Both comparison slots are filled — clear one to pick another player.</p>}
       </section>}
 
       {playersLoading ? (
@@ -294,6 +338,32 @@ export default function StartSitPage() {
           </div>
 
           {/* ── Verdict ──────────────────────────────────────── */}
+          {a && b && bothUnavailable && (
+            <div role="status" className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-6">
+              <div className="text-center">
+                <span className="font-display text-xl font-bold text-amber-200">Neither player is available this week</span>
+                <ul className="mt-3 space-y-1 text-left text-sm text-amber-100/90">
+                  <li>• {a.name}: {aIssue}</li>
+                  <li>• {b.name}: {bIssue}</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {a && b && tied && (
+            <div role="status" className="mt-6 rounded-2xl border border-zinc-600/60 bg-zinc-800/40 p-6">
+              <div className="text-center">
+                <span className="font-display text-2xl font-bold text-zinc-100">Too close to call</span>
+                <p className="mt-2 text-sm text-zinc-300">
+                  Both players are tied at {aScore?.toFixed(1) ?? "—"} pts.
+                </p>
+                <span className="mt-3 inline-flex rounded-full bg-zinc-900/60 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  {useWeek ? "This week" : "Season projection"}
+                </span>
+              </div>
+            </div>
+          )}
+
           {a && b && band && winner && (
             <div className={`mt-6 rounded-2xl border p-6 ${band.cls}`}>
               <div className="flex flex-col items-center gap-4 text-center">
@@ -302,20 +372,24 @@ export default function StartSitPage() {
                 </span>
                 <p className="text-sm text-zinc-300">{band.detail}</p>
                 <p className="font-tech text-lg font-bold text-zinc-100">
-                  {aScore.toFixed(1)} vs {bScore.toFixed(1)} pts
+                  {aScore?.toFixed(1) ?? "—"} vs {bScore?.toFixed(1) ?? "—"} pts
                   <span className="ml-2 text-sm text-zinc-400">
                     ({diff >= 0 ? "+" : ""}
                     {diff.toFixed(1)} gap)
                   </span>
                 </p>
                 <span className="rounded-full bg-zinc-900/60 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                  {useWeek ? "This week" : "Season projection"}
+                  {useWeek
+                    ? contexts.get(winner.id)?.weeklyPointsEstimated
+                      ? "This week · season-avg estimate"
+                      : "This week"
+                    : "Season projection"}
                 </span>
                 <span className="rounded-full bg-zinc-900/60 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                   {band.label}
                 </span>
                 <ul className="mt-1 space-y-1 text-left text-xs text-zinc-300">
-                  <li>• Adjusted {useWeek ? "weekly" : "ROS"} projection: {Math.abs(diff).toFixed(1)} point edge for {winner.name}.</li>
+                  <li>• {useWeek ? (contexts.get(winner.id)?.weeklyPointsEstimated ? "Weekly-average estimate" : "Adjusted weekly projection") : "Season projection"}: {Math.abs(diff).toFixed(1)} point edge for {winner.name}.</li>
                   <li>• Season PPG: {contexts.get(winner.id)?.ppg == null ? "unavailable" : `${contexts.get(winner.id)!.ppg!.toFixed(1)} points`}.</li>
                   <li>• Opponent positional rank is unavailable until a schedule matchup source is connected.</li>
                   {(contexts.get(winner.id)?.reasonTags ?? []).map((tag) => <li key={tag}>• {tag}</li>)}

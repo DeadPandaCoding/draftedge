@@ -1,6 +1,5 @@
 export type Position = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 export type InjuryStatus = "Q" | "D" | "O" | "IR" | "PUP" | "SUS";
-export type LeagueFormat = "redraft" | "dynasty" | "keeper";
 export type DraftType = "snake" | "linear" | "third_round_reversal";
 
 export const POSITIONS: Position[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
@@ -88,7 +87,6 @@ export interface LeagueConfig {
   id: string;
   name: string;
   scoring: ScoringFormat;
-  format?: LeagueFormat;
   teamCount: number;
   draftPosition: number; // 1..teamCount
   rounds: number;

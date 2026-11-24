@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { usePlayers } from "@/lib/players";
-import type { Position, ScoringFormat } from "@/lib/types";
+import type { Player, Position, ScoringFormat } from "@/lib/types";
 import { POSITIONS } from "@/lib/types";
 import { SCORING_LABELS } from "@/lib/league";
 import AppShell from "@/components/dashboard/AppShell";
@@ -27,6 +27,8 @@ export default function RankingsPage() {
   const [projectionView, setProjectionView] = useState<"season" | "week" | "ros">("week");
   const [hideOutIr, setHideOutIr] = useState(false);
   const [showKDef, setShowKDef] = useState(true);
+  // Mirrors the table's current sort order so CSV export matches the screen.
+  const [sortedRows, setSortedRows] = useState<Player[]>([]);
 
   const { players, loading: playersLoading, weeklyRankingsUpdated } = usePlayers(scoring);
   const hasRosProjections = players.some((player) => player.rosProjection != null);
@@ -82,7 +84,10 @@ export default function RankingsPage() {
           </div>
           <button
             type="button"
-            onClick={() => exportPlayersCsv(filtered, null)}
+            onClick={() => exportPlayersCsv(sortedRows.length > 0 ? sortedRows : filtered, null, {
+              horizon: activeProjectionView,
+              scoring,
+            })}
             disabled={playersLoading || filtered.length === 0}
             className="glass glass-hover inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-200 transition disabled:opacity-40"
           >
@@ -131,7 +136,11 @@ export default function RankingsPage() {
           Hide Out/IR
         </label>
         <label className="inline-flex items-center gap-2 text-xs text-zinc-400">
-          <input type="checkbox" checked={showKDef} onChange={(e) => setShowKDef(e.target.checked)} className="accent-emerald-500" />
+          <input type="checkbox" checked={showKDef} onChange={(e) => {
+            const checked = e.target.checked;
+            setShowKDef(checked);
+            if (!checked && (position === "K" || position === "DEF")) setPosition("ALL");
+          }} className="accent-emerald-500" />
           K/DEF
         </label>
         <div className="relative sm:ml-auto sm:w-64">
@@ -168,6 +177,7 @@ export default function RankingsPage() {
           players={filtered}
           weekly={activeProjectionView === "week"}
           ros={activeProjectionView === "ros"}
+          onSortedChange={setSortedRows}
         />
       )}
     </AppShell>

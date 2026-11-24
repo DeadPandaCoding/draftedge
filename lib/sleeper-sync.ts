@@ -34,6 +34,7 @@ interface SleeperLeague {
   name?: string | null;
   season?: string | null;
   total_rosters?: number;
+  settings?: { type?: number };
   roster_positions?: string[];
   scoring_settings?: Record<string, number> | null;
 }
@@ -41,6 +42,12 @@ interface SleeperRoster { owner_id?: string | null; starters?: string[] | null; 
 interface SleeperDraft { draft_id: string; created?: number; status?: string; }
 
 const API = "https://api.sleeper.app/v1";
+
+/** Sleeper rolls leagues over in March; Jan/Feb still belong to the prior season. */
+function nflSeasonYear(now = new Date()): number {
+  const year = now.getUTCFullYear();
+  return now.getUTCMonth() >= 2 ? year : year - 1;
+}
 
 async function sleeperGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API}${path}`, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
@@ -92,7 +99,7 @@ async function mapLeague(
     platform_user_id: sleeperUser.user_id,
     sleeper_username: username,
     league_name: league.name ?? "Sleeper League",
-    season: league.season ?? "2026",
+    season: league.season ?? String(nflSeasonYear()),
     scoring_format: scoringFormat(settings),
     te_premium: Number(settings.bonus_rec_te ?? 0) > 0,
     total_teams: Number(league.total_rosters) || mappedRosters.length || 12,
@@ -111,17 +118,31 @@ export async function syncSleeperLeagues(usernameInput: string, onlyLeagueId?: s
   const sleeperUser = await sleeperGet<SleeperUser>(`/user/${encodeURIComponent(username)}`);
   if (!sleeperUser?.user_id) throw new Error("Sleeper username was not found.");
 
-  let leagues = await sleeperGet<SleeperLeague[]>(`/user/${encodeURIComponent(sleeperUser.user_id)}/leagues/nfl/2026`);
+  const currentSeason = String(nflSeasonYear());
+  const previousSeason = String(nflSeasonYear() - 1);
+  const eligibleRedraft = (league: SleeperLeague) => league.settings?.type === 0;
+
+  // Only redraft leagues are eligible, so filter before deciding whether the
+  // prior season fallback is needed (a dynasty league must not block it).
+  let leagues = (await sleeperGet<SleeperLeague[]>(`/user/${encodeURIComponent(sleeperUser.user_id)}/leagues/nfl/${currentSeason}`))
+    .filter(eligibleRedraft);
   if (onlyLeagueId) {
     leagues = leagues.filter((league) => league.league_id === onlyLeagueId);
     if (leagues.length === 0) {
-      const previousSeason = await sleeperGet<SleeperLeague[]>(`/user/${encodeURIComponent(sleeperUser.user_id)}/leagues/nfl/2025`);
-      leagues = previousSeason.filter((league) => league.league_id === onlyLeagueId);
+      const priorSeason = await sleeperGet<SleeperLeague[]>(`/user/${encodeURIComponent(sleeperUser.user_id)}/leagues/nfl/${previousSeason}`);
+      leagues = priorSeason.filter(eligibleRedraft).filter((league) => league.league_id === onlyLeagueId);
     }
   } else if (leagues.length === 0) {
-    leagues = await sleeperGet<SleeperLeague[]>(`/user/${encodeURIComponent(sleeperUser.user_id)}/leagues/nfl/2025`);
+    const priorSeason = await sleeperGet<SleeperLeague[]>(`/user/${encodeURIComponent(sleeperUser.user_id)}/leagues/nfl/${previousSeason}`);
+    leagues = priorSeason.filter(eligibleRedraft);
   }
-  if (leagues.length === 0) throw new Error(onlyLeagueId ? "That league was not found for this Sleeper account." : "No Sleeper NFL leagues found for 2026 or 2025.");
+  if (leagues.length === 0) {
+    throw new Error(
+      onlyLeagueId
+        ? "That redraft league was not found for this Sleeper account in the current or prior season."
+        : `No eligible Sleeper redraft leagues found for ${currentSeason} or ${previousSeason}.`
+    );
+  }
 
   // Keep concurrent Sleeper traffic bounded for accounts with many leagues.
   const results: SyncedSleeperLeague[] = [];

@@ -5,9 +5,14 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { fetchDraftState, fetchLeague } from "@/lib/data";
 import { buildRoster } from "@/lib/draft";
-import { SCORING_LABELS } from "@/lib/league";
+import {
+  SCORING_LABELS,
+  hasRosterSlots,
+  numQbsForRoster,
+  rosterFromPositions,
+} from "@/lib/league";
 import { usePlayers } from "@/lib/players";
-import { normalizeName } from "@/lib/seed-data";
+import { normalizeName, playerSlug } from "@/lib/seed-data";
 import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import type {
   DraftPick,
@@ -18,7 +23,7 @@ import type {
   RosterTemplate,
 } from "@/lib/types";
 import { buildMatchupContext, MATCHUP_DATA_UNAVAILABLE } from "@/lib/matchup-context";
-import { buildTradeValues, gradeTrade } from "@/lib/trade-value";
+import { buildTradeValues, gradeTrade, packageTradeValue } from "@/lib/trade-value";
 import {
   fetchFantasyCalc,
   normalizeFCValue,
@@ -60,6 +65,7 @@ function snapshotRoster(
     ["WR", roster.wr],
     ["TE", roster.te],
     ["FLEX", roster.flex],
+    ["SUPERFLEX", roster.superflex ?? 0],
     ["K", roster.k],
     ["DEF", roster.def],
   ];
@@ -81,8 +87,20 @@ export default function TradePage() {
   const teamCount = activeLeague?.total_teams ?? league?.teamCount ?? 12;
   const { players, loading: playersLoading } = usePlayers(scoring);
 
+  // QB pricing must follow the active league: SUPERFLEX and 2QB leagues need
+  // 2QB FantasyCalc values, and the cache key has to include that choice.
+  const leagueRoster = useMemo<RosterTemplate | null>(() => {
+    if (activeLeague) {
+      const parsed = rosterFromPositions(activeLeague.roster_positions);
+      if (hasRosterSlots(parsed)) return parsed;
+    }
+    return league?.roster ?? null;
+  }, [activeLeague, league]);
+  const numQbs = leagueRoster ? numQbsForRoster(leagueRoster) : 1;
+
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
+  const [unresolvedIds, setUnresolvedIds] = useState<string[]>([]);
   const [selectedMyTeamId, setSelectedMyTeamId] = useState("");
   const [selectedPartnerId, setSelectedPartnerId] = useState("");
   const [fcEntries, setFcEntries] = useState<FantasyCalcEntry[]>([]);
@@ -132,37 +150,50 @@ export default function TradePage() {
     initialized.current = true;
 
     const params = new URLSearchParams(window.location.search);
-    const resolve = (raw: string): string[] =>
-      raw
-        .split(",")
-        .filter(Boolean)
-        .map((slug) => players.find((p) => normalizeName(p.name) === normalizeName(slug)))
-        .filter((p): p is Player => Boolean(p))
-        .map((p) => p.id);
+    const byId = new Map(players.map((p) => [p.id, p]));
+    const resolve = (raw: string): { ids: string[]; unresolved: string[] } => {
+      const ids: string[] = [];
+      const unresolved: string[] = [];
+      for (const token of raw.split(",").filter(Boolean)) {
+        // Canonical ID first, then canonical slug, then normalized display name
+        // (older links dropped generational suffixes like "III" / "Jr.").
+        const match =
+          byId.get(token) ??
+          byId.get(token.toLowerCase()) ??
+          players.find((p) => playerSlug(p.name) === token.toLowerCase()) ??
+          players.find((p) => normalizeName(p.name) === normalizeName(token));
+        if (match) ids.push(match.id);
+        else unresolved.push(token);
+      }
+      return { ids: [...new Set(ids)], unresolved };
+    };
 
-    const getIds = resolve(params.get("get") ?? "");
-    const sendIds = resolve(params.get("send") ?? "");
+    const requested = resolve(params.get("get") ?? "");
+    const offered = resolve(params.get("send") ?? "");
+    const getIds = requested.ids;
+    const sendIds = offered.ids.filter((id) => !getIds.includes(id));
+    const unresolved = [...new Set([...requested.unresolved, ...offered.unresolved])];
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (getIds.length > 0) setSideA(getIds);
     if (sendIds.length > 0) setSideB(sendIds);
+    if (unresolved.length > 0) setUnresolvedIds(unresolved);
   }, [players, playersLoading]);
 
-  // Fetch FantasyCalc consensus values (dynasty mode for the community).
+  // Fetch FantasyCalc consensus redraft values.
   useEffect(() => {
-    const requestKey = `${teamCount}:${scoring}`;
+    const requestKey = `${teamCount}:${scoring}:${numQbs}qb`;
     if (fcRequested.current === requestKey) return;
     fcRequested.current = requestKey;
     let cancelled = false;
     fetchFantasyCalc({
-      isDynasty: false,
-      numQbs: 1,
+      numQbs,
       numTeams: teamCount,
       ppr: scoring === "ppr" ? 1 : scoring === "half_ppr" ? 0.5 : 0,
     })
       .then((d) => { if (!cancelled) setFcEntries(d); })
       .catch(() => { /* graceful degrade */ });
     return () => { cancelled = true; };
-  }, [teamCount, scoring]);
+  }, [teamCount, scoring, numQbs]);
 
   const fcMax = useMemo(() => {
     if (fcEntries.length === 0) return 1;
@@ -190,7 +221,7 @@ export default function TradePage() {
   }, [players, fcEntries]);
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  const contexts = useMemo(() => buildMatchupContext(players, league?.format ?? "redraft"), [players, league?.format]);
+  const contexts = useMemo(() => buildMatchupContext(players), [players]);
   const values = useMemo(() => buildTradeValues(
     players.map((p) => {
       const context = contexts.get(p.id);
@@ -271,8 +302,8 @@ export default function TradePage() {
   const deltaProj = (afterSnap?.starterProj ?? 0) - (currentSnap?.starterProj ?? 0);
 
   const valueOf = (id: string) => values.get(id) ?? 0;
-  const aValue = aPlayers.reduce((s, p) => s + valueOf(p.id), 0);
-  const bValue = bPlayers.reduce((s, p) => s + valueOf(p.id), 0);
+  const aValue = packageTradeValue(aPlayers.map(p => valueOf(p.id)), bPlayers.length);
+  const bValue = packageTradeValue(bPlayers.map(p => valueOf(p.id)), aPlayers.length);
   const aProj = aPlayers.reduce((s, p) => s + (contexts.get(p.id)?.adjustedRosPoints ?? p.projection), 0);
   const bProj = bPlayers.reduce((s, p) => s + (contexts.get(p.id)?.adjustedRosPoints ?? p.projection), 0);
 
@@ -284,10 +315,17 @@ export default function TradePage() {
 
   const net = aValue - bValue;
   const total = aValue + bValue;
-  const grade = gradeTrade(net, total);
+  // Completeness comes from resolved players on both sides, never from value:
+  // a one-sided package has no grade even if the single player has value, and
+  // unresolved share-link players keep the grade withheld.
+  const tradeComplete = aPlayers.length > 0 && bPlayers.length > 0 && unresolvedIds.length === 0;
+  const grade = gradeTrade(net, total, tradeComplete);
   const aPct = total > 0 ? (aValue / total) * 100 : 50;
+  const fitGroups: readonly string[] =
+    (league?.roster.superflex ?? 0) > 0 ? [...GROUPS, "SUPERFLEX"] : GROUPS;
 
   const add = (side: Side, player: Player) => {
+    if (excluded.has(player.id)) return;
     const setter = side === "A" ? setSideA : setSideB;
     setter((prev) => (prev.includes(player.id) ? prev : [...prev, player.id]));
   };
@@ -297,13 +335,17 @@ export default function TradePage() {
     setter((prev) => prev.filter((x) => x !== id));
   };
 
-  const playerSlug = (name: string) =>
-    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-
   const buildShareUrl = () => {
     const params = new URLSearchParams();
-    if (aPlayers.length > 0) params.set("get", aPlayers.map((p) => playerSlug(p.name)).join(","));
-    if (bPlayers.length > 0) params.set("send", bPlayers.map((p) => playerSlug(p.name)).join(","));
+    // Canonical IDs preserve every character of names like "James Cook III" and
+    // "Travis Etienne Jr.", so shared links never drop generational suffixes.
+    if (aPlayers.length > 0) params.set("get", aPlayers.map((p) => p.id).join(","));
+    if (bPlayers.length > 0) params.set("send", bPlayers.map((p) => p.id).join(","));
+    // Shared links carry the valuation settings too, so the recipient can see
+    // exactly which scoring / team count / QB mode produced the grade.
+    params.set("scoring", scoring);
+    params.set("teams", String(teamCount));
+    params.set("qb", String(numQbs));
     const qs = params.toString();
     const base = `${window.location.origin}${window.location.pathname}`;
     return qs ? `${base}?${qs}` : base;
@@ -442,7 +484,7 @@ export default function TradePage() {
             <div className="flex items-center gap-3">
               <h1 className="font-display text-3xl tracking-wide text-white">Trade Analyzer</h1>
               <span className="rounded-full border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              {SCORING_LABELS[scoring]}
+              {SCORING_LABELS[scoring]} · {teamCount} teams · {numQbs}QB
               </span>
             </div>
             <p className="mt-2 text-sm text-zinc-400">
@@ -450,7 +492,7 @@ export default function TradePage() {
             </p>
           </div>
         </div>
-        {(aPlayers.length > 0 || bPlayers.length > 0) && (
+        {tradeComplete && (
           <ShareButtons
             url={buildShareUrl()}
             text={`I ${grade.label.toLowerCase()} this trade on DraftEdge${
@@ -460,6 +502,25 @@ export default function TradePage() {
           />
         )}
       </div>
+
+      {unresolvedIds.length > 0 && (
+        <div role="alert" className="mb-5 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p>
+              Could not match {unresolvedIds.length === 1 ? "a shared player" : "shared players"}:{" "}
+              <span className="font-semibold">{unresolvedIds.join(", ")}</span>. The trade grade and share
+              links are withheld until this is resolved.
+            </p>
+            <button
+              type="button"
+              onClick={() => setUnresolvedIds([])}
+              className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/20"
+            >
+              Grade matched players
+            </button>
+          </div>
+        </div>
+      )}
 
       {activeLeague && (
         <section className="mb-5 rounded-2xl border border-white/[0.08] bg-[#0D1412] p-4 sm:p-5">
@@ -522,7 +583,7 @@ export default function TradePage() {
           </div>
 
           {/* Verdict */}
-          {(aPlayers.length > 0 || bPlayers.length > 0) && (
+          {tradeComplete && (
             <div className={`mt-6 rounded-2xl border p-6 ${grade.ring}`}>
               <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-between">
                 <div className="flex items-center gap-4">
@@ -607,7 +668,7 @@ export default function TradePage() {
               )}
 
               <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
-                <span className="text-zinc-300">VALUE</span> = market trade value when available, blended with a projection and positional-depth estimate otherwise.
+                <span className="text-zinc-300">VALUE</span> blends market data with projections and positional depth when market data is available. K and DEF earn 0.15 value per projected point above replacement, capped at 5.0. In uneven trades, extra players count at 50%, 25%, then progressively less toward the package value.
                 <span className="ml-2 text-cyan-300/80">FC</span> = community consensus from FantasyCalc.com.
               </p>
             </div>
@@ -623,7 +684,7 @@ export default function TradePage() {
               <p className="mt-1 text-xs text-zinc-500">How this trade reshapes your starting lineup.</p>
 
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {GROUPS.map((g) => {
+                {fitGroups.map((g) => {
                   const before = currentSnap.counts[g] ?? 0;
                   const after = afterSnap.counts[g] ?? 0;
                   const delta = after - before;

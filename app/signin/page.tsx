@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -21,6 +21,13 @@ function AuthCard() {
   const [mode, setMode] = useState<"signin" | "signup">(
     searchParams.get("mode") === "signup" ? "signup" : "signin"
   );
+
+  // Preserve the deep link the user was sent here for (path + query string).
+  const nextPath = useMemo(() => {
+    const next = searchParams.get("next");
+    if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return "/home";
+    return next;
+  }, [searchParams]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,12 +36,12 @@ function AuthCard() {
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Already authenticated → land on the home dashboard (setup card or league
-  // overview is decided there based on whether a league exists).
+  // Already authenticated → return to the originally requested tool, or the
+  // home dashboard when the sign-in link did not include a deep link.
   useEffect(() => {
     if (loading || !user) return;
-    router.replace("/home");
-  }, [user, loading, router]);
+    router.replace(nextPath);
+  }, [user, loading, router, nextPath]);
 
   const flipMode = () => {
     setMode((m) => (m === "signin" ? "signup" : "signin"));
@@ -46,7 +53,9 @@ function AuthCard() {
     setError(null);
     setSubmitting(true);
     const result =
-      mode === "signup" ? await signUp(name, email, password) : await signIn(email, password);
+      mode === "signup"
+        ? await signUp(name, email, password, nextPath)
+        : await signIn(email, password);
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error ?? "Something went wrong.");
@@ -64,7 +73,7 @@ function AuthCard() {
     setError(null);
     setGoogleLoading(true);
     try {
-      const result = await signInWithGoogle();
+      const result = await signInWithGoogle(nextPath);
       if (!result.ok) setError(result.error ?? "Google sign-in failed. Check that Google OAuth is enabled in Supabase.");
     } catch (googleError) {
       setError(googleError instanceof Error ? googleError.message : "Google sign-in failed. Check the Supabase Google provider configuration.");

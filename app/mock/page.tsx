@@ -1,12 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { usePlayers } from "@/lib/players";
-import type { DraftType, LeagueFormat, Player, Position, RosterTemplate, ScoringFormat } from "@/lib/types";
-import { DEFAULT_ROSTER, SCORING_LABELS, roundForPick, rosterSize, slotForPick } from "@/lib/league";
+import type { DraftType, Player, Position, RosterTemplate, ScoringFormat } from "@/lib/types";
+import {
+  DEFAULT_ROSTER,
+  SCORING_LABELS,
+  hasRosterSlots,
+  rosterFromPositions,
+  roundForPick,
+  rosterSize,
+  slotForPick,
+} from "@/lib/league";
 import { buildTradeValues } from "@/lib/trade-value";
+import { canDraftPosition, futurePicksForSlot, startingSlotsNeeded } from "@/lib/draft";
+import { isLegacyPlayerId } from "@/lib/seed-data";
 import { toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
 import styles from "./room.module.css";
@@ -56,15 +66,6 @@ const STRATEGIES: { value: Strategy; label: string; tip: string }[] = [
   { value: "elite_te", label: "Elite TE", tip: "Target a top-3 TE early, then build RB/WR around them." },
 ];
 
-function rosterPositionEntries(rawPositions: unknown): string[] {
-  if (Array.isArray(rawPositions)) return rawPositions.filter((value): value is string => typeof value === "string");
-  if (!rawPositions || typeof rawPositions !== "object") return [];
-  return Object.entries(rawPositions as Record<string, unknown>).flatMap(([slot, value]) => {
-    const count = typeof value === "number" ? Math.max(0, Math.min(30, Math.floor(value))) : 0;
-    return Array.from({ length: count }, () => slot);
-  });
-}
-
 function countPositions(picks: MockPick[], slot: number, playersById: Map<string, Player>): Record<Position, number> {
   const counts: Record<Position, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
   for (const p of picks) {
@@ -107,8 +108,10 @@ function pickForSlot(
   botProfiles: Record<number, BotProfile>,
   tradeValues: ReadonlyMap<string, number>,
   seed: number,
+  draftType: DraftType,
 ): Player | null {
   const counts = countPositions(picks, slot, playersById);
+  const picksAfterThisOne = futurePicksForSlot(pickNumber, slot, teams, totalPicks, draftType);
   const roundsLeft = Math.ceil((totalPicks - pickNumber + 1) / teams);
   const late = roundsLeft <= 2;
   const round = roundForPick(pickNumber, teams);
@@ -116,7 +119,16 @@ function pickForSlot(
   const botProfile = botProfiles[slot] ?? "consensus";
   const pickBest = (positions: Position[]): Player | null => {
     let pool = players.filter((player) => !draftedIds.has(player.id) && positions.includes(player.position));
-    if (pool.length === 0) pool = players.filter((player) => !draftedIds.has(player.id));
+    if (!pool.length) return null;
+
+    // One feasibility guard for every auto-pick path (bots, timer, Simulate
+    // Rest): never draft a position that would leave more mandatory starting
+    // slots open than there are picks left to fill them. The guard disables
+    // itself when the roster is already infeasible, so the draft cannot stall.
+    const feasiblePool = pool.filter((player) =>
+      canDraftPosition(player.position, counts, roster, picksAfterThisOne)
+    );
+    if (feasiblePool.length > 0) pool = feasiblePool;
 
     if (!isUser) {
       const guarded = pool.filter((player) => {
@@ -194,27 +206,31 @@ function pickForSlot(
   if (counts.RB < roster.rb) core.push("RB");
   if (counts.WR < roster.wr) core.push("WR");
   if (counts.TE < roster.te) core.push("TE");
-  if (core.length > 0) return pickBest(core);
+  const starter = pickBest(core);
+  if (starter) return starter;
 
   // 2) Flex.
   const flexCapacity = roster.rb + roster.wr + roster.te + roster.flex;
   if (counts.RB + counts.WR + counts.TE < flexCapacity) {
-    return pickBest(["RB", "WR", "TE"]);
+    const flex = pickBest(["RB", "WR", "TE"]);
+    if (flex) return flex;
   }
   const superflexEligible = counts.QB + counts.RB + counts.WR + counts.TE;
-  const superflexNeed = (roster.superflex ?? 0) + roster.qb;
-  if (superflexEligible < superflexNeed) {
-    return pickBest(["QB", "RB", "WR", "TE"]);
+  const superflexNeed = (roster.superflex ?? 0) + roster.qb + flexCapacity;
+  if (roster.superflex && superflexEligible < superflexNeed) {
+    const superflex = pickBest(["QB", "RB", "WR", "TE"]);
+    if (superflex) return superflex;
   }
 
   // 3) K / DEF in closing rounds.
   const specialists: Position[] = [];
   if (late && counts.K < roster.k) specialists.push("K");
   if (late && counts.DEF < roster.def) specialists.push("DEF");
-  if (specialists.length > 0) return pickBest(specialists);
+  const specialist = pickBest(specialists);
+  if (specialist) return specialist;
 
   // 4) Bench — skill players.
-  return pickBest(["QB", "RB", "WR", "TE"]);
+  return pickBest(["QB", "RB", "WR", "TE"]) ?? pickBest(["K", "DEF"]);
 }
 
 interface TeamDraftGrade {
@@ -287,7 +303,6 @@ export default function MockDraftPage() {
   const [scoring, setScoring] = useState<ScoringFormat>("ppr");
   const [strategy, setStrategy] = useState<Strategy>("balanced");
   const [pickTimer, setPickTimer] = useState(90);
-  const [leagueFormat, setLeagueFormat] = useState<LeagueFormat>("redraft");
   const [draftType, setDraftType] = useState<DraftType>("snake");
   const [tePremium, setTePremium] = useState(false);
   const [roster, setRoster] = useState<RosterTemplate>({ ...DEFAULT_ROSTER });
@@ -306,9 +321,12 @@ export default function MockDraftPage() {
   const [queueHydrated, setQueueHydrated] = useState(false);
   const [playerListTab, setPlayerListTab] = useState<"roster" | "queue">("roster");
   const [copyStatus, setCopyStatus] = useState("");
-  const [timerExpired, setTimerExpired] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [mobileZone, setMobileZone] = useState<"players" | "board" | "roster">("players");
   const [secondsLeft, setSecondsLeft] = useState(pickTimer);
+  const [poolExhausted, setPoolExhausted] = useState(false);
+  const queueUserId = user?.id ? user.id.toLowerCase() : null;
+  const queueStorageKey = queueUserId ? `draftedge.mock.queue.v2.${queueUserId}` : null;
+  const queueHydrationKey = useRef<string | null>(null);
 
   // Computed roster
   const { players, loading: playersLoading } = usePlayers(scoring);
@@ -326,22 +344,37 @@ export default function MockDraftPage() {
 
   const totalRounds = rosterSize(roster);
   const totalPicks = teams * totalRounds;
+  const totalRoundsValid = Number.isInteger(totalRounds) && totalRounds >= 1;
+  const poolCapacityShort = totalRoundsValid && players.length > 0 && players.length < totalPicks;
   const currentPick = picks.length + 1;
   const done = started && currentPick > totalPicks;
   const drafted = useMemo(() => new Set(picks.map((p) => p.playerId)), [picks]);
 
   useEffect(() => {
+    // Queues are scoped per authenticated user so one account's saved players
+    // never leak into another's mock draft.
+    queueHydrationKey.current = null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQueueHydrated(false);
+    if (!queueStorageKey) {
+      setQueueIds([]);
+      return;
+    }
     try {
-      const stored = JSON.parse(localStorage.getItem("draftedge.mock.queue.v1") ?? "[]") as unknown;
-      if (Array.isArray(stored)) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setQueueIds([...new Set(stored.filter((id): id is string => typeof id === "string"))]);
-      }
+      // v2: queue entries are canonical player IDs. v1 held rank-based IDs,
+      // which meant a different player on each scoring board.
+      const stored = JSON.parse(localStorage.getItem(queueStorageKey) ?? "[]") as unknown;
+      setQueueIds(
+        Array.isArray(stored)
+          ? [...new Set(stored.filter((id): id is string => typeof id === "string" && !isLegacyPlayerId(id)))]
+          : []
+      );
     } catch {
       setQueueIds([]);
     }
+    queueHydrationKey.current = queueStorageKey;
     setQueueHydrated(true);
-  }, []);
+  }, [queueStorageKey]);
 
   const activeQueueIds = useMemo(() => queueIds.filter((id) => !drafted.has(id)), [queueIds, drafted]);
   useEffect(() => {
@@ -351,13 +384,13 @@ export default function MockDraftPage() {
     }
   }, [activeQueueIds, queueIds.length]);
   useEffect(() => {
-    if (!queueHydrated) return;
+    if (!queueHydrated || !queueStorageKey || queueHydrationKey.current !== queueStorageKey) return;
     try {
-      localStorage.setItem("draftedge.mock.queue.v1", JSON.stringify(activeQueueIds));
+      localStorage.setItem(queueStorageKey, JSON.stringify(activeQueueIds));
     } catch {
       // Storage may be unavailable; the queue remains active for this session.
     }
-  }, [activeQueueIds, queueHydrated]);
+  }, [activeQueueIds, queueHydrated, queueStorageKey]);
 
   const isMyTurn = started && !done && slotForPick(currentPick, teams, draftType) === mySlot;
 
@@ -369,7 +402,7 @@ export default function MockDraftPage() {
       let n = result.length;
       while (n < totalPicks && slotForPick(n + 1, teams, draftType) !== mySlot) {
         const slot = slotForPick(n + 1, teams, draftType);
-        const best = pickForSlot(result, slot, playersById, draftPlayers, draftedIds, n + 1, teams, totalPicks, roster, strategy, mySlot, profiles, tradeValues, seed);
+        const best = pickForSlot(result, slot, playersById, draftPlayers, draftedIds, n + 1, teams, totalPicks, roster, strategy, mySlot, profiles, tradeValues, seed, draftType);
         if (!best) break;
         draftedIds.add(best.id);
         n += 1;
@@ -382,13 +415,20 @@ export default function MockDraftPage() {
 
   const makeMyPick = useCallback(
     (playerId: string) => {
-      setSecondsLeft(pickTimer);
-      setTimerExpired(false);
+      if (!isMyTurn) return;
       setPicks((prev) => {
+        if (prev.length >= totalPicks || prev.length + 1 !== currentPick) return prev;
         const ids = new Set(prev.map((p) => p.playerId));
         if (ids.has(playerId)) return prev;
-        ids.add(playerId);
         const n = prev.length + 1;
+        const player = playersById.get(playerId);
+        // Same feasibility guard for manual picks, queued picks, timer
+        // auto-picks, and Simulate Rest (which routes through advance()).
+        const picksAfterThisOne = futurePicksForSlot(n, mySlot, teams, totalPicks, draftType);
+        if (!player || !canDraftPosition(player.position, countPositions(prev, mySlot, playersById), roster, picksAfterThisOne)) {
+          return prev;
+        }
+        ids.add(playerId);
         const withMine = [
           ...prev,
           { playerId, pickNumber: n, round: roundForPick(n, teams), slot: slotForPick(n, teams, draftType) },
@@ -396,40 +436,42 @@ export default function MockDraftPage() {
         return advance(withMine, ids);
       });
     },
-    [teams, advance, pickTimer, draftType],
+    [teams, advance, isMyTurn, totalPicks, currentPick, draftType, mySlot, playersById, roster],
   );
 
   const autoPick = useCallback(() => {
-    const best = pickForSlot(picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy, mySlot, botProfiles, tradeValues, botSeed);
+    if (!isMyTurn || picks.length >= totalPicks) return;
+    const best = pickForSlot(picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy, mySlot, botProfiles, tradeValues, botSeed, draftType);
     if (best) makeMyPick(best.id);
-  }, [picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy, botProfiles, tradeValues, botSeed, makeMyPick]);
+  }, [isMyTurn, picks, mySlot, playersById, draftPlayers, drafted, currentPick, teams, totalPicks, roster, strategy, botProfiles, tradeValues, botSeed, draftType, makeMyPick]);
 
   /* ── Pick clock ── */
 
-  useEffect(() => {
-    if (!isMyTurn || done || pickTimer === 0) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
-    }
-    timerRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearInterval(timerRef.current!);
-          setTimerExpired(true);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isMyTurn, done, pickTimer]);
+  const expirePick = useEffectEvent((expectedPick: number) => {
+    if (currentPick === expectedPick) autoPick();
+  });
 
   useEffect(() => {
-    // The timeout is an external timer event, so its action intentionally
-    // advances the draft after the timer state has updated.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (timerExpired && isMyTurn) autoPick();
-  }, [timerExpired, isMyTurn, autoPick]);
+    if (!isMyTurn || !pickTimer) return;
+    const pickDeadline = Date.now() + pickTimer * 1000;
+    let expired = false;
+    const tick = () => {
+      if (expired) return;
+      const remaining = Math.max(0, Math.ceil((pickDeadline - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (!remaining) {
+        expired = true;
+        expirePick(currentPick);
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 250);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [currentPick, isMyTurn, pickTimer]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
@@ -439,8 +481,9 @@ export default function MockDraftPage() {
 
   const startDraft = () => {
     setSecondsLeft(pickTimer);
-    setTimerExpired(false);
+    setMobileZone("players");
     setCopyStatus("");
+    setPoolExhausted(false);
     setStarted(true);
     window.scrollTo({ top: 0, behavior: "instant" });
     const seed = Math.floor(Math.random() * 0xffffffff);
@@ -452,25 +495,30 @@ export default function MockDraftPage() {
   };
 
   const simulateRest = () => {
-    setPicks((prev) => {
-      const result = [...prev];
-      const ids = new Set(prev.map((p) => p.playerId));
-      let n = result.length;
-      while (n < totalPicks) {
-        const slot = slotForPick(n + 1, teams, draftType);
-        const best = pickForSlot(result, slot, playersById, draftPlayers, ids, n + 1, teams, totalPicks, roster, strategy, mySlot, botProfiles, tradeValues, botSeed);
-        if (!best) break;
-        ids.add(best.id);
-        n += 1;
-        result.push({ playerId: best.id, pickNumber: n, round: roundForPick(n, teams), slot });
+    if (!started || picks.length >= totalPicks) return;
+    const result = [...picks];
+    const ids = new Set(picks.map((p) => p.playerId));
+    let n = result.length;
+    let exhausted = false;
+    while (n < totalPicks) {
+      const slot = slotForPick(n + 1, teams, draftType);
+      const best = pickForSlot(result, slot, playersById, draftPlayers, ids, n + 1, teams, totalPicks, roster, strategy, mySlot, botProfiles, tradeValues, botSeed, draftType);
+      if (!best) {
+        exhausted = true;
+        break;
       }
-      return result;
-    });
+      ids.add(best.id);
+      n += 1;
+      result.push({ playerId: best.id, pickNumber: n, round: roundForPick(n, teams), slot });
+    }
+    setPicks(result);
+    setPoolExhausted(exhausted);
   };
 
   const reset = () => {
     setQueueIds((previous) => previous.filter((id) => !drafted.has(id)));
     setPicks([]);
+    setPoolExhausted(false);
     setStarted(false);
     setPlayerQuery("");
     setMockPos("ALL");
@@ -488,24 +536,12 @@ export default function MockDraftPage() {
 
   const applySyncedSettings = () => {
     if (!activeLeague) return;
-    const counts: RosterTemplate = { qb: 0, rb: 0, wr: 0, te: 0, flex: 0, superflex: 0, k: 0, def: 0, bench: 0 };
-    for (const rawPosition of rosterPositionEntries(activeLeague.roster_positions)) {
-      const position = rawPosition.trim().toUpperCase().replace(/[\s-]+/g, "_");
-      if (position === "QB") counts.qb++;
-      else if (position === "RB") counts.rb++;
-      else if (position === "WR") counts.wr++;
-      else if (position === "TE") counts.te++;
-      else if (position === "K") counts.k++;
-      else if (position === "DEF" || position === "DST") counts.def++;
-      else if (position === "SUPER_FLEX" || position === "SUPERFLEX") counts.superflex++;
-      else if (["FLEX", "REC_FLEX", "WRRB_FLEX", "WR_RB_FLEX", "WR_TE_FLEX"].includes(position)) counts.flex++;
-      else if (position === "BN" || position === "BENCH") counts.bench++;
-    }
+    const counts = rosterFromPositions(activeLeague.roster_positions);
     setTeams(Math.max(2, Math.min(32, activeLeague.total_teams)));
     setMySlot((slot) => Math.max(1, Math.min(slot, activeLeague.total_teams)));
     setScoring(toScoringFormat(activeLeague.scoring_format));
     setTePremium(activeLeague.te_premium);
-    if (Object.values(counts).some((count) => count > 0)) setRoster(counts);
+    if (hasRosterSlots(counts)) setRoster(counts);
     setAppliedLeagueId(activeLeague.id ?? activeLeague.platform_league_id);
   };
 
@@ -534,17 +570,33 @@ export default function MockDraftPage() {
   const draftGrades = useMemo(() => (done ? gradeDraft(picks, teams, tradeValues, playersById, roster) : []), [done, picks, teams, tradeValues, playersById, roster]);
   const draftGrade = draftGrades.find((grade) => grade.slot === mySlot);
 
+  const myPositionCounts = useMemo(
+    () => countPositions(picks, mySlot, playersById),
+    [picks, mySlot, playersById],
+  );
+  const myFuturePicks = futurePicksForSlot(currentPick, mySlot, teams, totalPicks, draftType);
+  /** Why drafting this position is blocked, or null when the pick is legal. */
+  const draftBlockReason = (position: Position): string | null => {
+    if (!isMyTurn) return null;
+    if (canDraftPosition(position, myPositionCounts, roster, myFuturePicks)) return null;
+    const neededAfter = startingSlotsNeeded(roster, {
+      ...myPositionCounts,
+      [position]: myPositionCounts[position] + 1,
+    });
+    return `Drafting ${position} would leave ${neededAfter} starting slot${neededAfter === 1 ? "" : "s"} open with ${myFuturePicks} pick${myFuturePicks === 1 ? "" : "s"} left.`;
+  };
+
   const slots = useMemo(() => {
     const remaining = myPicks.flatMap(pick => playersById.get(pick.playerId) ?? []);
-    const rows = slotTypes.flatMap(slot => {
+    // Only the configured slots render; extra players never create synthetic
+    // BENCH rows beyond the configured bench size.
+    return slotTypes.flatMap(slot => {
       const count = roster[slot.toLowerCase() as keyof RosterTemplate];
       return Array.from({ length: count }, () => {
         const index = remaining.findIndex(player => eligible(slot, player.position));
         return { slot, player: index < 0 ? undefined : remaining.splice(index, 1)[0] };
       });
     });
-    // Manual picks may exceed bench capacity while starter slots remain open.
-    return [...rows, ...remaining.map(player => ({ slot: "BENCH" as const, player }))];
   }, [myPicks, playersById, roster]);
   const boardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -557,7 +609,7 @@ export default function MockDraftPage() {
       board.scrollLeft += tile.left - bounds.left - board.clientWidth / 2 + tile.width / 2;
     if (tile.top < bounds.top + 36 || tile.bottom > bounds.bottom)
       board.scrollTop += tile.top - bounds.top - 40;
-  }, [currentPick, started]);
+  }, [currentPick, started, mobileZone]);
   const biggestSteal = myPicks
     .map((pick) => ({ pick, player: playersById.get(pick.playerId) }))
     .filter((entry): entry is { pick: MockPick; player: Player } => Boolean(entry.player && entry.player.adp > 0))
@@ -624,7 +676,7 @@ export default function MockDraftPage() {
     return <ToolLoadingState title="Fantasy Football Mock Draft Simulator" description="Practice fantasy football drafts with configurable league settings, roster slots, draft strategy, and position-aware picks." />;
   }
 
-  const canStart = players.length > 0 && !playersLoading;
+  const canStart = players.length > 0 && !playersLoading && totalRoundsValid && !poolCapacityShort;
 
   return (
     <AppShell draftRoom={started && !done} maxWidth={started && !done ? "max-w-none" : "max-w-[1440px]"} className={started ? "" : "pt-10"}>
@@ -665,12 +717,7 @@ export default function MockDraftPage() {
               </label>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-xs font-semibold text-zinc-400">League Format
-                <select value={leagueFormat} onChange={(e) => setLeagueFormat(e.target.value as LeagueFormat)} className="glass-input mt-2 w-full rounded-lg px-3 py-2 text-zinc-100">
-                  <option value="redraft">Redraft</option><option value="dynasty">Dynasty</option><option value="keeper">Keeper</option>
-                </select>
-              </label>
+            <div>
               <label className="text-xs font-semibold text-zinc-400">Draft Type
                 <select value={draftType} onChange={(e) => setDraftType(e.target.value as DraftType)} className="glass-input mt-2 w-full rounded-lg px-3 py-2 text-zinc-100">
                   <option value="snake">Snake</option><option value="linear">Linear</option><option value="third_round_reversal">3rd-Round Reversal</option>
@@ -732,7 +779,7 @@ export default function MockDraftPage() {
                 </div>
               </div>
               <p className="mt-1.5 text-[10px] text-zinc-600">
-                {leagueFormat} · {draftType.replaceAll("_", " ")} · {rosterSize(roster)} rounds{irSlots > 0 ? ` · ${irSlots} IR` : ""}
+                Redraft · {draftType.replaceAll("_", " ")} · {rosterSize(roster)} rounds{irSlots > 0 ? ` · ${irSlots} IR` : ""}
               </p>
             </div>
 
@@ -767,6 +814,16 @@ export default function MockDraftPage() {
               </p>
             </div>
 
+            {!totalRoundsValid && (
+              <p role="alert" className="text-xs font-medium text-rose-300">
+                Add at least one positive roster slot before starting.
+              </p>
+            )}
+            {poolCapacityShort && (
+              <p role="alert" className="text-xs font-medium text-rose-300">
+                This setup needs {totalPicks} players but only {players.length} are available. Reduce league size or roster slots.
+              </p>
+            )}
             <button type="button" onClick={startDraft} disabled={!canStart}
               className="flex w-full items-center justify-center rounded-lg bg-emerald-500 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">
               {playersLoading ? "Loading players…" : "Start Mock Draft"}
@@ -775,7 +832,35 @@ export default function MockDraftPage() {
         </div>
       ) : (
         /* ════════════════════════════════════════════ PHASE 3: DRAFT / RESULTS ════════════════════════════════════════════ */
-        <div className={done ? "space-y-4" : styles.room}>
+        <div data-zone={mobileZone} className={done ? "space-y-4" : styles.room}>
+          {!done && (
+            <div className={styles.mobileStatus} aria-label="Draft clock and controls">
+              <div className={styles.mobileStatusText}>
+                <strong>{isMyTurn ? "Your pick" : `Team ${slotForPick(currentPick, teams, draftType)}`}</strong>
+                <small>Rd {roundForPick(currentPick, teams)} · Pick {currentPick}</small>
+              </div>
+              <span className={styles.mobileClock} aria-live="polite">
+                {pickTimer ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Untimed"}
+              </span>
+              <div className={styles.mobileStatusControls}>
+                <button type="button" onClick={autoPick} disabled={!isMyTurn} aria-label="Auto-pick best available player">Auto</button>
+                <button type="button" onClick={simulateRest} aria-label="Simulate rest of draft">Sim</button>
+                <button type="button" onClick={reset} aria-label="Reset draft">Reset</button>
+              </div>
+            </div>
+          )}
+          {!done && <nav aria-label="Draft room views" className={styles.mobileTabs}>
+            {(["players", "board", "roster"] as const).map(zone => (
+              <button key={zone} aria-pressed={mobileZone === zone} onClick={() => setMobileZone(zone)}>
+                {{ players: "Players", board: "Draft Board", roster: "Roster / Queue" }[zone]}
+              </button>
+            ))}
+          </nav>}
+          {poolExhausted && !done && (
+            <p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              Player pool exhausted after {picks.length} picks. Reset the draft or lower the team count / roster slots to finish.
+            </p>
+          )}
           <section className={styles.board}>
             <header className={styles.toolbar}>
               <h1>Draft Board</h1>
@@ -945,10 +1030,11 @@ export default function MockDraftPage() {
                     <thead><tr>{["Draft", "Rank", "Player", "Queue", "ADP", "Proj pts", "PPG"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
                     <tbody>{visiblePlayers.map(p => {
                       const queued = activeQueueIds.includes(p.id);
+                      const blockReason = draftBlockReason(p.position);
                       return <tr key={p.id}>
-                        <td><button className={styles.draft} disabled={!isMyTurn} onClick={() => makeMyPick(p.id)} aria-label={`Draft ${p.name}`}>Draft</button></td>
+                        <td><button className={styles.draft} disabled={!isMyTurn || Boolean(blockReason)} title={blockReason ?? (isMyTurn ? undefined : "Not your turn")} onClick={() => makeMyPick(p.id)} aria-label={`Draft ${p.name}`}>Draft</button></td>
                         <td>{p.rank}</td>
-                        <td><strong>{p.name}</strong> <InjuryBadge status={p.injuryStatus} /><small>{p.position} &middot; {p.team} (Bye {p.bye || "—"})</small></td>
+                        <td><strong>{p.name}</strong> <InjuryBadge status={p.injuryStatus} /><small>{p.position} &middot; {p.team} (Bye {p.bye || "—"})</small>{blockReason && <small className="block text-rose-300">{blockReason}</small>}</td>
                         <td><button aria-pressed={queued} title={queued ? "Remove from Queue" : "Add to Queue"} aria-label={`${queued ? "Remove from" : "Add to"} queue: ${p.name}`} onClick={() => toggleQueue(p.id)}>&#9733; {queued ? "Queued" : "Queue"}</button></td>
                         <td>{p.adp > 0 ? p.adp.toFixed(1) : "—"}</td><td>{p.projection.toFixed(1)}</td>
                         <td>{p.usage?.games && p.actualPoints != null ? (p.actualPoints / p.usage.games).toFixed(1) : "—"}</td>
@@ -963,9 +1049,12 @@ export default function MockDraftPage() {
                 <div className={styles.scroll}>
                   {playerListTab === "roster" ? slots.map(({ slot, player }, index) => (
                     <div className={styles.slot} key={index}><span data-pos={player?.position ?? slot}>{slot}</span>{player?.name ?? <small>Empty</small>}</div>
-                  )) : queuedPlayers.length ? queuedPlayers.map(p => (
-                    <div className={styles.slot} key={p.id}><span data-pos={p.position}>{p.position}</span><b>{p.name}</b><button disabled={!isMyTurn} onClick={() => makeMyPick(p.id)}>Draft</button><button onClick={() => toggleQueue(p.id)} aria-label={`Remove ${p.name} from queue`}>Remove</button></div>
-                  )) : <p className="p-4 text-sm text-zinc-400">Use the star in the player pool to queue a player.</p>}
+                  )) : queuedPlayers.length ? queuedPlayers.map(p => {
+                    const blockReason = draftBlockReason(p.position);
+                    return (
+                      <div className={styles.slot} key={p.id}><span data-pos={p.position}>{p.position}</span><b>{p.name}</b><button disabled={!isMyTurn || Boolean(blockReason)} title={blockReason ?? undefined} onClick={() => makeMyPick(p.id)}>Draft</button><button onClick={() => toggleQueue(p.id)} aria-label={`Remove ${p.name} from queue`}>Remove</button></div>
+                    );
+                  }) : <p className="p-4 text-sm text-zinc-400">Use the star in the player pool to queue a player.</p>}
                 </div>
               </aside>
             </div>

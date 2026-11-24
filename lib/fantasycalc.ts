@@ -2,7 +2,7 @@
  * FantasyCalc API client — free, no-auth source for consensus trade values.
  *
  * Endpoint: https://api.fantasycalc.com/values/current
- * Supports: dynasty/redraft, 1QB/2QB, 8–16 teams, standard/half/full PPR.
+ * Supports: redraft, 1QB/2QB, 8–16 teams, standard/half/full PPR.
  * Source: https://github.com/320james/ready-trade (MIT-licensed reference).
  *
  * We use this alongside our own VOR-based values so users see both a
@@ -31,7 +31,6 @@ export interface FantasyCalcEntry {
 }
 
 export interface FantasyCalcSettings {
-  isDynasty: boolean;
   numQbs: number;
   numTeams: number;
   ppr: number; // 0 | 0.5 | 1
@@ -58,7 +57,7 @@ const CACHE_TTL = 5 * 60 * 1000;
 const cache = new Map<string, { data: FantasyCalcEntry[]; ts: number }>();
 
 function cacheKey(s: FantasyCalcSettings): string {
-  return `${s.isDynasty ? "dyn" : "red"}-${s.numQbs}qb-${s.numTeams}t-${s.ppr}`;
+  return `red-${s.numQbs}qb-${s.numTeams}t-${s.ppr}`;
 }
 
 // ── Fetch ───────────────────────────────────────────────────────────────
@@ -72,7 +71,7 @@ export async function fetchFantasyCalc(
   await wait();
 
   const params = new URLSearchParams({
-    isDynasty: String(settings.isDynasty),
+    isDynasty: "false",
     numQbs: String(settings.numQbs),
     numTeams: String(settings.numTeams),
     ppr: String(settings.ppr),

@@ -14,7 +14,8 @@ export const runtime = "nodejs";
 const SLEEPER_BASE = "https://api.sleeper.app/v1";
 const REVALIDATE_SECONDS = 3600; // refresh upstream data hourly
 const SNAPSHOT_MAX_AGE_MS = 36 * 60 * 60 * 1000;
-const SNAPSHOT_SCHEMA_VERSION = 6;
+// v7: canonical, scoring-independent player IDs (see lib/seed-data.ts).
+const SNAPSHOT_SCHEMA_VERSION = 7;
 
 /** Max number of live-only players (not in seed) to append per position. */
 const LIVE_CAPS: Record<Position, number> = {

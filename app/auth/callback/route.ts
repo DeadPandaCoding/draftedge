@@ -11,13 +11,11 @@ const EMAIL_OTP_TYPES = new Set<EmailOtpType>([
   "email",
 ]);
 
-function getSafeNextUrl(next: string | null, origin: string) {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
-    return new URL("/home", origin);
-  }
-
+/** Returns a safe internal path (with query string), or null for an unsafe target. */
+function safeNextPath(next: string | null, origin: string): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return null;
   const destination = new URL(next, origin);
-  return destination.origin === origin ? destination : new URL("/home", origin);
+  return destination.origin === origin ? `${destination.pathname}${destination.search}` : null;
 }
 
 /**
@@ -29,7 +27,8 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const rawType = searchParams.get("type");
-  const destination = getSafeNextUrl(searchParams.get("next"), origin);
+  const nextPath = safeNextPath(searchParams.get("next"), origin);
+  const destination = new URL(nextPath ?? "/home", origin);
 
   const supabase = await getSupabaseServer();
   if (supabase && code) {
@@ -45,5 +44,6 @@ export async function GET(request: NextRequest) {
 
   const failure = new URL("/signin", origin);
   failure.searchParams.set("error", "auth_callback_failed");
+  if (nextPath) failure.searchParams.set("next", nextPath);
   return NextResponse.redirect(failure);
 }

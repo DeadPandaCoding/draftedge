@@ -43,7 +43,7 @@ export default function LeaguesPage() {
           <div>
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-400">League Manager</p>
             <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">League Sync</h1>
-            <p className="mt-2 max-w-xl text-sm text-zinc-400">Connect Sleeper or ESPN to bring league scoring, rosters, and draft picks into your DraftEdge tools.</p>
+            <p className="mt-2 max-w-xl text-sm text-zinc-400">Connect your Sleeper or ESPN redraft league to use its scoring settings, rosters, and draft picks across DraftEdge.</p>
           </div>
           <Link href="/home" className="rounded-lg border border-white/[0.1] bg-[#0D1412] px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-emerald-500/30 hover:text-white">Back to dashboard</Link>
         </div>

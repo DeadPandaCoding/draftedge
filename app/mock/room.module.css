@@ -79,3 +79,34 @@
   .lower { grid-template-columns: minmax(0,68fr) minmax(0,32fr); }
   .room .boardScroll, .room .scroll { flex: 1; max-height: none; }
 }
+
+.mobileStatus { display: none; }
+@media (max-width: 767px) {
+  .mobileStatus {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid #27342e;
+    border-radius: 8px;
+    background: #101914;
+  }
+  .mobileStatusText { display: flex; min-width: 0; flex: 1; flex-direction: column; line-height: 1.15; }
+  .mobileStatusText strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; color: #e4efe9; }
+  .mobileStatusText small { white-space: nowrap; font-size: .68rem; color: #a5b5ad; }
+  .mobileClock { flex-shrink: 0; border: 1px solid #52243a; border-radius: 6px; padding: 3px 8px; background: #1b1218; color: var(--color-pop); font-size: .95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mobileStatusControls { display: flex; flex-shrink: 0; gap: 4px; }
+  .mobileStatusControls button { border-radius: 5px; padding: 6px 8px; background: #17221e; font-size: .72rem; font-weight: 600; }
+}
+
+.mobileTabs { display: none; }
+@media (max-width: 767px) {
+  .mobileTabs { display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: #101914; }
+  .mobileTabs button { flex: 1; padding: 8px 4px; border-radius: 5px; font-size: .8rem; font-weight: 600; }
+  .mobileTabs button[aria-pressed="true"] { background: #16382a; color: var(--color-emerald-300); }
+  .room:not([data-zone="board"]) .board,
+  .room[data-zone="board"] .lower,
+  .room[data-zone="players"] aside.panel,
+  .room[data-zone="roster"] section.panel { display: none; }
+  .room .boardScroll, .room .scroll { max-height: 65dvh; }
+}

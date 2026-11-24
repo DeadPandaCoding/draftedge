@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   DraftPick,
   DraftState,
+  DraftType,
   LeagueConfig,
   PickOwner,
   Player,
@@ -11,7 +12,8 @@ import type {
   RosterEntry,
   RosterTemplate,
 } from "./types";
-import { roundForPick } from "./league";
+import { POSITIONS } from "./types";
+import { roundForPick, slotForPick } from "./league";
 import { fetchDraftState, persistDraftState } from "./data";
 import { isSupabaseConfigured } from "./supabase/client";
 
@@ -156,63 +158,167 @@ export function useDraft(league: LeagueConfig | null) {
   return value;
 }
 
-/** Assigns the user's drafted players to labeled roster slots. */
+/** The single set of slot keys used for both roster counting and assignment. */
+export const ROSTER_SLOTS = [
+  "QB",
+  "RB",
+  "WR",
+  "TE",
+  "FLEX",
+  "SUPERFLEX",
+  "K",
+  "DEF",
+  "BENCH",
+] as const;
+export type RosterSlot = (typeof ROSTER_SLOTS)[number];
+
+function slotLimit(roster: RosterTemplate, slot: RosterSlot): number {
+  switch (slot) {
+    case "QB": return roster.qb;
+    case "RB": return roster.rb;
+    case "WR": return roster.wr;
+    case "TE": return roster.te;
+    case "FLEX": return roster.flex;
+    case "SUPERFLEX": return roster.superflex ?? 0;
+    case "K": return roster.k;
+    case "DEF": return roster.def;
+    case "BENCH": return roster.bench;
+  }
+}
+
+function slotAccepts(slot: RosterSlot, position: Position): boolean {
+  if (slot === "BENCH") return true;
+  if (slot === "FLEX") return position === "RB" || position === "WR" || position === "TE";
+  if (slot === "SUPERFLEX") {
+    return position === "QB" || position === "RB" || position === "WR" || position === "TE";
+  }
+  return position === slot;
+}
+
+/**
+ * Assigns the user's drafted players to labeled roster slots.
+ *
+ * Counting and assignment share one typed slot key, so a player can never be
+ * assigned to a group whose count was tracked under a different key. Slots are
+ * filled in order (position starters → FLEX → SUPERFLEX → BENCH), which means
+ * FLEX/SUPERFLEX are always filled before the bench.
+ *
+ * Pass `preference` to order players by anything other than draft order (for
+ * example, weekly projection for the Start/Sit optimizer).
+ */
 export function buildRoster(
   picks: DraftPick[],
   playersById: Map<string, Player>,
-  roster: RosterTemplate
+  roster: RosterTemplate,
+  preference?: (player: Player) => number
 ): RosterEntry[] {
-  const mine = picks
+  const ordered = picks
     .filter((p) => p.owner === "me")
-    .sort((a, b) => a.pickNumber - b.pickNumber);
+    .sort((a, b) => {
+      if (!preference) return a.pickNumber - b.pickNumber;
+      const playerA = playersById.get(a.playerId);
+      const playerB = playersById.get(b.playerId);
+      if (!playerA || !playerB) return a.pickNumber - b.pickNumber;
+      return preference(playerB) - preference(playerA) || a.pickNumber - b.pickNumber;
+    });
 
+  const counts: Record<RosterSlot, number> = {
+    QB: 0, RB: 0, WR: 0, TE: 0, FLEX: 0, SUPERFLEX: 0, K: 0, DEF: 0, BENCH: 0,
+  };
   const entries: RosterEntry[] = [];
-  const counters: Record<string, number> = {};
+  const assigned = new Set<string>();
 
-  const push = (group: string, playerId: string) => {
-    const n = (counters[group] ?? 0) + 1;
-    counters[group] = n;
-    entries.push({ slot: `${group}${group === "QB" || group === "K" || group === "DEF" ? "" : n}`, playerId });
+  const fill = (slot: RosterSlot) => {
+    const limit = slotLimit(roster, slot);
+    for (const pick of ordered) {
+      if (counts[slot] >= limit) break;
+      if (assigned.has(pick.playerId)) continue;
+      const player = playersById.get(pick.playerId);
+      if (!player || !slotAccepts(slot, player.position)) continue;
+      assigned.add(pick.playerId);
+      counts[slot] += 1;
+      entries.push({ slot: `${slot}${counts[slot]}`, playerId: pick.playerId });
+    }
   };
 
-  const isEligible = (p: Player, group: string): boolean => {
-    if (group === "FLEX") return p.position === "RB" || p.position === "WR" || p.position === "TE";
-    if (group === "SUPERFLEX") return p.position === "QB" || p.position === "RB" || p.position === "WR" || p.position === "TE";
-    return p.position === group;
-  };
-
-  // 1) Position-specific starters
-  for (const p of mine) {
-    const player = playersById.get(p.playerId);
-    if (!player) continue;
-    if (player.position === "QB" && (counters.qb ?? 0) < roster.qb) push("QB", p.playerId);
-    else if (player.position === "RB" && (counters.rb ?? 0) < roster.rb) push("RB", p.playerId);
-    else if (player.position === "WR" && (counters.wr ?? 0) < roster.wr) push("WR", p.playerId);
-    else if (player.position === "TE" && (counters.te ?? 0) < roster.te) push("TE", p.playerId);
-    else if (player.position === "K" && (counters.k ?? 0) < roster.k) push("K", p.playerId);
-    else if (player.position === "DEF" && (counters.def ?? 0) < roster.def) push("DEF", p.playerId);
-  }
-  // 2) FLEX (RB/WR/TE)
-  for (const p of mine) {
-    const player = playersById.get(p.playerId);
-    if (!player || (counters.flex ?? 0) >= roster.flex) break;
-    const alreadySlotted = entries.some((e) => e.playerId === p.playerId);
-    if (!alreadySlotted && isEligible(player, "FLEX")) push("FLEX", p.playerId);
-  }
-  // 3) Superflex (QB/RB/WR/TE)
-  for (const p of mine) {
-    const player = playersById.get(p.playerId);
-    if (!player || (counters.superflex ?? 0) >= (roster.superflex ?? 0)) break;
-    const alreadySlotted = entries.some((e) => e.playerId === p.playerId);
-    if (!alreadySlotted && isEligible(player, "SUPERFLEX")) push("SUPERFLEX", p.playerId);
-  }
-  // 4) Bench (everything else)
-  for (const p of mine) {
-    const alreadySlotted = entries.some((e) => e.playerId === p.playerId);
-    if (!alreadySlotted && (counters.bench ?? 0) < roster.bench) push("BENCH", p.playerId);
-  }
+  fill("QB");
+  fill("RB");
+  fill("WR");
+  fill("TE");
+  fill("K");
+  fill("DEF");
+  fill("FLEX");
+  fill("SUPERFLEX");
+  fill("BENCH");
 
   return entries;
+}
+
+/**
+ * Minimum number of additional picks needed to fill every mandatory starting
+ * slot (QB, RB, WR, TE, FLEX, SUPERFLEX, K, DEF). Extra players at a position
+ * count toward FLEX/SUPERFLEX, matching the slots they can legally fill.
+ */
+export function startingSlotsNeeded(
+  roster: RosterTemplate,
+  counts: Record<Position, number>
+): number {
+  const qbNeed = Math.max(0, roster.qb - counts.QB);
+  const rbNeed = Math.max(0, roster.rb - counts.RB);
+  const wrNeed = Math.max(0, roster.wr - counts.WR);
+  const teNeed = Math.max(0, roster.te - counts.TE);
+  const kNeed = Math.max(0, roster.k - counts.K);
+  const defNeed = Math.max(0, roster.def - counts.DEF);
+
+  const skillSurplus =
+    Math.max(0, counts.RB - roster.rb) +
+    Math.max(0, counts.WR - roster.wr) +
+    Math.max(0, counts.TE - roster.te);
+  const flexNeed = Math.max(0, roster.flex - skillSurplus);
+  const skillAfterFlex = Math.max(0, skillSurplus - roster.flex);
+  const qbSurplus = Math.max(0, counts.QB - roster.qb);
+  const superflexNeed = Math.max(0, (roster.superflex ?? 0) - (skillAfterFlex + qbSurplus));
+
+  return qbNeed + rbNeed + wrNeed + teNeed + kNeed + defNeed + flexNeed + superflexNeed;
+}
+
+/** Number of future picks (excluding the current pick) owned by one draft slot. */
+export function futurePicksForSlot(
+  pickNumber: number,
+  slotNumber: number,
+  teamCount: number,
+  totalPicks: number,
+  draftType: DraftType = "snake"
+): number {
+  let count = 0;
+  for (let pick = pickNumber + 1; pick <= totalPicks; pick += 1) {
+    if (slotForPick(pick, teamCount, draftType) === slotNumber) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Feasibility guard for a single pick: drafting `position` must not leave more
+ * mandatory starting slots open than there are picks left to fill them.
+ *
+ * Returns true when no position can rescue the roster, so a draft that is
+ * already infeasible (for example after changing roster settings mid-draft)
+ * cannot deadlock.
+ */
+export function canDraftPosition(
+  position: Position,
+  counts: Record<Position, number>,
+  roster: RosterTemplate,
+  picksAfterThisOne: number
+): boolean {
+  const feasible = (candidate: Position) =>
+    startingSlotsNeeded(roster, {
+      ...counts,
+      [candidate]: counts[candidate] + 1,
+    }) <= picksAfterThisOne;
+
+  if (!POSITIONS.some(feasible)) return true;
+  return feasible(position);
 }
 
 export interface NeedsWarning {

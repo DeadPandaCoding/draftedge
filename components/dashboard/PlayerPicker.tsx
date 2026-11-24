@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Player } from "@/lib/types";
 import { InjuryBadge, PosBadge } from "@/components/ui";
 import { SearchIcon } from "@/components/icons";
+import { normalizeSearchText } from "@/lib/utils";
 
 export function PlayerPicker({
   players,
@@ -23,13 +24,13 @@ export function PlayerPicker({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const matches = useMemo(() => {
-    const t = q.trim().toLowerCase();
+    const t = normalizeSearchText(q);
     if (!t) return [];
     return players
       .filter(
         (p) =>
           !exclude.has(p.id) &&
-          (p.name.toLowerCase().includes(t) || p.team.toLowerCase().includes(t))
+          (normalizeSearchText(p.name).includes(t) || normalizeSearchText(p.team).includes(t))
       )
       .sort((a, b) => b.projection - a.projection)
       .slice(0, 8);

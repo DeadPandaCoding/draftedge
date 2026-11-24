@@ -1,6 +1,7 @@
 "use client";
 
 import type { DraftState, LeagueConfig } from "./types";
+import { isLegacyPlayerId } from "./seed-data";
 import { getSupabaseBrowser, isSupabaseConfigured } from "./supabase/client";
 
 /**
@@ -62,6 +63,30 @@ export async function removeLeague(userId: string): Promise<void> {
 }
 
 // ── Draft state ────────────────────────────────────────────────────
+
+/**
+ * Legacy drafts stored picks with rank-based IDs (`r1`, `r2`, …). Those IDs
+ * were relative to whichever scoring board was active, so mapping them blindly
+ * could swap one player's identity for another's. Drop those picks (and their
+ * notes) instead of guessing, keep anything with a canonical ID (for example
+ * team-defense IDs), and renumber so the draft can continue cleanly.
+ */
+function sanitizeDraftState(state: DraftState): DraftState {
+  const picks = state.picks ?? [];
+  const hasLegacyPicks = picks.some((pick) => isLegacyPlayerId(pick.playerId));
+  const hasLegacyNotes = Object.keys(state.notes ?? {}).some(isLegacyPlayerId);
+  if (!hasLegacyPicks && !hasLegacyNotes) return state;
+
+  const kept = picks
+    .filter((pick) => !isLegacyPlayerId(pick.playerId))
+    .sort((a, b) => a.pickNumber - b.pickNumber)
+    .map((pick, index) => ({ ...pick, pickNumber: index + 1 }));
+  const notes = Object.fromEntries(
+    Object.entries(state.notes ?? {}).filter(([playerId]) => !isLegacyPlayerId(playerId))
+  );
+  return { picks: kept, notes, currentPick: kept.length + 1 };
+}
+
 export async function fetchDraftState(leagueId: string): Promise<DraftState | null> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseBrowser();
@@ -72,16 +97,16 @@ export async function fetchDraftState(leagueId: string): Promise<DraftState | nu
       .maybeSingle();
     if (error) throw error;
     return data
-      ? {
+      ? sanitizeDraftState({
           picks: data.picks as DraftState["picks"],
           notes: (data.notes ?? {}) as DraftState["notes"],
           currentPick: data.current_pick,
-        }
+        })
       : null;
   }
   try {
     const raw = localStorage.getItem(draftLocalKey(leagueId));
-    return raw ? (JSON.parse(raw) as DraftState) : null;
+    return raw ? sanitizeDraftState(JSON.parse(raw) as DraftState) : null;
   } catch {
     return null;
   }
