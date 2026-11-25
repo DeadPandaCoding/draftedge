@@ -12,15 +12,17 @@ export function PlayerPicker({
   onPick,
   placeholder = "Search players…",
   tradeValues,
+  initialQuery = "",
 }: {
   players: Player[];
   exclude: Set<string>;
   onPick: (player: Player) => void;
   placeholder?: string;
+  initialQuery?: string;
   tradeValues?: Map<string, number>;
 }) {
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState(initialQuery);
+  const [open, setOpen] = useState(Boolean(initialQuery));
   const rootRef = useRef<HTMLDivElement>(null);
 
   const matches = useMemo(() => {
@@ -77,6 +79,7 @@ export function PlayerPicker({
             {matches.map((p) => (
               <button
                 key={p.id}
+                data-player-result={p.id}
                 type="button"
                 onClick={() => {
                   onPick(p);

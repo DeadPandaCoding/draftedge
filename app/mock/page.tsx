@@ -1,7 +1,8 @@
 "use client";
 
-import { DraftBoardTile } from "@/components/draft/DraftBoardTile";
-import { indexPlayersById, formatPositiveStat } from "@/lib/player-display";
+import { MockDraftBoard } from "@/components/draft/MockDraftBoard";
+import { AvailablePlayerRow } from "@/components/draft/AvailablePlayerRow";
+import { indexPlayersById } from "@/lib/player-display";
 import { SCORING_FORMATS } from "@/lib/types";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -23,7 +24,7 @@ import { isLegacyPlayerId } from "@/lib/seed-data";
 import { toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import AppShell from "@/components/dashboard/AppShell";
 import styles from "./room.module.css";
-import { InjuryBadge, Select } from "@/components/ui";
+import { Select } from "@/components/ui";
 import { ShuffleIcon } from "@/components/icons";
 import { ToolLoadingState } from "@/components/dashboard/ToolLoadingState";
 
@@ -859,52 +860,7 @@ export default function MockDraftPage() {
               Player pool exhausted after {picks.length} picks. Reset the draft or lower the team count / roster slots to finish.
             </p>
           )}
-          <section className={styles.board}>
-            <header className={styles.toolbar}>
-              <h1>Draft Board</h1>
-              <span>{done ? "Complete" : `Round ${roundForPick(currentPick, teams)} / Pick ${currentPick}`}</span>
-              {!done && <div className={styles.controls}>
-                <button onClick={autoPick} disabled={!isMyTurn}>Auto-Pick</button>
-                <button onClick={simulateRest}>Simulate Rest</button>
-                <button onClick={reset}>Reset</button>
-              </div>}
-            </header>
-            <div ref={boardRef} role="region" aria-label="Draft board by round and team" tabIndex={0} className={styles.boardScroll}>
-              <table className="w-full border-separate border-spacing-0 text-left text-xs">
-                <thead className="sticky top-0 z-20 bg-[#131D1A]">
-                  <tr>
-                    <th scope="col" className="sticky left-0 bg-[#131D1A] px-2 py-2">Rd</th>
-                    {Array.from({ length: teams }, (_, i) => (
-                      <th key={i} scope="col" className={`min-w-[122px] whitespace-nowrap px-2 py-2 ${i + 1 === mySlot ? "bg-emerald-950 text-emerald-300" : ""}`}>
-                        {i + 1 === mySlot ? `Team ${i + 1} (You)` : `Team ${i + 1}`}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: totalRounds }, (_, i) => {
-                    const round = i + 1;
-                    return (
-                      <tr key={round}>
-                        <th scope="row" className="sticky left-0 z-10 border-t border-white/10 bg-[#131D1A] px-2">R{round}<small className="block text-zinc-400">{slotForPick(i * teams + 1, teams, draftType) === 1 ? "→" : "←"}</small></th>
-                        {Array.from({ length: teams }, (_, j) => {
-                          const slot = j + 1;
-                          const firstPick = i * teams + 1;
-                          const pickNumber = firstPick + (slotForPick(firstPick, teams, draftType) === 1 ? j : teams - slot);
-                          const pick = picks[pickNumber - 1];
-                          const player = pick && playersById.get(pick.playerId);
-                          const active = !done && pickNumber === currentPick;
-                          return (
-                            <DraftBoardTile key={slot} player={player} round={round} pickNumber={pickNumber} teams={teams} totalRounds={totalRounds} active={active} mine={slot === mySlot} clock={pickTimer ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Untimed"} />
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <MockDraftBoard {...{ teams, mySlot, draftType, picks, playersById, currentPick, totalRounds, done, isMyTurn, autoPick, simulateRest, reset, boardRef }} clock={pickTimer ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Untimed"} />
           {done ? (
             <section className="glass-strong rounded-xl p-5">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Draft Results</h2>
@@ -1024,14 +980,7 @@ export default function MockDraftPage() {
                     <tbody>{visiblePlayers.map(p => {
                       const queued = activeQueueIds.includes(p.id);
                       const blockReason = draftBlockReason(p.position);
-                      return <tr key={p.id}>
-                        <td><button className={styles.draft} disabled={!isMyTurn || Boolean(blockReason)} title={blockReason ?? (isMyTurn ? undefined : "Not your turn")} onClick={() => makeMyPick(p.id)} aria-label={`Draft ${p.name}`}>Draft</button></td>
-                        <td>{p.rank}</td>
-                        <td><strong>{p.name}</strong> <InjuryBadge status={p.injuryStatus} /><small>{p.position} &middot; {p.team} (Bye {p.bye || "—"})</small>{blockReason && <small className="block text-rose-300">{blockReason}</small>}</td>
-                        <td><button aria-pressed={queued} title={queued ? "Remove from Queue" : "Add to Queue"} aria-label={`${queued ? "Remove from" : "Add to"} queue: ${p.name}`} onClick={() => toggleQueue(p.id)}>&#9733; {queued ? "Queued" : "Queue"}</button></td>
-                        <td>{formatPositiveStat(p.adp)}</td><td>{p.projection.toFixed(1)}</td>
-                        <td>{p.usage?.games && p.actualPoints != null ? (p.actualPoints / p.usage.games).toFixed(1) : "—"}</td>
-                      </tr>;
+                      return <AvailablePlayerRow key={p.id} {...{ p, queued, blockReason, isMyTurn, makeMyPick, toggleQueue }} />;
                     })}</tbody>
                   </table>
                   {!visiblePlayers.length && <p className="p-4 text-sm text-zinc-400">No players match these filters.</p>}

@@ -20,10 +20,20 @@ type Platform = "sleeper" | "espn";
 
 export function LeagueSyncCard({ compactWhenConnected = false }: { compactWhenConnected?: boolean }) {
   const { supabaseEnabled } = useAuth();
-  const { leagues, activeLeague, loading, error, connectSleeper, connectEspn, syncNow, disconnectLeague, setActiveLeagueId } = useSyncedLeagues();
-  const [platform, setPlatform] = useState<Platform>("sleeper");
-  const [username, setUsername] = useState("");
-  const [leagueId, setLeagueId] = useState("");
+  const connections = useSyncedLeagues();
+  return <LeagueSyncPanel connections={connections} supabaseEnabled={supabaseEnabled} compactWhenConnected={compactWhenConnected} />;
+}
+
+type Connections = Pick<ReturnType<typeof useSyncedLeagues>, "leagues" | "activeLeague" | "loading" | "error" | "connectSleeper" | "connectEspn" | "syncNow" | "disconnectLeague" | "setActiveLeagueId">;
+
+export function LeagueSyncPanel({ connections, supabaseEnabled, compactWhenConnected = false, initialPlatform = "sleeper", initialUsername = "", initialLeagueId = "", localExample = false }: {
+  connections: Connections; supabaseEnabled: boolean; compactWhenConnected?: boolean;
+  localExample?: boolean; initialPlatform?: Platform; initialUsername?: string; initialLeagueId?: string;
+}) {
+  const { leagues, activeLeague, loading, error, connectSleeper, connectEspn, syncNow, disconnectLeague, setActiveLeagueId } = connections;
+  const [platform, setPlatform] = useState<Platform>(initialPlatform);
+  const [username, setUsername] = useState(initialUsername);
+  const [leagueId, setLeagueId] = useState(initialLeagueId);
   const [espnS2, setEspnS2] = useState("");
   const [swid, setSwid] = useState("");
   const [pendingTeams, setPendingTeams] = useState<Array<{ teamId: string; label: string }> | null>(null);
@@ -79,8 +89,9 @@ export function LeagueSyncCard({ compactWhenConnected = false }: { compactWhenCo
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
             <LeagueSummary name={activeLeague.league_name} scoring={activeLeague.scoring_format} tePremium={activeLeague.te_premium} platform={activeLeague.platform} teams={activeLeague.total_teams} />
+            {localExample && <p className="mt-1 text-xs text-zinc-400">{activeLeague.roster_positions.join(" · ")}</p>}
             <p className="mt-1 text-xs text-zinc-500">{activeLeague.platform === "sleeper" && activeLeague.sleeper_username ? `@${activeLeague.sleeper_username} · ` : ""}synced {relativeTime(activeLeague.last_synced_at)}</p>
-            {activeLeague.platform === "espn" && <p className="mt-1 text-[10px] text-zinc-600">Private league cookies stay in memory and may need to be entered again after a page reload.</p>}
+            {!localExample && activeLeague.platform === "espn" && <p className="mt-1 text-[10px] text-zinc-600">Private league cookies stay in memory and may need to be entered again after a page reload.</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {leagues.length > 1 && (
@@ -120,14 +131,14 @@ export function LeagueSyncCard({ compactWhenConnected = false }: { compactWhenCo
                 {pendingTeams && <label className="block text-xs text-zinc-400">Which team is yours?
                   <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className="mt-1.5 block w-full rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2.5 text-sm text-white sm:max-w-sm">{pendingTeams.map((team) => <option key={team.teamId} value={team.teamId}>{team.label}</option>)}</select>
                 </label>}
-                <details className="rounded-lg border border-white/[0.08] bg-[#080E0C] px-3 py-2.5">
+                {!localExample && <details className="rounded-lg border border-white/[0.08] bg-[#080E0C] px-3 py-2.5">
                   <summary className="cursor-pointer text-xs font-medium text-zinc-300">Private league? Add ESPN cookies</summary>
                   <p className="mt-2 text-xs leading-relaxed text-zinc-500">On ESPN Fantasy, open DevTools → Application → Cookies, then copy <code>espn_s2</code> and <code>SWID</code>. These are sent only to DraftEdge’s sync endpoint and are not saved.</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     <input value={espnS2} onChange={(event) => setEspnS2(event.target.value)} type="password" autoComplete="off" placeholder="espn_s2" aria-label="ESPN espn_s2 cookie" className="min-w-0 rounded-lg border border-white/[0.1] bg-[#0D1412] px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none" />
                     <input value={swid} onChange={(event) => setSwid(event.target.value)} type="password" autoComplete="off" placeholder="SWID" aria-label="ESPN SWID cookie" className="min-w-0 rounded-lg border border-white/[0.1] bg-[#0D1412] px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none" />
                   </div>
-                </details>
+                </details>}
               </>
             )}
           </form>

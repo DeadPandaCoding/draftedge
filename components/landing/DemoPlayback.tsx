@@ -9,7 +9,14 @@ export function useDemoStep() {
   return useContext(DemoStep);
 }
 
-export function DemoPlayback({ children, title, draft }: { children: ReactNode; title: string; draft: boolean }) {
+const sequences: Record<string, readonly string[]> = {
+  "/trade": ['input[aria-label^="Add players you receive"]', '[data-receive] [data-player-result="james-cook-iii"]', '[aria-label="Remove James Cook III"]'],
+  "/mock": ['button[aria-label^="Draft "]', 'button[aria-label^="Draft "]', 'button[aria-label^="Draft "]', 'button[aria-label^="Draft "]'],
+  "/start-sit": ['button[aria-pressed="false"]', 'button[aria-pressed="false"]'],
+  "/leagues": ['input[aria-label="Sleeper username"]', 'button[type=submit]', 'button:last-of-type', 'input[aria-label="ESPN league ID"]', 'button[type=submit]', 'button:last-of-type'],
+};
+
+export function DemoPlayback({ children, title, href }: { children: ReactNode; title: string; href: string }) {
   const frame = useRef<HTMLDivElement>(null);
   const cursor = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -41,29 +48,28 @@ export function DemoPlayback({ children, title, draft }: { children: ReactNode; 
     function move(target: HTMLElement) {
       const box = target.getBoundingClientRect();
       const origin = root.getBoundingClientRect();
-      pointer.style.transform = "translate(" + (box.left - origin.left + box.width * .55) + "px," + (box.top - origin.top + box.height * .6) + "px)";
+      const scale = origin.width / root.offsetWidth || 1;
+      pointer.style.transform = "translate(" + ((box.left - origin.left + box.width * .55) / scale) + "px," + ((box.top - origin.top + box.height * .6) / scale) + "px)";
       pointer.style.opacity = "1";
     }
     function advance() {
-      const target = root.querySelector<HTMLElement>(draft ? "[data-demo-draft]" : '[data-demo-choice][data-active="false"]');
-      if (!target) return;
-      const start = root.querySelector<HTMLElement>(draft ? "[data-demo-player]" : '[data-demo-choice][data-active="true"]');
-      if (start) move(start);
+      const sequence = sequences[href];
+      const target = root.querySelector<HTMLElement>(sequence[step]) ?? root;
       timer = setTimeout(() => {
         move(target);
         timer = setTimeout(() => {
           pointer.firstElementChild?.animate([{ transform: "scale(.5)", opacity: 1 }, { transform: "scale(2.2)", opacity: 0 }], 450);
-          setStep(previous => (previous + 1) % 4);
-          timer = setTimeout(advance, 2300);
+          if (href === "/trade" && target instanceof HTMLButtonElement) target.click();
+          setStep(previous => (previous + 1) % sequence.length);
         }, 720);
       }, 950);
     }
-    timer = setTimeout(advance, 550);
+    timer = setTimeout(advance, 1400);
     return () => {
       clearTimeout(timer);
       pointer.style.opacity = "0";
     };
-  }, [draft, playing]);
+  }, [href, step, playing]);
 
   return (
     <div ref={frame} className="relative" role="group" aria-label={title} onPointerEnter={e => setHovered(e.pointerType === "mouse")} onPointerLeave={() => setHovered(false)} onFocusCapture={() => setFocusWithin(true)} onBlurCapture={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocusWithin(false); }}>
