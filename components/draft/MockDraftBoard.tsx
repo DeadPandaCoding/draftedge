@@ -4,12 +4,13 @@ import type { DraftType, Player } from "@/lib/types";
 import { DraftBoardTile } from "./DraftBoardTile";
 import styles from "@/app/mock/room.module.css";
 
-export function MockDraftBoard({ teams, mySlot, draftType, picks, playersById, currentPick, totalRounds, done, isMyTurn, autoPick, simulateRest, reset, boardRef, clock }: {
+export function MockDraftBoard({ teams, mySlot, draftType, picks, playersById, currentPick, totalRounds, done, isMyTurn, autoPick, simulateRest, reset, boardRef, clock, visibleSlots }: {
   teams: number; mySlot: number; draftType: DraftType; picks: { playerId: string }[];
   playersById: Map<string, Player>; currentPick: number; totalRounds: number;
   done: boolean; isMyTurn: boolean; autoPick: () => void; simulateRest: () => void; reset: () => void;
-  boardRef?: Ref<HTMLDivElement>; clock: string;
+  boardRef?: Ref<HTMLDivElement>; clock: string; visibleSlots?: readonly number[];
 }) {
+  const slots = visibleSlots ?? Array.from({ length: teams }, (_, index) => index + 1);
   return (
     <section className={styles.board}>
       <header className={styles.toolbar}>
@@ -26,9 +27,9 @@ export function MockDraftBoard({ teams, mySlot, draftType, picks, playersById, c
           <thead className="sticky top-0 z-20 bg-[#131D1A]">
             <tr>
               <th scope="col" className="sticky left-0 bg-[#131D1A] px-2 py-2">Rd</th>
-              {Array.from({ length: teams }, (_, i) => (
-                <th key={i} scope="col" className={`min-w-[122px] whitespace-nowrap px-2 py-2 ${i + 1 === mySlot ? "bg-emerald-950 text-emerald-300" : ""}`}>
-                  {i + 1 === mySlot ? `Team ${i + 1} (You)` : `Team ${i + 1}`}
+              {slots.map(slot => (
+                <th key={slot} scope="col" className={`min-w-[122px] whitespace-nowrap px-2 py-2 ${slot === mySlot ? "bg-emerald-950 text-emerald-300" : ""}`}>
+                  {slot === mySlot ? `Team ${slot} (You)` : `Team ${slot}`}
                 </th>
               ))}
             </tr>
@@ -39,10 +40,9 @@ export function MockDraftBoard({ teams, mySlot, draftType, picks, playersById, c
               return (
                 <tr key={round}>
                   <th scope="row" className="sticky left-0 z-10 border-t border-white/10 bg-[#131D1A] px-2">R{round}<small className="block text-zinc-400">{slotForPick(i * teams + 1, teams, draftType) === 1 ? "→" : "←"}</small></th>
-                  {Array.from({ length: teams }, (_, j) => {
-                    const slot = j + 1;
+                  {slots.map(slot => {
                     const firstPick = i * teams + 1;
-                    const pickNumber = firstPick + (slotForPick(firstPick, teams, draftType) === 1 ? j : teams - slot);
+                    const pickNumber = firstPick + (slotForPick(firstPick, teams, draftType) === 1 ? slot - 1 : teams - slot);
                     const pick = picks[pickNumber - 1];
                     const player = pick && playersById.get(pick.playerId);
                     const active = !done && pickNumber === currentPick;

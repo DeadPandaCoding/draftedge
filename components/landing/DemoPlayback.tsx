@@ -3,80 +3,120 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import "./walkthrough.css";
 
-const DemoStep = createContext({ step: 0, select: (_step: number) => { void _step; } });
+const DemoStep = createContext(0);
 
 export function useDemoStep() {
   return useContext(DemoStep);
 }
 
-const sequences: Record<string, readonly string[]> = {
-  "/trade": ['input[aria-label^="Add players you receive"]', '[data-receive] [data-player-result="james-cook-iii"]', '[aria-label="Remove James Cook III"]'],
-  "/mock": ['button[aria-label^="Draft "]', 'button[aria-label^="Draft "]', 'button[aria-label^="Draft "]', 'button[aria-label^="Draft "]'],
-  "/start-sit": ['button[aria-pressed="false"]', 'button[aria-pressed="false"]'],
-  "/leagues": ['input[aria-label="Sleeper username"]', 'button[type=submit]', 'button:last-of-type', 'input[aria-label="ESPN league ID"]', 'button[type=submit]', 'button:last-of-type'],
-};
 
 export function DemoPlayback({ children, title, href }: { children: ReactNode; title: string; href: string }) {
   const frame = useRef<HTMLDivElement>(null);
-  const cursor = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [step, setStep] = useState(0);
-  const [focusWithin, setFocusWithin] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const [started, setStarted] = useState(false);
   const [reduced, setReduced] = useState(false);
-  const playing = visible && !reduced && !focusWithin && !hovered;
+  const script = shots[href];
+  const playing = started && !reduced;
 
   useEffect(() => {
     const element = frame.current!;
+    // Shared app components can mount new controls as the example advances.
+    const excludeTabStops = () => {
+      element.querySelectorAll<HTMLElement>("input, button, select, textarea, a[href], [tabindex]").forEach(control => {
+        if (control.tabIndex !== -1) control.tabIndex = -1;
+      });
+    };
+    excludeTabStops();
+    const controls = new MutationObserver(excludeTabStops);
+    controls.observe(element, { childList: true, subtree: true });
     const preference = matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => setReduced(preference.matches);
     sync();
     preference.addEventListener("change", sync);
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.25 });
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setStarted(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.25 });
     observer.observe(element);
     return () => {
       preference.removeEventListener("change", sync);
       observer.disconnect();
+      controls.disconnect();
     };
   }, []);
 
+  return <div ref={frame} inert aria-hidden="true" aria-label={title} className="demo-frame relative h-[380px] sm:h-[420px] overflow-hidden pointer-events-none select-none">
+    <CameraDemo script={script} playing={playing} reduced={reduced}>{children}</CameraDemo>
+  </div>;
+}
+
+const DemoQuery = createContext("");
+export function useDemoQuery() { return useContext(DemoQuery); }
+
+type Shot = { focus?: string; click?: string; type?: string; duration?: number };
+const receive = "[data-receive] input";
+const first = '[data-player-card="0"] input';
+const second = '[data-player-card="1"] input';
+const shots: Record<string, Shot[]> = {
+  "/trade": [{}, { focus: receive, click: receive, type: "James Cook III" }, { focus: receive, click: '[data-receive] [data-player-result="james-cook-iii"]' }, {}, {}],
+  "/mock": [{}, {}, { click: "[data-filter]" }, { click: 'button[aria-label^="Draft "]' }, {}, {}],
+  "/start-sit": [
+    {}, { focus: first, click: first, type: "Jahmyr Gibbs" },
+    { focus: first, click: '[data-player-result="jahmyr-gibbs"]' },
+    { focus: second, click: second, type: "James Cook III" },
+    { focus: second, click: '[data-player-result="james-cook-iii"]' }, { duration: 5550 },
+  ],
+  "/leagues": [
+    { click: '[aria-label="Sleeper username"]', type: "draftedge_demo" },
+    { click: 'button[type="submit"]' }, {}, { click: "[data-connect-another]" }, { click: '[role="tab"]:last-child' },
+    { click: '[aria-label="ESPN league ID"]', type: "123456" },
+    { click: 'button[type="submit"]' }, {}, { click: "[data-connect-another]" }, { click: '[role="tab"]:first-child' },
+  ],
+};
+
+function CameraDemo({script, playing, reduced, children}: {script: Shot[]; playing: boolean; reduced: boolean; children: ReactNode}) {
+  const camera = useRef<HTMLDivElement>(null);
+  const cursor = useRef<HTMLDivElement>(null);
+  const [step, setStep] = useState(0);
+  const [query, setQuery] = useState("");
   useEffect(() => {
     if (!playing) return;
-    const root = frame.current!;
+    const layer = camera.current!;
     const pointer = cursor.current!;
-    let timer: ReturnType<typeof setTimeout>;
-    function move(target: HTMLElement) {
-      const box = target.getBoundingClientRect();
-      const origin = root.getBoundingClientRect();
-      const scale = origin.width / root.offsetWidth || 1;
-      pointer.style.transform = "translate(" + ((box.left - origin.left + box.width * .55) / scale) + "px," + ((box.top - origin.top + box.height * .6) / scale) + "px)";
-      pointer.style.opacity = "1";
+    const shot = script[step];
+    const focus = shot.focus ? layer.querySelector<HTMLElement>(shot.focus) : null;
+    const target = shot.click ? layer.querySelector<HTMLElement>(shot.click) : null;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const later = (fn: () => void, ms: number) => timers.push(setTimeout(fn, ms));
+    function position() {
+      const rect = layer.getBoundingClientRect();
+      const ratio = rect.width / layer.offsetWidth;
+      function center(el: HTMLElement) {
+        const box = el.getBoundingClientRect();
+        return [(box.left + box.width / 2 - rect.left) / ratio, (box.top + box.height / 2 - rect.top) / ratio];
+      }
+      const zoom = focus ? 1.45 : 1;
+      const [x, y] = focus ? center(focus) : [0, 0];
+      const pan = (size: number, point: number) => Math.min(0, Math.max(size * (1 - zoom), size / 2 - point * zoom));
+      if (target) {
+        const [cx, cy] = center(target);
+        pointer.style.transform = "translate(" + cx + "px," + cy + "px)";
+      }
+      layer.style.transform = "translate(" + pan(layer.offsetWidth,x) + "px," + pan(layer.offsetHeight,y) + "px) scale(" + zoom + ")";
+      pointer.style.opacity = target ? "1" : "0";
     }
-    function advance() {
-      const sequence = sequences[href];
-      const target = root.querySelector<HTMLElement>(sequence[step]) ?? root;
-      timer = setTimeout(() => {
-        move(target);
-        timer = setTimeout(() => {
-          pointer.firstElementChild?.animate([{ transform: "scale(.5)", opacity: 1 }, { transform: "scale(2.2)", opacity: 0 }], 450);
-          if (href === "/trade" && target instanceof HTMLButtonElement) target.click();
-          setStep(previous => (previous + 1) % sequence.length);
-        }, 720);
-      }, 950);
-    }
-    timer = setTimeout(advance, 1400);
-    return () => {
-      clearTimeout(timer);
-      pointer.style.opacity = "0";
-    };
-  }, [href, step, playing]);
-
-  return (
-    <div ref={frame} className="relative" role="group" aria-label={title} onPointerEnter={e => setHovered(e.pointerType === "mouse")} onPointerLeave={() => setHovered(false)} onFocusCapture={() => setFocusWithin(true)} onBlurCapture={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocusWithin(false); }}>
-      <DemoStep.Provider value={{ step, select: setStep }}>{children}</DemoStep.Provider>
-      <div ref={cursor} aria-hidden="true" className="demo-pointer">
-        <i /><svg width="23" height="27" viewBox="0 0 23 27"><path d="M2 2 20 14l-8 1.5 4 8-4 1.5-4-8L3 22Z" fill="white" stroke="#09090B" strokeWidth="1.6" strokeLinejoin="round" /></svg>
-      </div>
-    </div>
-  );
+    position();
+    const resize = new ResizeObserver(position);
+    resize.observe(layer);
+    if (target) later(() => pointer.firstElementChild?.animate([{opacity:1, transform:"scale(.5)"},{opacity:0, transform:"scale(2)"}], 360), shot.type ? 800 : 1450);
+    const name = shot.type ?? "";
+    for (let i = 1; i <= name.length; i++) later(() => setQuery(name.slice(0, i)), 910 + i * 85);
+    later(() => { setQuery(""); setStep((step + 1) % script.length); }, shot.duration ?? (shot.type ? 2800 : 1850));
+    return () => { timers.forEach(clearTimeout); resize.disconnect(); };
+  }, [script, step, playing]);
+  return <div ref={camera} className="demo-camera relative" data-shot={step}>
+    <DemoStep.Provider value={reduced ? script.length - 1 : step}><DemoQuery.Provider value={query}>{children}</DemoQuery.Provider></DemoStep.Provider>
+    <div ref={cursor} className="demo-pointer"><i /><svg width="23" height="27" viewBox="0 0 23 27"><path d="M2 2 20 14l-8 1.5 4 8-4 1.5-4-8L3 22Z" fill="white" stroke="#09090B" strokeWidth="1.6" strokeLinejoin="round" /></svg></div>
+  </div>;
 }

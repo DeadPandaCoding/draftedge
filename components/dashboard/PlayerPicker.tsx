@@ -13,15 +13,18 @@ export function PlayerPicker({
   placeholder = "Search players…",
   tradeValues,
   initialQuery = "",
+  previewQuery,
 }: {
   players: Player[];
   exclude: Set<string>;
   onPick: (player: Player) => void;
   placeholder?: string;
   initialQuery?: string;
+  previewQuery?: string;
   tradeValues?: Map<string, number>;
 }) {
-  const [q, setQ] = useState(initialQuery);
+  const [query, setQ] = useState(initialQuery);
+  const q = previewQuery ?? query;
   const [open, setOpen] = useState(Boolean(initialQuery));
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -73,7 +76,7 @@ export function PlayerPicker({
         />
       </div>
 
-      {open && matches.length > 0 && (
+      {(previewQuery !== undefined || open) && matches.length > 0 && (
         <div className="absolute z-40 mt-2 w-full overflow-hidden rounded-xl border border-white/[0.12] bg-[#0B1210] shadow-xl">
           <div className="max-h-80 divide-y divide-white/[0.06] overflow-y-auto">
             {matches.map((p) => (

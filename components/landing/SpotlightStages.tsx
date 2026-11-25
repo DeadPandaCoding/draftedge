@@ -7,8 +7,8 @@ import { TradeSide } from "@/components/dashboard/TradeSide";
 import { StartSitPlayerCard, StartSitVerdict } from "@/components/dashboard/StartSitComparison";
 import { indexPlayersById } from "@/lib/player-display";
 import Link from "next/link";
-import { DemoPlayback, useDemoStep } from "./DemoPlayback";
-import { useEffect, useRef, useState } from "react";
+import { DemoPlayback, useDemoQuery, useDemoStep } from "./DemoPlayback";
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { ChevronRightIcon } from "@/components/icons";
 import { buildSeedPlayers } from "@/lib/seed-data";
@@ -82,7 +82,7 @@ function SpotlightStage({
           </div>
 
           <div className={`min-w-0  ${reverse ? "lg:order-1" : ""}`}>
-            <div className="relative min-w-0 lg:[zoom:0.8]">
+            <div className="relative min-w-0">
               <DemoPlayback title={eyebrow} href={href}>{children}</DemoPlayback>
             </div>
           </div>
@@ -100,109 +100,91 @@ const DRAFT_POOL = [...SEED_PLAYERS].filter(p => p.adp > 0).sort((a, b) => a.adp
 // the same package valuation function as /trade.
 const DEMO_VALUES = new Map(VALUES).set("puka-nacua", 76.7).set("jahmyr-gibbs", 54.2);
 
-function TradeStage() {
-  const { step } = useDemoStep();
+function ignoreInteraction() {}
 
-  const [sides, setSides] = useState({
-    A: ["puka-nacua"],
-    B: ["jahmyr-gibbs"],
-  });
+function TradeStage() {
+  const step = useDemoStep();
+
+  const query = useDemoQuery();
+  const receiveQuery = step === 2 ? "James Cook III" : query;
+  const sides = { A: step >= 3 ? ["puka-nacua", "james-cook-iii"] : ["puka-nacua"], B: ["jahmyr-gibbs"] };
   const excluded = new Set([...sides.A, ...sides.B]);
-  const add = (side: "A" | "B", player: Player) => setSides(previous =>
-    previous.A.includes(player.id) || previous.B.includes(player.id) ? previous :
-      { ...previous, [side]: [...previous[side], player.id] });
-  const remove = (side: "A" | "B", id: string) => setSides(previous =>
-    ({ ...previous, [side]: previous[side].filter(existing => existing !== id) }));
   const total = (side: "A" | "B") => packageTradeValue(
     sides[side].map(id => DEMO_VALUES.get(id) ?? 0), sides[side === "A" ? "B" : "A"].length);
   const aValue = total("A"), bValue = total("B");
   const grade = gradeTrade(aValue - bValue, aValue + bValue, !!(sides.A.length && sides.B.length));
   return (
-    <>
-      <div className="grid gap-5 sm:grid-cols-2">
+    <div className="demo-result-stage">
+      <div className="demo-trade-sides grid gap-5 sm:grid-cols-2">
         {(["A", "B"] as const).map(side => {
           const list = sides[side].map(playerFor);
           return <div key={side} className="min-w-0" data-receive={side === "A" ? "" : undefined}>
-            <TradeSide key={side === "A" ? step : side} side={side} title={side === "A" ? "You receive" : "You give up"} list={list}
+            <TradeSide side={side} title={side === "A" ? "You receive" : "You give up"} list={list}
               totalValue={total(side)} totalProj={list.reduce((sum, p) => sum + CONTEXTS.get(p.id)!.adjustedRosPoints, 0)}
-              players={SEED_PLAYERS} excluded={excluded} values={DEMO_VALUES} contexts={CONTEXTS}
-              initialQuery={side === "A" && step === 1 ? "James Cook" : ""} add={add} remove={remove} />
+              players={[playerFor("james-cook-iii")]} excluded={excluded} values={DEMO_VALUES} contexts={CONTEXTS}
+              previewQuery={side === "A" ? receiveQuery : ""} add={ignoreInteraction} remove={ignoreInteraction} />
           </div>;
         })}
       </div>
-      {sides.A.length > 0 && sides.B.length > 0 && <div className={`mt-6 rounded-2xl border p-6 ${grade.ring}`}>
+      {sides.A.length > 0 && sides.B.length > 0 && <div data-verdict className={`mt-6 rounded-2xl border p-6 ${grade.ring}`}>
         <TradeVerdictSummary grade={grade} count={sides.A.length + sides.B.length} aValue={aValue} bValue={bValue} />
       </div>}
-    </>
+    </div>
   );
 }
 
 function MockDraftStage() {
-  const { step } = useDemoStep();
-  return <MockExample key={step} step={step} />;
-}
-
-function MockExample({ step }: { step: number }) {
-  const initial = DRAFT_POOL.slice(0, 15 + step).map(p => ({ playerId: p.id }));
-  const [picks, setPicks] = useState(initial);
-  const [queue, setQueue] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
-  const boardRef = useRef<HTMLDivElement>(null);
-  const done = picks.length >= 36;
-  const taken = new Set(picks.map(p => p.playerId));
-  const available = DRAFT_POOL.filter(p => !taken.has(p.id));
+  const step = useDemoStep();
+  const selected = DRAFT_POOL.slice(16).find(p => p.position === "RB")!;
+  const drafted = DRAFT_POOL.slice(0, step === 0 ? 15 : 16);
+  if (step === 5) drafted.push(selected);
+  const picks = drafted.map(p => ({ playerId: p.id }));
+  const showPool = step === 2 || step === 3;
+  const filtered = step === 3;
+  const available = DRAFT_POOL.filter(p => !drafted.includes(p) && (!filtered || p.position === "RB")).slice(0, 3);
   const currentPick = picks.length + 1;
-  useEffect(() => {
-    const board = boardRef.current;
-    const tile = board?.querySelector<HTMLElement>('[aria-current="step"]');
-    if (board && tile) board.scrollLeft += tile.getBoundingClientRect().left - board.getBoundingClientRect().left - board.clientWidth / 2;
-  }, [currentPick]);
-  const draft = (id: string) => setPicks(prev => prev.length >= 36 || prev.some(p => p.playerId === id) ? prev : [...prev, { playerId: id }]);
-  const reset = () => { setPicks(DRAFT_POOL.slice(0, 15).map(p => ({ playerId: p.id }))); setQueue([]); setQuery(""); };
   return (
-    <div className="grid min-w-0 gap-2">
-      <MockDraftBoard teams={12} mySlot={9} draftType="snake" picks={picks} playersById={SEED_BY_ID}
-        currentPick={currentPick} totalRounds={3} done={done} isMyTurn={!done} boardRef={boardRef} clock="Untimed"
-        autoPick={() => draft(available.find(p => queue.includes(p.id))?.id ?? available[0].id)}
-        simulateRest={() => setPicks([...picks, ...available.slice(0, 36 - picks.length).map(p => ({ playerId: p.id }))])} reset={reset} />
-      {done ? <button type="button" className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-zinc-950" onClick={reset}>Reset draft</button> :
-        <section className={styles.panel} aria-label="Available players">
-          <div className={styles.filters}><h2>Available Players</h2><input type="search" placeholder="Search players" aria-label="Search draft players" value={query} onChange={e => setQuery(e.target.value)} /></div>
+    <div className="demo-draft-views grid h-full min-h-0 min-w-0">
+      <div className={`col-start-1 row-start-1 min-w-0 ${showPool ? "invisible" : "demo-change"}`}><MockDraftBoard teams={12} visibleSlots={[7, 8, 9]} mySlot={8} draftType="snake" picks={picks} playersById={SEED_BY_ID}
+        currentPick={currentPick} totalRounds={3} done={false} isMyTurn={currentPick === 17} clock="Untimed"
+        autoPick={ignoreInteraction} simulateRest={ignoreInteraction} reset={ignoreInteraction} /></div>
+      <section data-pool className={`${styles.panel} col-start-1 row-start-1 min-w-0 ${showPool ? "demo-change" : "invisible"}`} aria-label="Available players">
+          <div className={styles.filters}><h2>Available Players</h2><input type="search" placeholder="Search players" aria-label="Search draft players" value="" readOnly />
+            <div className={styles.tabs}>{["ALL", "QB", "RB", "WR", "TE"].map(pos => <button key={pos} data-filter={pos === "RB" ? "" : undefined} aria-pressed={pos === (filtered ? "RB" : "ALL")}>{pos}</button>)}</div>
+          </div>
           <div className={styles.scroll}><table className={styles.players}>
             <thead><tr>{["Draft", "Rank", "Player", "Queue", "ADP", "Proj pts", "PPG"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
-            <tbody>{available.filter(p => p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 3).map(p =>
-              <AvailablePlayerRow key={p.id} p={p} isMyTurn makeMyPick={draft} queued={queue.includes(p.id)}
-                toggleQueue={id => setQueue(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])} />)}</tbody>
+            <tbody>{available.map(p =>
+              <AvailablePlayerRow key={p.id} p={p} isMyTurn={currentPick === 17} makeMyPick={ignoreInteraction} queued={false} toggleQueue={ignoreInteraction} />)}</tbody>
           </table></div>
-        </section>}
+        </section>
     </div>
   );
 }
 
 function StartSitStage() {
-  const { step, select } = useDemoStep();
-  const [players, setPlayers] = useState<(Player | null)[]>([playerFor("kyren-williams"), playerFor("james-cook-iii")]);
-  const useWeek = step === 0;
-  const weeklyScore = (p: Player) => CONTEXTS.get(p.id)?.adjustedWeeklyPoints ?? null;
-  const score = (p: Player | null) => p ? (useWeek ? weeklyScore(p) : CONTEXTS.get(p.id)?.adjustedRosPoints) ?? 0 : 0;
-  const [a, b] = players;
-  const aScore = score(a), bScore = score(b);
+  const step = useDemoStep();
+  const query = useDemoQuery();
+  const players = [playerFor("jahmyr-gibbs"), playerFor("james-cook-iii")];
+  const weeklyScore = (p: Player) => CONTEXTS.get(p.id)?.adjustedWeeklyPoints ?? p.weeklyAvg;
+  const [aScore, bScore] = players.map(weeklyScore);
   const diff = aScore - bScore;
-  const winner = a && b && diff !== 0 ? (diff > 0 ? a : b) : null;
-  const setPlayer = (index: number, player: Player | null) => setPlayers(prev => prev.map((p, i) => i === index ? player : p));
+  const winnerIndex = diff >= 0 ? 0 : 1;
+  const winner = players[winnerIndex];
   return (
-    <>
+    <div className="demo-result-stage">
       <div className="mb-4 inline-flex rounded-lg bg-zinc-900 p-1">{["This week", "Season projection"].map((label, i) =>
-        <button type="button" key={label} aria-pressed={step === i} onClick={() => select(i)} className="rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-400 aria-pressed:bg-emerald-500/15 aria-pressed:text-emerald-300">{label}</button>)}</div>
-      <div className="grid gap-5 sm:grid-cols-2">{players.map((p, i) => p ?
-        <StartSitPlayerCard key={i} p={p} label={i ? "Player B" : "Player A"} contexts={CONTEXTS} winner={winner}
-          useWeek={useWeek} isOnBye={() => false} weeklyScore={weeklyScore} values={VALUES} onClear={() => setPlayer(i, null)} /> :
-        <div className="glass-strong rounded-2xl p-5" key={i}><h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-zinc-300">Player {i ? "B" : "A"}</h2>
-          <PlayerPicker players={SEED_PLAYERS} tradeValues={VALUES} exclude={new Set(players.flatMap(p => p ? [p.id] : []))} onPick={p => setPlayer(i, p)} placeholder="Search a player…" />
-          <p className="mt-3 text-xs text-zinc-500">Pick a player to compare.</p></div>)}</div>
-      {winner && <StartSitVerdict band={startSitConfidence(diff)} {...{ winner, aScore, bScore, diff, useWeek }} contexts={CONTEXTS} />}
-      {a && b && !winner && <div className="mt-6 rounded-2xl border border-zinc-600/60 bg-zinc-800/40 p-6 text-center"><span className="font-display text-2xl font-bold text-zinc-100">Too close to call</span><p className="mt-2 text-sm text-zinc-300">Both players are tied at {aScore.toFixed(1)} pts.</p></div>}
-    </>
+        <button type="button" key={label} aria-pressed={i === 0} className="rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-400 aria-pressed:bg-emerald-500/15 aria-pressed:text-emerald-300">{label}</button>)}</div>
+      <div className="demo-comparison relative grid auto-rows-fr gap-5 sm:grid-cols-2" data-winner={winnerIndex}>
+        {players.map((p, i) => <div data-player-card={i} key={i} className="grid min-w-0">
+          <div className={step >= i * 2 + 3 ? "" : "invisible col-start-1 row-start-1"}><StartSitPlayerCard p={p} label={i ? "Player B" : "Player A"} contexts={CONTEXTS} winner={step >= 5 ? winner : null}
+            useWeek isOnBye={() => false} weeklyScore={weeklyScore} values={VALUES} onClear={ignoreInteraction} /></div>
+          {step < i * 2 + 3 && <div className="glass-strong col-start-1 row-start-1 rounded-2xl p-5"><h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-zinc-300">Player {i ? "B" : "A"}</h2><PlayerPicker players={[p]} exclude={new Set(i ? [players[0].id] : [])} tradeValues={VALUES} placeholder="Search a player…" previewQuery={step === i * 2 + 2 ? p.name : step === i * 2 + 1 ? query : ""} onPick={ignoreInteraction} /><p className="mt-3 text-xs text-zinc-500">Pick a player to compare.</p></div>}
+        </div>)}
+        {step >= 5 && <span className="demo-start-highlight absolute rounded-2xl border border-emerald-500/40" />}
+      </div>
+      <div data-verdict className={step < 5 ? "invisible" : ""}><StartSitVerdict band={startSitConfidence(diff)} {...{ winner, aScore, bScore, diff }} contexts={CONTEXTS} useWeek /></div>
+    </div>
   );
 }
 
@@ -214,20 +196,20 @@ function sampleLeague(platform: "sleeper" | "espn", account: string): SyncedSlee
 }
 
 function LeaguePreview() {
-  const { step } = useDemoStep();
+  const step = useDemoStep();
   return <LeagueExample key={step} step={step} />;
 }
 
 function LeagueExample({ step }: { step: number }) {
-  const platform = step < 3 ? "sleeper" : "espn";
-  const [activeLeague, setLeague] = useState(() => step % 3 === 2 ? sampleLeague(platform, "draftedge_demo") : null);
-  return <LeagueSyncPanel localExample initialPlatform={platform} initialUsername={step === 1 ? "draftedge_demo" : ""}
-    initialLeagueId={step === 4 ? "123456" : ""} supabaseEnabled connections={{
-      activeLeague, leagues: activeLeague ? [activeLeague] : [], loading: false, error: null,
-      connectSleeper: async username => setLeague(sampleLeague("sleeper", username)),
-      connectEspn: async () => { setLeague(sampleLeague("espn", "")); return {}; },
-      disconnectLeague: async () => setLeague(null), syncNow: async () => setLeague(l => l && { ...l, last_synced_at: new Date().toISOString() }),
-      setActiveLeagueId: () => {},
+  const platform = step < 5 ? "sleeper" : "espn";
+  const phase = step % 5;
+  const query = useDemoQuery();
+  const activeLeague = step >= 3 ? sampleLeague(step >= 8 ? "espn" : "sleeper", "draftedge_demo") : null;
+  return <LeagueSyncPanel localExample initiallyShowConnectForm={Boolean(activeLeague) && phase !== 3} previewInput={phase === 0 ? query : undefined} initialPlatform={platform} initialUsername={phase === 1 || phase === 2 ? "draftedge_demo" : ""}
+    initialLeagueId={phase === 1 || phase === 2 ? "123456" : ""} supabaseEnabled connections={{
+      activeLeague, leagues: activeLeague ? [activeLeague] : [], loading: phase === 2, error: null,
+      connectSleeper: async () => {}, connectEspn: async () => ({}),
+      disconnectLeague: async () => {}, syncNow: async () => {}, setActiveLeagueId: ignoreInteraction,
     }} />;
 }
 

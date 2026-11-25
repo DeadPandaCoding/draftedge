@@ -11,10 +11,10 @@ interface Props {
   side: Side; title: string; list: Player[]; totalValue: number; totalProj: number; fcTotal?: number;
   players: Player[]; excluded: Set<string>; values: Map<string, number>; contexts: Map<string, PlayerMatchupContext>;
   fcEntryMap?: Map<string, FantasyCalcEntry>; fcValueOf?: (id: string) => number;
-  myPlayerIds?: Set<string>; myRosterPlayers?: Player[]; initialQuery?: string;
+  myPlayerIds?: Set<string>; myRosterPlayers?: Player[]; initialQuery?: string; previewQuery?: string;
   add: (side: Side, player: Player) => void; remove: (side: Side, id: string) => void;
 }
-export function TradeSide({ side, title, list, totalValue, totalProj, fcTotal = 0, players, excluded, values, contexts, fcEntryMap, fcValueOf, myPlayerIds, myRosterPlayers = [], initialQuery, add, remove }: Props) {
+export function TradeSide({ side, title, list, totalValue, totalProj, fcTotal = 0, players, excluded, values, contexts, fcEntryMap, fcValueOf, myPlayerIds, myRosterPlayers = [], initialQuery, previewQuery, add, remove }: Props) {
   const valueOf = (id: string) => values.get(id) ?? 0;
   const playerRow = (p: Player, side: Side) => {
     const fcVal = fcValueOf?.(p.id) ?? 0;
@@ -111,7 +111,7 @@ export function TradeSide({ side, title, list, totalValue, totalProj, fcTotal = 
         </div>
       )}
       <div className="mb-3">
-        <PlayerPicker initialQuery={initialQuery}
+        <PlayerPicker initialQuery={initialQuery} previewQuery={previewQuery}
           players={players}
           exclude={excluded}
           tradeValues={values}

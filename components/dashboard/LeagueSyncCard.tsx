@@ -26,19 +26,21 @@ export function LeagueSyncCard({ compactWhenConnected = false }: { compactWhenCo
 
 type Connections = Pick<ReturnType<typeof useSyncedLeagues>, "leagues" | "activeLeague" | "loading" | "error" | "connectSleeper" | "connectEspn" | "syncNow" | "disconnectLeague" | "setActiveLeagueId">;
 
-export function LeagueSyncPanel({ connections, supabaseEnabled, compactWhenConnected = false, initialPlatform = "sleeper", initialUsername = "", initialLeagueId = "", localExample = false }: {
+export function LeagueSyncPanel({ connections, supabaseEnabled, compactWhenConnected = false, initialPlatform = "sleeper", initialUsername = "", initialLeagueId = "", localExample = false, initiallyShowConnectForm = false, previewInput }: {
   connections: Connections; supabaseEnabled: boolean; compactWhenConnected?: boolean;
-  localExample?: boolean; initialPlatform?: Platform; initialUsername?: string; initialLeagueId?: string;
+  initiallyShowConnectForm?: boolean; previewInput?: string; localExample?: boolean; initialPlatform?: Platform; initialUsername?: string; initialLeagueId?: string;
 }) {
   const { leagues, activeLeague, loading, error, connectSleeper, connectEspn, syncNow, disconnectLeague, setActiveLeagueId } = connections;
   const [platform, setPlatform] = useState<Platform>(initialPlatform);
-  const [username, setUsername] = useState(initialUsername);
-  const [leagueId, setLeagueId] = useState(initialLeagueId);
+  const [enteredUsername, setUsername] = useState(initialUsername);
+  const [enteredLeagueId, setLeagueId] = useState(initialLeagueId);
+  const username = previewInput ?? enteredUsername;
+  const leagueId = previewInput ?? enteredLeagueId;
   const [espnS2, setEspnS2] = useState("");
   const [swid, setSwid] = useState("");
   const [pendingTeams, setPendingTeams] = useState<Array<{ teamId: string; label: string }> | null>(null);
   const [teamId, setTeamId] = useState("");
-  const [showConnectForm, setShowConnectForm] = useState(false);
+  const [showConnectForm, setShowConnectForm] = useState(initiallyShowConnectForm);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const connect = async (event: FormEvent<HTMLFormElement>) => {
@@ -82,7 +84,7 @@ export function LeagueSyncPanel({ connections, supabaseEnabled, compactWhenConne
           <p className="text-xs text-zinc-400">{activeLeague.league_name} · {activeLeague.total_teams} teams · synced {relativeTime(activeLeague.last_synced_at)}</p>
           <div className="flex items-center gap-2">
             <button type="button" disabled={loading} onClick={() => void syncNow(activeLeague.platform_league_id).catch(() => {})} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/[0.04] hover:text-white disabled:opacity-50">{loading ? "Syncing…" : "Sync Now"}</button>
-            <button type="button" onClick={() => setShowConnectForm(true)} className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/15">+ Connect Another League</button>
+            <button data-connect-another type="button" onClick={() => setShowConnectForm(true)} className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/15">+ Connect Another League</button>
           </div>
         </div>
       ) : activeLeague && !showConnectForm ? (
@@ -105,7 +107,7 @@ export function LeagueSyncPanel({ connections, supabaseEnabled, compactWhenConne
             <button type="button" disabled={loading} onClick={() => activeLeague.id && void disconnectLeague(activeLeague.id).catch(() => {})} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs font-medium text-zinc-400 hover:text-white disabled:opacity-50">
               Disconnect
             </button>
-            <button type="button" onClick={() => setShowConnectForm(true)} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/[0.04] hover:text-white">
+            <button data-connect-another type="button" onClick={() => setShowConnectForm(true)} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/[0.04] hover:text-white">
               Connect another league
             </button>
           </div>
