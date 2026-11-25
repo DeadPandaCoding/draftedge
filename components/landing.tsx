@@ -9,8 +9,8 @@ const tools = [TOOLS.trade, { ...TOOLS.mock, label: "Mock Draft" }, TOOLS.startS
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
-      <header className="border-b border-white/15">
-        <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-y-3 px-5 py-4 lg:px-12">
+      <header className="flex min-h-[6.5rem] items-center border-b border-white/15 md:min-h-[4.5rem]">
+        <nav aria-label="Main navigation" className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-y-3 px-5 py-4 lg:px-12">
           <Link href="/" className="inline-flex items-center gap-2 font-display text-xl font-extrabold tracking-tight"><DraftEdgeLogo />DraftEdge</Link>
           <div className="order-last flex w-full justify-between gap-3 text-xs text-zinc-300 md:order-none md:w-auto md:gap-6">
             {tools.map(({ label, href }) => <Link key={href} href={href} className="hover:text-white">{label}</Link>)}
@@ -19,7 +19,7 @@ export function LandingPage() {
         </nav>
       </header>
       <main>
-        <section className="mx-auto max-w-5xl px-5 py-20 text-center sm:py-24">
+        <section className="mx-auto flex min-h-[calc(100svh-6.5rem)] max-w-5xl flex-col items-center justify-center px-5 py-8 text-center md:min-h-[calc(100svh-4.5rem)]">
           <h1 className="font-display text-[clamp(3rem,7.3vw,6.6rem)] font-extrabold leading-[.99] tracking-[-.065em]">All your fantasy decisions,<br /> <span className="inline-block border-b-[.085em] border-[#10B981] pb-1 text-[#10B981]">in one spot.</span></h1>
           <p className="mx-auto mb-7 mt-7 max-w-xl text-base leading-relaxed text-zinc-300">Grade trades, practice your draft, and compare weekly starters with your league’s scoring settings.</p>
           <LandingPrimaryCta signedInLabel="Open App" />
