@@ -70,7 +70,7 @@ function healthDiscount(status: InjuryStatus | null | undefined): number {
  * values intentionally stay null until a schedule/defense data source is wired.
  */
 export function buildMatchupContext(
-  players: Player[],
+  players: Player[], currentWeek?: number | null,
 ): Map<string, PlayerMatchupContext> {
   const teamPlayers = new Map<string, Player[]>();
   for (const player of players) {
@@ -113,7 +113,9 @@ export function buildMatchupContext(
     if (qbDiscount) tags.push("↓ Backup QB starting: −12% efficiency");
 
     const factor = (1 - health) * (1 + usageBoost) * (1 - qbDiscount);
-    const rosPoints = player.rosProjection ?? player.projection;
+    const gamesLeft = currentWeek && currentWeek >= 1 && currentWeek <= 18
+      ? Math.min(17, 19 - currentWeek - Number(player.bye >= currentWeek && player.bye <= 18)) : 17;
+    const rosPoints = player.rosProjection ?? player.projection * gamesLeft / 17;
     const hasWeekProjection = player.weekProjection != null && Number.isFinite(player.weekProjection);
     // Distinguish a real weekly projection from a season-average estimate, and
     // both from missing data (null) so the UI never prints a false 0.0.

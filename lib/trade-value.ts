@@ -1,105 +1,74 @@
-import type { Player, Position } from "./types";
+import type { Player, Position, RosterTemplate } from "./types";
+import { DEFAULT_ROSTER } from "./league";
+import type { PlayerMatchupContext } from "./matchup-context";
 
-const DEEP_BASELINE_RANK: Record<Position, number> = {
-  QB: 24, RB: 48, WR: 60, TE: 24, K: 12, DEF: 12,
-};
+const tenth = (n: number) => Math.round(n * 10) / 10;
+const positions: Position[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
+const adpValue = (pick: number) => 100 / (1 + (pick / 24) ** 1.25);
 
-type PlayerWithMarketValue = Player & { redraftValue?: number; redraft_value?: number };
-
-function getTradeInjuryMultiplier(
-  status: Player["injuryStatus"],
-  rosPoints: number,
-  baseline: number,
-): number {
-  if (rosPoints <= 0 || rosPoints <= baseline) return 0;
-  if (status === "D" || status === "O") return 0.92;
-  if (status === "IR" || status === "PUP") return 0.6;
-  return 1;
-}
-
-/** Build a 0–100 estimate from market value when available, then positional depth,
- * ROS points, and ADP. This is an estimate, not a claim that points equal trade value. */
 export function buildTradeValues(
-  players: Player[],
-  teamCount = 12,
-  marketValues?: ReadonlyMap<string, number>,
+  players: Player[], teamCount = 12, marketValues?: ReadonlyMap<string, number>,
+  roster: RosterTemplate = DEFAULT_ROSTER, contexts?: ReadonlyMap<string, PlayerMatchupContext>,
 ): Map<string, number> {
-  const grouped = new Map<Position, Player[]>();
-  for (const p of players) {
-    const list = grouped.get(p.position) ?? [];
-    list.push(p);
-    grouped.set(p.position, list);
+  // Callers without matchup context supply a consistently scaled projection board.
+  const points = (p: Player) => {
+    const c = contexts?.get(p.id);
+    const value = c ? c.rosPoints * (1 + c.teammateUsageBoost) * (1 - c.backupQbDiscount) : p.projection;
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+  };
+  const slots: Record<Position, number> = {
+    QB: roster.qb, RB: roster.rb, WR: roster.wr, TE: roster.te, K: roster.k, DEF: roster.def,
+  };
+  const reserves = new Map<Position, Player[]>();
+  for (const pos of positions) {
+    const board = players.filter(p => p.position === pos && points(p) > 0).sort((a,b) => points(b) - points(a));
+    reserves.set(pos, board.slice(Math.round(slots[pos] * teamCount)));
   }
-
+  // Fill flexible starting jobs from the best still-eligible players, once each.
+  const starters = new Set<string>();
+  for (const [eligible, slotsPerTeam] of [
+    [["RB", "WR", "TE"], roster.flex], [["QB", "RB", "WR", "TE"], roster.superflex],
+  ] as const) {
+    const pool = eligible.flatMap(pos => reserves.get(pos)!).filter(p => !starters.has(p.id));
+    pool.sort((a,b) => points(b) - points(a)).slice(0, Math.round(slotsPerTeam * teamCount))
+      .forEach(p => starters.add(p.id));
+  }
+  const surplus = new Map<string, number>();
+  for (const pos of positions) {
+    const replacement = reserves.get(pos)!.find(p => !starters.has(p.id));
+    const baseline = replacement ? points(replacement) : 0;
+    for (const p of players.filter(p => p.position === pos)) surplus.set(p.id, Math.max(0, points(p) - baseline));
+  }
+  const best = Math.max(1, ...surplus.values());
   const values = new Map<string, number>();
-  for (const [position, positionPlayers] of grouped) {
-    const sorted = [...positionPlayers].sort((a, b) => {
-      const projectionDiff = tradeProjection(b) - tradeProjection(a);
-      if (projectionDiff !== 0) return projectionDiff;
-      if (a.adp > 0 && b.adp > 0) return a.adp - b.adp;
-      return a.adp > 0 ? -1 : b.adp > 0 ? 1 : a.name.localeCompare(b.name);
-    });
-    const rankById = new Map(sorted.map((player, index) => [player.id, index + 1]));
-    const depthRank = Math.max(1, Math.round(DEEP_BASELINE_RANK[position] * teamCount / 12));
-    const streamable = position === "K" || position === "DEF";
-    // With a partial streamer feed, use the last projected starter available.
-    const projectedCount = streamable ? sorted.filter(p => tradeProjection(p) > 0).length : sorted.length;
-    const baseRank = Math.min(depthRank, Math.max(1, projectedCount));
-    const baselineProjection = tradeProjection(sorted[baseRank - 1]);
-    const topProjection = sorted[0] ? tradeProjection(sorted[0]) : 0;
-    const topAboveBaseline = Math.max(1, topProjection - baselineProjection);
-
-    for (const player of positionPlayers) {
-      const projection = Math.max(0, tradeProjection(player));
-      if (projection <= 0) {
-        values.set(player.id, 0);
-        continue;
-      }
-
-      const healthMultiplier = getTradeInjuryMultiplier(player.injuryStatus, projection, baselineProjection);
-      if (healthMultiplier === 0) {
-        // A positive non-streamer projection retains a small, ordered bench value.
-        const benchValue = 0.1 + 1.9 * projection / (projection + 60);
-        values.set(player.id, streamable ? 0 : benchValue);
-        continue;
-      }
-
-      if (streamable) {
-        // Price only the ROS points gained over a readily available replacement.
-        const surplus = projection - baselineProjection;
-        const value = Math.min(5, surplus * 0.15 * healthMultiplier);
-        values.set(player.id, Math.round(value * 10) / 10);
-        continue;
-      }
-
-      const adp = Number(player.adp) || 0;
-      const rank = rankById.get(player.id) ?? sorted.length;
-      const rankCurve = 66 * Math.exp(-((rank - 1) / depthRank) * 2.2);
-      const vorCurve = Math.max(0, projection - baselineProjection) / topAboveBaseline * 72;
-      const adpCurve = adp > 0 ? Math.max(0, 30 - Math.log2(adp + 1) * 3.8) : 0;
-      const projectionFloor = projection > 0 ? Math.min(18, Math.max(4, projection * 0.12)) : 0;
-      const fallback = Math.min(100, Math.max(rankCurve, vorCurve, adpCurve, projectionFloor));
-      const suppliedMarket = (marketValues?.get(player.id) ?? (player as PlayerWithMarketValue).redraftValue ?? (player as PlayerWithMarketValue).redraft_value) ?? 0;
-      const market = Math.max(0, Math.min(100, Number(suppliedMarket) || 0));
-      const baseValue = market > 0 ? market * 0.7 + fallback * 0.3 : fallback;
-      const combined = baseValue * healthMultiplier;
-      values.set(player.id, Math.round(combined * 10) / 10);
+  for (const p of players) {
+    const vorp = surplus.get(p.id) ?? 0;
+    const health = p.injuryStatus === "IR" || p.injuryStatus === "PUP" ? .6 :
+      p.injuryStatus === "D" || p.injuryStatus === "O" ? .92 : 1;
+    let value: number;
+    if (p.position === "K" || p.position === "DEF") {
+      value = Math.min(5, vorp * .15);
+    } else {
+      const model = 100 * vorp / best;
+      const market = marketValues?.get(p.id);
+      const consensus = market && Number.isFinite(market) ? Math.max(0, Math.min(100, market)) : undefined;
+      const anchor = p.adp > 0 && Number.isFinite(p.adp) ? adpValue(p.adp) : consensus ?? model;
+      value = .9 * anchor + .1 * model;
+      if (consensus !== undefined) value = .9 * value + .1 * consensus;
     }
+    values.set(p.id, tenth(value * health));
   }
   return values;
 }
 
-function tradeProjection(player: Player): number {
-  // Callers can pass a context-adjusted ROS total through `projection`.
-  const projection = player.projection;
-  return Number.isFinite(projection) ? Math.max(0, projection) : 0;
-}
-
-/** Match the strongest pieces one-for-one; each surplus roster spot halves its contribution. */
+// Each unmatched asset must clear a five-point bench replacement cost; the
+// remaining surplus counts at 75%, then progressively less for deeper packages.
 export function packageTradeValue(values: number[], opposingCount: number): number {
   const matched = Math.max(1, opposingCount);
-  return [...values].sort((a, b) => b - a).reduce((total, value, index) =>
-    total + value * 0.5 ** Math.max(0, index - matched + 1), 0);
+  return tenth([...values].sort((a,b) => b - a).reduce((sum, value, index) => {
+    if (index < matched) return sum + value;
+    return sum + Math.max(0, value - 5) * .75 ** (index - matched + 1);
+  }, 0));
 }
 
 export interface TradeGrade {
@@ -126,21 +95,21 @@ export function gradeTrade(net: number, total: number, bothSidesPopulated = true
   if (total <= 0) {
     return {
       letter: "C",
-      label: "Even trade",
+      label: "Fair trade",
       text: "text-zinc-200",
       ring: "border-zinc-600/60 bg-zinc-800/40",
     };
   }
-  const pct = net / total; // -1..1
-  if (pct >= 0.25)
-    return { letter: "A+", label: "You win big", text: "text-emerald-300", ring: "border-emerald-500/40 bg-emerald-500/10" };
-  if (pct >= 0.1)
+  const pct = net / Math.max(40, total); // -1..1
+  if (pct >= 0.22)
+    return { letter: "A+", label: "Clear win", text: "text-emerald-300", ring: "border-emerald-500/40 bg-emerald-500/10" };
+  if (pct >= 0.12)
     return { letter: "A", label: "Clear win", text: "text-emerald-300", ring: "border-emerald-500/40 bg-emerald-500/10" };
-  if (pct >= 0.03)
+  if (pct >= 0.04)
     return { letter: "B", label: "Slight edge", text: "text-emerald-400", ring: "border-emerald-500/30 bg-emerald-500/5" };
-  if (pct > -0.03)
+  if (pct > -0.04)
     return { letter: "C", label: "Fair trade", text: "text-zinc-200", ring: "border-zinc-600/60 bg-zinc-800/40" };
-  if (pct > -0.1)
+  if (pct > -0.12)
     return { letter: "D", label: "Slight loss", text: "text-rose-300", ring: "border-rose-500/30 bg-rose-500/5" };
-  return { letter: "F", label: "Bad trade for you", text: "text-rose-300", ring: "border-rose-500/40 bg-rose-500/10" };
+  return { letter: "F", label: "Clear loss", text: "text-rose-300", ring: "border-rose-500/40 bg-rose-500/10" };
 }

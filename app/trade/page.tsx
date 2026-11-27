@@ -86,7 +86,7 @@ export default function TradePage() {
 
   const scoring = activeLeague ? toScoringFormat(activeLeague.scoring_format) : league?.scoring ?? "ppr";
   const teamCount = activeLeague?.total_teams ?? league?.teamCount ?? 12;
-  const { players, loading: playersLoading } = usePlayers(scoring);
+  const { players, currentWeek, loading: playersLoading } = usePlayers(scoring);
 
   // QB pricing must follow the active league: SUPERFLEX and 2QB leagues need
   // 2QB FantasyCalc values, and the cache key has to include that choice.
@@ -105,7 +105,6 @@ export default function TradePage() {
   const [selectedMyTeamId, setSelectedMyTeamId] = useState("");
   const [selectedPartnerId, setSelectedPartnerId] = useState("");
   const [fcEntries, setFcEntries] = useState<FantasyCalcEntry[]>([]);
-  const fcRequested = useRef<string | null>(null);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -182,9 +181,6 @@ export default function TradePage() {
 
   // Fetch FantasyCalc consensus redraft values.
   useEffect(() => {
-    const requestKey = `${teamCount}:${scoring}:${numQbs}qb`;
-    if (fcRequested.current === requestKey) return;
-    fcRequested.current = requestKey;
     let cancelled = false;
     fetchFantasyCalc({
       numQbs,
@@ -222,19 +218,10 @@ export default function TradePage() {
   }, [players, fcEntries]);
 
   const playersById = useMemo(() => indexPlayersById(players), [players]);
-  const contexts = useMemo(() => buildMatchupContext(players), [players]);
+  const contexts = useMemo(() => buildMatchupContext(players, currentWeek), [players, currentWeek]);
   const values = useMemo(() => buildTradeValues(
-    players.map((p) => {
-      const context = contexts.get(p.id);
-      const healthFactor = 1 - (context?.healthDiscount ?? 0);
-      const contextWithoutHealthDiscount = context && healthFactor > 0
-        ? context.adjustedRosPoints / healthFactor
-        : context?.adjustedRosPoints;
-      return { ...p, projection: contextWithoutHealthDiscount ?? p.rosProjection ?? p.projection };
-    }),
-    teamCount,
-    fcValueMap,
-  ), [players, teamCount, contexts, fcValueMap]);
+    players, teamCount, fcValueMap, leagueRoster ?? undefined, contexts,
+  ), [players, teamCount, contexts, fcValueMap, leagueRoster]);
   const excluded = useMemo(() => new Set([...sideA, ...sideB]), [sideA, sideB]);
 
   const aPlayers = sideA.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
@@ -376,7 +363,7 @@ export default function TradePage() {
         {tradeComplete && (
           <ShareButtons
             url={buildShareUrl()}
-            text={`I ${grade.label.toLowerCase()} this trade on DraftEdge${
+            text={`DraftEdge grades this trade: ${grade.label}${
               net !== 0 ? ` (${net >= 0 ? "+" : ""}${net.toFixed(1)} net value)` : ""
             }`}
             title="Check out this DraftEdge trade"
@@ -476,6 +463,7 @@ export default function TradePage() {
                     <p className="font-semibold text-zinc-200">{label}</p>
                     <p className="text-zinc-400">Trade value <span className="float-right font-mono tabular-nums text-zinc-100">{value.toFixed(1)}</span></p>
                     <p className="text-zinc-400">Adjusted ROS points <span className="float-right font-mono tabular-nums text-zinc-100">{ros.toFixed(1)}</span></p>
+                    {list.length > (label === "You receive" ? bPlayers.length : aPlayers.length) && <p className="text-zinc-400">Package adjustment <span className="float-right font-mono tabular-nums text-zinc-100">{(value - list.reduce((sum, p) => sum + valueOf(p.id), 0)).toFixed(1)}</span></p>}
                     <p className="text-zinc-400">Avg PPG <span className="float-right font-mono tabular-nums text-zinc-100">{ppg == null ? "—" : ppg.toFixed(1)}</span></p>
                     <p className="text-zinc-400" title={MATCHUP_DATA_UNAVAILABLE}>ROS SOS <span className="float-right text-zinc-500">Unavailable</span></p>
                     {list.flatMap((p) => (contexts.get(p.id)?.reasonTags ?? []).map((tag) => <span key={`${p.id}-${tag}`} className="mr-1 mt-1 inline-flex rounded border border-white/[0.08] px-1.5 py-0.5 text-[10px] text-zinc-300">{p.name}: {tag}</span>))}
@@ -516,7 +504,7 @@ export default function TradePage() {
               )}
 
               <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
-                <span className="text-zinc-300">VALUE</span> blends market data with projections and positional depth when market data is available. K and DEF earn 0.15 value per projected point above replacement, capped at 5.0. In uneven trades, extra players count at 50%, 25%, then progressively less toward the package value.
+                <span className="text-zinc-300">VALUE</span> blends market data with projections and positional depth when market data is available. K and DEF earn 0.15 value per projected point above replacement, capped at 5.0. Each extra player costs 5 value for the displaced bench spot. Remaining value counts at 75% for the first extra player, then 56.25% for the next.
                 <span className="ml-2 text-cyan-300/80">FC</span> = community consensus from FantasyCalc.com.
               </p>
             </div>

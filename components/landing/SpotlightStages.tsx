@@ -93,12 +93,9 @@ function SpotlightStage({
 }
 
 const CONTEXTS = buildMatchupContext(SEED_PLAYERS);
-const VALUES = buildTradeValues(SEED_PLAYERS.map(p => ({ ...p, projection: CONTEXTS.get(p.id)!.adjustedRosPoints })), 12);
+const VALUES = buildTradeValues(SEED_PLAYERS, 12, undefined, undefined, CONTEXTS);
 const DRAFT_POOL = [...SEED_PLAYERS].filter(p => p.adp > 0).sort((a, b) => a.adp - b.adp);
 
-// Seed the screenshot's two starting values; additional assets are priced by
-// the same package valuation function as /trade.
-const DEMO_VALUES = new Map(VALUES).set("puka-nacua", 76.7).set("jahmyr-gibbs", 54.2);
 
 function ignoreInteraction() {}
 
@@ -110,7 +107,7 @@ function TradeStage() {
   const sides = { A: step >= 3 ? ["puka-nacua", "james-cook-iii"] : ["puka-nacua"], B: ["jahmyr-gibbs"] };
   const excluded = new Set([...sides.A, ...sides.B]);
   const total = (side: "A" | "B") => packageTradeValue(
-    sides[side].map(id => DEMO_VALUES.get(id) ?? 0), sides[side === "A" ? "B" : "A"].length);
+    sides[side].map(id => VALUES.get(id) ?? 0), sides[side === "A" ? "B" : "A"].length);
   const aValue = total("A"), bValue = total("B");
   const grade = gradeTrade(aValue - bValue, aValue + bValue, !!(sides.A.length && sides.B.length));
   return (
@@ -121,7 +118,7 @@ function TradeStage() {
           return <div key={side} className="min-w-0" data-receive={side === "A" ? "" : undefined}>
             <TradeSide side={side} title={side === "A" ? "You receive" : "You give up"} list={list}
               totalValue={total(side)} totalProj={list.reduce((sum, p) => sum + CONTEXTS.get(p.id)!.adjustedRosPoints, 0)}
-              players={[playerFor("james-cook-iii")]} excluded={excluded} values={DEMO_VALUES} contexts={CONTEXTS}
+              players={[playerFor("james-cook-iii")]} excluded={excluded} values={VALUES} contexts={CONTEXTS}
               previewQuery={side === "A" ? receiveQuery : ""} add={ignoreInteraction} remove={ignoreInteraction} />
           </div>;
         })}
