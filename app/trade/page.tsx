@@ -2,11 +2,12 @@
 
 import { TradeVerdictSummary } from "@/components/dashboard/TradeVerdictSummary";
 import { indexPlayersById } from "@/lib/player-display";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { fetchDraftState, fetchLeague } from "@/lib/data";
-import { buildRoster } from "@/lib/draft";
+import { fetchLeague } from "@/lib/data";
+import Link from "next/link";
+import { starterImpact, suggestTrades, teamVerdict } from "@/lib/trade-recommendations";
 import {
   SCORING_LABELS,
   hasRosterSlots,
@@ -17,11 +18,8 @@ import { usePlayers } from "@/lib/players";
 import { normalizeName, playerSlug } from "@/lib/seed-data";
 import { resolveSleeperPlayerIds, toScoringFormat, useSyncedLeagues } from "@/lib/league-context";
 import type {
-  DraftPick,
-  DraftState,
   LeagueConfig,
   Player,
-  RosterEntry,
   RosterTemplate,
 } from "@/lib/types";
 import { buildMatchupContext, MATCHUP_DATA_UNAVAILABLE } from "@/lib/matchup-context";
@@ -40,41 +38,13 @@ import { InjuryBadge, PosBadge, Skeleton } from "@/components/ui";
 
 type Side = "A" | "B";
 
-const GROUPS = ["QB", "RB", "WR", "TE", "FLEX", "K", "DEF"] as const;
-
-interface RosterSnapshot {
-  counts: Record<string, number>;
-  starterProj: number;
-  missing: string[];
-}
-
-function snapshotRoster(
-  entries: RosterEntry[],
-  playersById: Map<string, Player>,
-  roster: RosterTemplate
-): RosterSnapshot {
-  const counts: Record<string, number> = {};
-  let starterProj = 0;
-  for (const e of entries) {
-    const group = e.slot.replace(/\d+$/, "");
-    counts[group] = (counts[group] ?? 0) + 1;
-    if (group !== "BENCH") starterProj += playersById.get(e.playerId)?.projection ?? 0;
-  }
-  const reqs: [string, number][] = [
-    ["QB", roster.qb],
-    ["RB", roster.rb],
-    ["WR", roster.wr],
-    ["TE", roster.te],
-    ["FLEX", roster.flex],
-    ["SUPERFLEX", roster.superflex ?? 0],
-    ["K", roster.k],
-    ["DEF", roster.def],
-  ];
-  const missing: string[] = [];
-  for (const [g, need] of reqs) {
-    for (let i = counts[g] ?? 0; i < need; i++) missing.push(g);
-  }
-  return { counts, starterProj, missing };
+function subscribePreference(notify: () => void) {
+  window.addEventListener("storage", notify);
+  window.addEventListener("draftedge:trade-preference", notify);
+  return () => {
+    window.removeEventListener("storage", notify);
+    window.removeEventListener("draftedge:trade-preference", notify);
+  };
 }
 
 export default function TradePage() {
@@ -82,7 +52,25 @@ export default function TradePage() {
   const { user, loading } = useAuth();
   const { activeLeague } = useSyncedLeagues();
   const [league, setLeague] = useState<LeagueConfig | null>(null);
-  const [draftState, setDraftState] = useState<DraftState | null>(null);
+  const [preferences, setPreferences] = useState<Record<string, boolean>>({});
+  const preferenceKey = user && activeLeague && (!activeLeague.user_id || activeLeague.user_id === user.id)
+    ? "draftedge.trade-context." + JSON.stringify([user.id, activeLeague.platform, activeLeague.platform_league_id]) : "";
+  const useTeamContext = useSyncExternalStore(subscribePreference, () => {
+    if (!preferenceKey) return false;
+    try { return localStorage.getItem(preferenceKey) === "on" || Boolean(preferences[preferenceKey]); }
+    catch { return Boolean(preferences[preferenceKey]); }
+  }, () => false);
+  function toggleTeamContext(enabled: boolean) {
+    if (!preferenceKey) return;
+    try {
+      if (enabled) localStorage.setItem(preferenceKey, "on");
+      else localStorage.removeItem(preferenceKey);
+      setPreferences({});
+      window.dispatchEvent(new Event("draftedge:trade-preference"));
+    } catch {
+      setPreferences(previous => ({ ...previous, [preferenceKey]: enabled }));
+    }
+  }
 
   const scoring = activeLeague ? toScoringFormat(activeLeague.scoring_format) : league?.scoring ?? "ppr";
   const teamCount = activeLeague?.total_teams ?? league?.teamCount ?? 12;
@@ -102,7 +90,6 @@ export default function TradePage() {
   const [sideA, setSideA] = useState<string[]>([]);
   const [sideB, setSideB] = useState<string[]>([]);
   const [unresolvedIds, setUnresolvedIds] = useState<string[]>([]);
-  const [selectedMyTeamId, setSelectedMyTeamId] = useState("");
   const [selectedPartnerId, setSelectedPartnerId] = useState("");
   const [fcEntries, setFcEntries] = useState<FantasyCalcEntry[]>([]);
   const initialized = useRef(false);
@@ -130,10 +117,6 @@ export default function TradePage() {
         const lg = await fetchLeague(user.id);
         if (cancelled) return;
         setLeague(lg);
-        if (lg) {
-          const ds = await fetchDraftState(lg.id);
-          if (!cancelled) setDraftState(ds);
-        }
       } catch {
         // ignore
       }
@@ -226,14 +209,25 @@ export default function TradePage() {
 
   const aPlayers = sideA.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
   const bPlayers = sideB.map((id) => playersById.get(id)).filter((p): p is Player => Boolean(p));
-  const importedRosters = activeLeague?.rosters ?? [];
-  const mySyncedRoster = importedRosters.find((roster) => roster.is_user);
-  const myTeamRoster = importedRosters.find((roster) => roster.owner_id === selectedMyTeamId) ?? mySyncedRoster;
-  const partnerOptions = importedRosters.filter((roster) => !roster.is_user && roster.owner_id && roster.owner_id !== myTeamRoster?.owner_id);
-  const partnerRoster = partnerOptions.find((roster) => roster.owner_id === selectedPartnerId) ?? partnerOptions[0];
-  const resolveSleeperIds = (ids: string[]) => resolveSleeperPlayerIds(players, ids).map((id) => playersById.get(id)).filter((player): player is Player => Boolean(player));
-  const myTeamPlayers = resolveSleeperIds(myTeamRoster?.players ?? []);
-  const partnerPlayers = resolveSleeperIds(partnerRoster?.players ?? []);
+  const teamData = useMemo(() => {
+    if (!useTeamContext || !activeLeague) return null;
+    const resolve = (ids: string[]) => [...new Set(resolveSleeperPlayerIds(players, ids))]
+      .map(id => playersById.get(id)).filter((p): p is Player => Boolean(p));
+    const rosters = activeLeague.rosters ?? [];
+    const mine = rosters.find(r => r.is_user);
+    const slots = rosterFromPositions(activeLeague.roster_positions);
+    const myPlayers = resolve(mine?.players ?? []);
+    const partners = rosters.flatMap(r => !r.is_user && r.owner_id
+      ? [{ id: r.owner_id, name: r.team_name, players: resolve(r.players ?? []) }] : []);
+    const validSlots = Object.entries(slots).some(([key, count]) => key !== "bench" && count > 0);
+    return { mine, myPlayers, partners, slots, validSlots, suggestions: validSlots
+      ? suggestTrades(myPlayers, partners, slots, values, currentWeek) : [] };
+  }, [useTeamContext, activeLeague, players, playersById, values, currentWeek]);
+  const myTeamPlayers = teamData?.myPlayers ?? [];
+  const partnerRoster = teamData?.partners.find(r => r.id === selectedPartnerId) ?? teamData?.partners[0];
+  const partnerPlayers = partnerRoster?.players ?? [];
+  const impact = teamData?.validSlots
+    ? starterImpact(myTeamPlayers, aPlayers, bPlayers, teamData.slots, currentWeek) : null;
 
   const toggleSyncedPlayer = (tradeSide: Side, player: Player) => {
     const current = tradeSide === "A" ? sideA : sideB;
@@ -245,49 +239,6 @@ export default function TradePage() {
       setter((previous) => previous.includes(player.id) ? previous : [...previous, player.id]);
     }
   };
-
-  const myPicks = useMemo(
-    () => (draftState?.picks ?? []).filter((p) => p.owner === "me"),
-    [draftState]
-  );
-
-  const myPlayerIds = useMemo(() => new Set(myPicks.map((p) => p.playerId)), [myPicks]);
-
-  const myRosterPlayers = useMemo(
-    () =>
-      myPicks
-        .map((pick) => playersById.get(pick.playerId))
-        .filter((p): p is Player => Boolean(p))
-        .sort((a, b) => b.projection - a.projection),
-    [myPicks, playersById]
-  );
-
-  const currentRoster = useMemo(
-    () => (league ? buildRoster(myPicks, playersById, league.roster) : []),
-    [league, myPicks, playersById]
-  );
-
-  const afterRoster = useMemo(() => {
-    if (!league) return [];
-    const kept = myPicks.filter((p) => !sideB.includes(p.playerId));
-    const keptIds = new Set(kept.map((p) => p.playerId));
-    const added: DraftPick[] = aPlayers
-      .filter((p) => !keptIds.has(p.id))
-      .map((p, i) => ({ playerId: p.id, pickNumber: 100000 + i, round: 0, owner: "me", timestamp: 0 }));
-    return buildRoster([...kept, ...added], playersById, league.roster);
-  }, [league, myPicks, aPlayers, sideB, playersById]);
-
-  const currentSnap = useMemo(
-    () => (league ? snapshotRoster(currentRoster, playersById, league.roster) : null),
-    [league, currentRoster, playersById]
-  );
-
-  const afterSnap = useMemo(
-    () => (league ? snapshotRoster(afterRoster, playersById, league.roster) : null),
-    [league, afterRoster, playersById]
-  );
-
-  const deltaProj = (afterSnap?.starterProj ?? 0) - (currentSnap?.starterProj ?? 0);
 
   const valueOf = (id: string) => values.get(id) ?? 0;
   const aValue = packageTradeValue(aPlayers.map(p => valueOf(p.id)), bPlayers.length);
@@ -308,9 +259,6 @@ export default function TradePage() {
   // unresolved share-link players keep the grade withheld.
   const tradeComplete = aPlayers.length > 0 && bPlayers.length > 0 && unresolvedIds.length === 0;
   const grade = gradeTrade(net, total, tradeComplete);
-  const fitGroups: readonly string[] =
-    (league?.roster.superflex ?? 0) > 0 ? [...GROUPS, "SUPERFLEX"] : GROUPS;
-
   const add = (side: Side, player: Player) => {
     if (excluded.has(player.id)) return;
     const setter = side === "A" ? setSideA : setSideB;
@@ -338,7 +286,7 @@ export default function TradePage() {
     return qs ? `${base}?${qs}` : base;
   };
 
-  const sideProps = { players, excluded, values, contexts, fcEntryMap, fcValueOf, myPlayerIds, myRosterPlayers, add, remove };
+  const sideProps = { players, excluded, values, contexts, fcEntryMap, fcValueOf, myPlayerIds: new Set(myTeamPlayers.map(p => p.id)), myRosterPlayers: myTeamPlayers, add, remove };
 
   if (loading || !user) {
     return <ToolLoadingState title="Fantasy Football Trade Analyzer" description="Compare fantasy football trade packages by player value, rest-of-season projections, roster fit, and matchup context." />;
@@ -359,6 +307,16 @@ export default function TradePage() {
               Compare both sides by trade value and get an instant grade.
             </p>
           </div>
+        </div>
+        <div className="flex flex-col gap-1 text-xs">
+          <label className="flex items-center gap-2 text-sm font-semibold text-white">
+            <input type="checkbox" role="switch" checked={useTeamContext} disabled={!preferenceKey}
+              onChange={event => toggleTeamContext(event.target.checked)}
+              className="h-4 w-4 accent-emerald-500" />
+            Factor in my team
+          </label>
+          {activeLeague ? <span className="text-zinc-400">{activeLeague.league_name}</span>
+            : <Link className="text-emerald-400 underline" href="/leagues">Sync a league to unlock</Link>}
         </div>
         {tradeComplete && (
           <ShareButtons
@@ -390,7 +348,7 @@ export default function TradePage() {
         </div>
       )}
 
-      {activeLeague && (
+      {teamData && (
         <section className="mb-5 rounded-2xl border border-white/[0.08] bg-[#0D1412] p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div><h2 className="text-sm font-semibold text-white">League Trade Builder</h2><p className="mt-1 text-xs text-zinc-500">Choose individual roster players to add to each trade package.</p></div>
@@ -399,9 +357,7 @@ export default function TradePage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="min-w-0">
               <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Side A · Your Team · Adds to You Give Up</label>
-              <select aria-label="Side A your team" value={myTeamRoster?.owner_id ?? ""} onChange={(event) => setSelectedMyTeamId(event.target.value)} className="mb-2 w-full rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs text-zinc-200">
-                {importedRosters.map((roster) => <option key={roster.owner_id} value={roster.owner_id ?? ""}>{roster.is_user ? `${roster.team_name} (You)` : roster.team_name}</option>)}
-              </select>
+              <p className="mb-2 text-xs text-zinc-200">{teamData.mine?.team_name ?? "Your synced team"}</p>
               <div className="max-h-72 divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/[0.08] bg-[#080E0C]">
                 {myTeamPlayers.map((player) => {
                   const added = sideB.includes(player.id);
@@ -417,8 +373,8 @@ export default function TradePage() {
             </div>
             <div className="min-w-0">
               <label htmlFor="trade-partner-roster" className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Side B · Trading Partner · Adds to You Receive</label>
-              <select id="trade-partner-roster" aria-label="Side B trading partner" value={partnerRoster?.owner_id ?? ""} onChange={(event) => setSelectedPartnerId(event.target.value)} className="mb-2 w-full rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs text-zinc-200">
-                {partnerOptions.map((roster) => <option key={roster.owner_id} value={roster.owner_id ?? ""}>{roster.team_name}</option>)}
+              <select id="trade-partner-roster" aria-label="Side B trading partner" value={partnerRoster?.id ?? ""} onChange={(event) => setSelectedPartnerId(event.target.value)} className="mb-2 w-full rounded-lg border border-white/[0.1] bg-[#080E0C] px-3 py-2 text-xs text-zinc-200">
+                {teamData.partners.map((roster) => <option key={roster.id} value={roster.id}>{roster.name}</option>)}
               </select>
               <div className="max-h-72 divide-y divide-white/[0.06] overflow-y-auto rounded-xl border border-white/[0.08] bg-[#080E0C]">
                 {partnerPlayers.map((player) => {
@@ -433,6 +389,17 @@ export default function TradePage() {
                 {partnerPlayers.length === 0 && <p className="px-3 py-4 text-xs text-zinc-500">Choose a partner with matched roster players.</p>}
               </div>
             </div>
+          </div>
+          <div className="mt-4 border-t border-white/[0.08] pt-4">
+            <h3 className="text-sm font-semibold">Suggested trades</h3>
+            {teamData.suggestions.map(({ partner, receive, send, gain }) => (
+              <button key={receive.id} type="button" onClick={() => {
+                setSelectedPartnerId(partner.id); setSideA([receive.id]); setSideB([send.id]); setUnresolvedIds([]);
+              }} className="mt-2 block w-full rounded-lg border border-white/10 p-3 text-left text-xs hover:border-emerald-500">
+                Receive {receive.name} from {partner.name} for {send.name} · +{gain.delta.toFixed(1)} pts/wk
+              </button>
+            ))}
+            {!teamData.suggestions.length && <p className="mt-1 text-xs text-zinc-400">No lineup-improving swaps found among the matched rosters.</p>}
           </div>
         </section>
       )}
@@ -454,6 +421,14 @@ export default function TradePage() {
           {tradeComplete && (
             <div className={`mt-6 rounded-2xl border p-6 ${grade.ring}`}>
               <TradeVerdictSummary grade={grade} count={aPlayers.length + bPlayers.length} aValue={aValue} bValue={bValue} />
+
+              {teamData && <div className="mt-4 rounded-lg border border-white/10 p-3 text-sm">
+                <h3 className="font-semibold">Weekly Starter Impact</h3>
+                {impact ? <p className="mt-1 text-zinc-300"><span className="font-mono">{impact.delta > 0 ? "+" : ""}{impact.delta.toFixed(1)} pts/wk</span>
+                  {impact.slot && ` · ${impact.delta > 0 ? "Upgrades" : "Downgrades"} ${impact.slot}`}
+                  {" · Team verdict: "}{teamVerdict(net, total, impact.delta)}</p>
+                : <p className="text-xs text-zinc-400">Requires synced lineup slots, outgoing players from your roster, and incoming players outside it.</p>}
+              </div>}
 
               <div className="mt-5 grid gap-3 border-t border-white/[0.08] pt-4 sm:grid-cols-2">
                 {([["You receive", aPlayers, aValue, aProj], ["You give up", bPlayers, bValue, bProj]] as const).map(([label, list, value, ros]) => {
@@ -510,110 +485,6 @@ export default function TradePage() {
             </div>
           )}
 
-          {/* Roster fit */}
-          {league && myPicks.length > 0 && (aPlayers.length > 0 || bPlayers.length > 0) && currentSnap && afterSnap && (
-            <div className="glass-strong mt-6 rounded-2xl p-6">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Roster Fit</h2>
-                <span className="truncate text-xs text-zinc-500">{league.name}</span>
-              </div>
-              <p className="mt-1 text-xs text-zinc-500">How this trade reshapes your starting lineup.</p>
-
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {fitGroups.map((g) => {
-                  const before = currentSnap.counts[g] ?? 0;
-                  const after = afterSnap.counts[g] ?? 0;
-                  const delta = after - before;
-                  return (
-                    <div key={g} className="rounded-lg bg-zinc-900/60 px-3 py-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{g}</span>
-                      <p className="mt-0.5 text-sm font-semibold text-zinc-200">
-                        {before} <span className="text-zinc-500">→</span> {after}
-                        {delta !== 0 && (
-                          <span
-                            className={`ml-1.5 text-xs font-bold ${delta > 0 ? "text-emerald-300" : "text-rose-300"}`}
-                          >
-                            {delta > 0 ? "+" : ""}
-                            {delta}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {bPlayers.length > 0 && (
-                <div className="mt-4 border-t border-zinc-800 pt-3">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                    Leaving your roster
-                  </span>
-                  <div className="mt-2 space-y-1.5">
-                    {bPlayers.map((p) => {
-                      const owned = myPlayerIds.has(p.id);
-                      return (
-                        <div
-                          key={p.id}
-                          className={`flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-sm ${
-                            owned
-                              ? "bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/30"
-                              : "bg-zinc-900/60 opacity-60"
-                          }`}
-                        >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className={`truncate font-semibold ${owned ? "text-emerald-200" : "text-zinc-400"}`}>
-                              {p.name}
-                            </span>
-                            <PosBadge position={p.position} size="xs" />
-                          </div>
-                          {owned ? (
-                            <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                              On your roster
-                            </span>
-                          ) : (
-                            <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                              Not drafted
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                  Starters projection
-                </span>
-                <p className="font-tech text-sm font-semibold text-zinc-200">
-                  {currentSnap.starterProj.toFixed(1)}
-                  <span className="text-zinc-500"> → </span>
-                  {afterSnap.starterProj.toFixed(1)}
-                  <span
-                    className={`font-tech ml-1.5 text-xs font-bold ${deltaProj >= 0 ? "text-emerald-300" : "text-rose-300"}`}
-                  >
-                    {deltaProj >= 0 ? "+" : ""}
-                    {deltaProj.toFixed(1)}
-                  </span>
-                </p>
-              </div>
-
-              {afterSnap.missing.length > 0 ? (
-                <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300">
-                  Missing starters: {afterSnap.missing.join(", ")}
-                </p>
-              ) : (
-                <p className="mt-3 text-xs font-medium text-emerald-300/80">All starting slots filled.</p>
-              )}
-            </div>
-          )}
-
-          {league && myPicks.length === 0 && (aPlayers.length > 0 || bPlayers.length > 0) && (
-            <div className="glass-strong mt-6 rounded-2xl p-5 text-center text-xs text-zinc-500">
-              Draft your team in {league.name} to see how a trade fits your roster.
-            </div>
-          )}
         </>
       )}
     </AppShell>

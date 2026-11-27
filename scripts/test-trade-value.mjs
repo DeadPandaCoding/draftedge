@@ -51,3 +51,19 @@ const qb = [...players].filter(p => p.position === "QB").sort((a,b) => b.project
 const superflex = buildTradeValues(players, 12, undefined, { ...DEFAULT_ROSTER, superflex: 1 }, contexts);
 assert(superflex.get(qb.id) >= values.get(qb.id));
 console.log("Passed trade spread, ROS horizon, package, grade, roster, and seed parity checks.");
+
+const { optimalStarters, starterImpact, suggestTrades, teamVerdict } = await import("../lib/trade-recommendations.ts");
+const slots = { qb: 1, rb: 1, wr: 0, te: 0, flex: 1, superflex: 1, k: 0, def: 0 };
+const player = (id, position, weekProjection) => ({ id, position, weekProjection, bye: 9 });
+const mine = [player("qb1", "QB", 22), player("qb2", "QB", 20), player("rb1", "RB", 12), player("wr1", "WR", 15), player("wr2", "WR", 11)];
+const target = player("rb2", "RB", 15.6);
+const rosterValues = new Map([...mine, target].map(p => [p.id, 50]));
+assert.deepEqual([...optimalStarters(mine, slots, 8).values()], [22, 12, 15, 20]);
+assert.deepEqual(starterImpact(mine, [target], [mine[4]], slots, 8), { delta: 3.6, slot: "RB1" });
+assert.equal(starterImpact(mine, [target], [target], slots, 8), null);
+assert.equal(gradeTrade(0, 100).label, "Fair trade");
+assert.equal(teamVerdict(0, 100, 3.6), "Slight edge");
+assert.deepEqual(suggestTrades(mine, [{ id: "empty", name: "Empty", players: [] }], slots, rosterValues, 8), []);
+const partner = { id: "p", name: "Partner", players: [target, player("rb3", "RB", 18), player("rb4", "RB", 19), player("qb3", "QB", 23), player("qb4", "QB", 21)] };
+assert.ok(suggestTrades(mine, [partner], slots, rosterValues, 8).some(s => s.receive.id === target.id));
+console.log("Passed weekly starter, team verdict, and suggestion checks.");
